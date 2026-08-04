@@ -97,29 +97,6 @@ async function login() {
   renderMainPage();
 }
 
-// 登录
-async function login() {
-  const username = document.getElementById("username").value.trim();
-  const password = document.getElementById("pwd").value;
-  const msgBox = document.getElementById("msg");
-  const pwdMd5 = md5(password);
-
-  const {data,error} = await supabase
-    .from("shop_account")
-    .select("*")
-    .eq("username",username)
-    .eq("password",pwdMd5)
-    .single();
-
-  if(error || !data){
-    msgBox.innerText = "账号或密码错误";
-    return;
-  }
-  currentAccount = data;
-  localStorage.setItem("shop_account",JSON.stringify(currentAccount));
-  renderMainPage();
-}
-
 // 主页面：课程列表 + 考试入口
 async function renderMainPage() {
   const levelName = {1:"入门商家",2:"进阶商家",3:"资深商家",4:"精英商家"}[currentAccount.level];
