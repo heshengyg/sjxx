@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>松鼠逛逛 · 商家学堂</title>
-    <!-- 使用干净现代的样式，适配移动端 -->
     <style>
         * {
             margin: 0;
@@ -237,7 +236,8 @@
     const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_qnadIPVLPkAgIe5w_aR0lg_zy7VnqPC'; // 替换为你真实的anon key
 
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // 使用唯一的变量名，避免与 window.supabase 冲突
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // ========== 等级定义 ==========
     const LEVELS = [
@@ -247,7 +247,6 @@
         { id: 'elite', label: '精英商家', stages: [6], quizPass: 90, next: null }
     ];
 
-    // 阶段描述 (简化)
     const STAGE_INFO = {
         1: { title: '第一阶段：认知破局', desc: '传统实体经营困境深度解析' },
         2: { title: '第二阶段：方向定位', desc: '社区商家专属新零售突破路径' },
@@ -258,7 +257,6 @@
     };
 
     // ========== 题库（按阶段） ==========
-    // 只包含部分典型题目，用于演示；可扩展
     const QUIZ_DB = {
         1: {
             questions: [
@@ -302,9 +300,9 @@
     };
 
     // 当前用户状态
-    let currentUser = null;      // { id, phone, name, level, completed_stages, quiz_results, created_at }
+    let currentUser = null;
     let currentLevelObj = null;
-    let quizAnswers = [];       // 存储当前测验选择
+    let quizAnswers = [];
 
     // DOM 引用
     const authCard = document.getElementById('authCard');
@@ -328,9 +326,8 @@
     const quizResult = document.getElementById('quizResult');
     const refreshBtn = document.getElementById('refreshBtn');
 
-    // ========== 辅助 ==========
+    // ========== 辅助函数 ==========
     function getLevelFromStages(stages) {
-        // 根据已完成阶段推断等级
         if (!stages || stages.length === 0) return LEVELS[0];
         const maxStage = Math.max(...stages);
         if (maxStage >= 6) return LEVELS[3];
@@ -354,7 +351,6 @@
         return QUIZ_DB[stage] || null;
     }
 
-    // 渲染测验
     function renderQuiz(stage) {
         const quiz = getQuizForStage(stage);
         quizContainer.innerHTML = '';
@@ -375,52 +371,28 @@
             div.innerHTML = `<strong>${idx+1}.</strong> ${item.q}<br><span style="font-size:13px; color:#3d5a73;">${item.options.join(' ｜ ')}</span>`;
             div.addEventListener('click', function(e) {
                 if (this.classList.contains('disabled-click')) return;
-                const i = parseInt(this.dataset.idx);
-                // 选择模式：点击选项即选择（简单交互）
                 const parent = this.parentNode;
-                const siblings = parent.querySelectorAll('.option');
-                siblings.forEach((el, index) => {
-                    if (index === i) {
-                        el.classList.toggle('selected');
-                        // 更新答案：如果选中，则存储选项索引0/1/2等，但我们只存选中状态，但需要用选择的值；这里简化：针对该题，如果选中则记录为0，但我们用多选方式：实际用点击即选中。
-                        // 更合理：点击选项时，若未选中则选中，并记录答案索引为0；但题目选项长度不一。
-                        // 简易处理：采用点击选项选中，但需记录选择的选项文本，后续比对答案。
-                        // 这里因为要演示，我们用更可靠方式: 点击选项时，记录当前选中的选项索引(基于DOM位置)
-                        const optIndex = Array.from(parent.children).indexOf(el);
-                        // 但children包含所有option，可能有多个，我们用更稳定的方式：
-                        const allOpts = parent.querySelectorAll('.option');
-                        const currentIdx = Array.from(allOpts).indexOf(el);
-                        // 记录答案
-                        if (el.classList.contains('selected')) {
-                            // 选中
-                            quizAnswers[i] = currentIdx;
-                        } else {
-                            quizAnswers[i] = null;
+                const allOpts = parent.querySelectorAll('.option');
+                const currentIdx = Array.from(allOpts).indexOf(this);
+                // 如果当前已经选中则取消选中，否则选中并取消同组其他
+                if (this.classList.contains('selected')) {
+                    this.classList.remove('selected');
+                    quizAnswers[idx] = null;
+                } else {
+                    allOpts.forEach((opt, j) => {
+                        if (j !== currentIdx) {
+                            opt.classList.remove('selected');
+                            if (quizAnswers[idx] === j) quizAnswers[idx] = null;
                         }
-                        // 取消其他选中
-                        allOpts.forEach((opt, j) => {
-                            if (j !== currentIdx) {
-                                opt.classList.remove('selected');
-                                // 但可能之前有选中的，需要重置；但quizAnswers要重置
-                                if (quizAnswers[i] === j) quizAnswers[i] = null;
-                            }
-                        });
-                        // 再次确保当前选中状态
-                        if (el.classList.contains('selected')) {
-                            quizAnswers[i] = currentIdx;
-                        } else {
-                            quizAnswers[i] = null;
-                        }
-                        // 如果没有选中，则为null
-                    }
-                });
-                // 更新选中的答案
+                    });
+                    this.classList.add('selected');
+                    quizAnswers[idx] = currentIdx;
+                }
             });
             quizContainer.appendChild(div);
         });
     }
 
-    // 更新仪表盘
     function updateDashboard(user) {
         if (!user) return;
         currentUser = user;
@@ -435,7 +407,6 @@
         stageTitle.textContent = `📘 ${stageInfo.title}`;
         stageDesc.textContent = stageInfo.desc;
 
-        // 进度
         const totalStages = 6;
         const done = Math.min(stages.length, totalStages);
         const pct = Math.round((done / totalStages) * 100);
@@ -445,31 +416,28 @@
         const nextLevel = level.next ? getLevelById(level.next) : null;
         nextLevelLabel.textContent = nextLevel ? `下一等级：${nextLevel.label}` : '🏆 已达最高等级';
 
-        // 状态
         const stageStatus = (currentStage > 6) ? '已完成全部阶段' : `当前阶段：${currentStage}`;
         statusText.textContent = `📖 ${stageStatus} · 等级 ${level.label}`;
 
-        // 渲染测验
         if (currentStage <= 6) {
             renderQuiz(currentStage);
+            submitQuizBtn.style.display = 'block';
         } else {
             quizContainer.innerHTML = '<div style="padding:12px 0;">🎉 全部阶段完成！保持运营，持续精进。</div>';
             submitQuizBtn.style.display = 'none';
         }
-        // 学习消息隐藏
         learnMsg.classList.add('hidden');
         quizResult.classList.add('hidden');
     }
 
-    // 登录/注册
+    // ========== 认证 ==========
     async function handleAuth() {
         const phone = phoneInput.value.trim();
         const name = nameInput.value.trim();
         if (!phone) { authMsg.classList.remove('hidden'); authMsg.textContent = '请输入手机号'; return; }
         authMsg.classList.add('hidden');
         try {
-            // 查询是否已存在
-            let { data: existing, error } = await supabase
+            let { data: existing, error } = await supabaseClient
                 .from('merchants')
                 .select('*')
                 .eq('phone', phone)
@@ -478,7 +446,6 @@
             if (error && error.code !== 'PGRST116') throw error;
 
             if (existing) {
-                // 登录
                 currentUser = existing;
                 authCard.classList.add('hidden');
                 dashboard.classList.remove('hidden');
@@ -486,7 +453,6 @@
                 authMsg.textContent = `欢迎回来，${existing.name}`;
                 authMsg.classList.remove('hidden');
             } else {
-                // 注册
                 if (!name) { authMsg.classList.remove('hidden'); authMsg.textContent = '请填写店铺名称'; return; }
                 const newUser = {
                     phone,
@@ -496,7 +462,7 @@
                     quiz_results: {},
                     created_at: new Date().toISOString()
                 };
-                const { data: inserted, error: insertErr } = await supabase
+                const { data: inserted, error: insertErr } = await supabaseClient
                     .from('merchants')
                     .insert([newUser])
                     .select()
@@ -516,7 +482,7 @@
         }
     }
 
-    // 标记学习
+    // ========== 标记学习 ==========
     async function markLearn() {
         if (!currentUser) return;
         const stages = currentUser.completed_stages || [];
@@ -527,20 +493,17 @@
             learnMsg.textContent = '⚠️ 本章已学习，可继续下一阶段';
             return;
         }
-        // 更新数据库
         const newStages = [...stages, currentStage];
         try {
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('merchants')
                 .update({ completed_stages: newStages })
                 .eq('id', currentUser.id);
             if (error) throw error;
             currentUser.completed_stages = newStages;
-            // 重新计算等级
             const newLevel = getLevelFromStages(newStages);
             if (newLevel.id !== currentUser.level) {
-                // 升级
-                await supabase.from('merchants').update({ level: newLevel.id }).eq('id', currentUser.id);
+                await supabaseClient.from('merchants').update({ level: newLevel.id }).eq('id', currentUser.id);
                 currentUser.level = newLevel.id;
                 learnMsg.classList.remove('hidden');
                 learnMsg.textContent = `🎊 恭喜升级为 ${newLevel.label}！`;
@@ -555,7 +518,7 @@
         }
     }
 
-    // 提交考核
+    // ========== 提交考核 ==========
     async function submitQuiz() {
         if (!currentUser) return;
         const stages = currentUser.completed_stages || [];
@@ -564,7 +527,6 @@
         const quiz = getQuizForStage(currentStage);
         if (!quiz) { quizResult.classList.remove('hidden'); quizResult.textContent = '本阶段无考核，无需提交。'; return; }
 
-        // 检查是否所有题目已选
         const unanswered = quizAnswers.some(a => a === null || a === undefined);
         if (unanswered) {
             quizResult.classList.remove('hidden');
@@ -572,7 +534,6 @@
             return;
         }
 
-        // 计算正确数
         let correct = 0;
         quiz.questions.forEach((q, idx) => {
             if (quizAnswers[idx] === q.answer) correct++;
@@ -582,23 +543,19 @@
         const passThreshold = level.quizPass || 80;
         const passed = passRate >= passThreshold;
 
-        // 保存考核结果
         const results = currentUser.quiz_results || {};
         results[`stage_${currentStage}`] = { correct, total: quiz.questions.length, passRate, passed, date: new Date().toISOString() };
         try {
-            await supabase.from('merchants').update({ quiz_results: results }).eq('id', currentUser.id);
+            await supabaseClient.from('merchants').update({ quiz_results: results }).eq('id', currentUser.id);
             currentUser.quiz_results = results;
 
-            // 若通过且当前阶段已完成学习，自动晋级下一等级
             if (passed && stages.includes(currentStage)) {
-                // 可能已经晋级，但检查是否可晋级到下一级
                 const nextLevel = level.next ? getLevelById(level.next) : null;
                 if (nextLevel) {
-                    // 判断该等级要求的阶段是否已全部完成
                     const requiredStages = nextLevel.stages || [];
                     const allDone = requiredStages.every(s => stages.includes(s));
                     if (allDone) {
-                        await supabase.from('merchants').update({ level: nextLevel.id }).eq('id', currentUser.id);
+                        await supabaseClient.from('merchants').update({ level: nextLevel.id }).eq('id', currentUser.id);
                         currentUser.level = nextLevel.id;
                         quizResult.classList.remove('hidden');
                         quizResult.textContent = `🎉 考核通过 (${passRate}%)，自动晋级 ${nextLevel.label}！`;
@@ -612,7 +569,6 @@
                 quizResult.classList.remove('hidden');
                 quizResult.textContent = `📘 考核 ${passed ? '通过' : '未通过'} (${passRate}%，需≥${passThreshold}%)，请复习后重试。`;
             }
-            // 刷新显示
             updateDashboard(currentUser);
         } catch (e) {
             quizResult.classList.remove('hidden');
@@ -620,11 +576,11 @@
         }
     }
 
-    // 刷新
+    // ========== 刷新 ==========
     async function refreshUser() {
         if (!currentUser) return;
         try {
-            const { data, error } = await supabase.from('merchants').select('*').eq('id', currentUser.id).single();
+            const { data, error } = await supabaseClient.from('merchants').select('*').eq('id', currentUser.id).single();
             if (error) throw error;
             currentUser = data;
             updateDashboard(currentUser);
@@ -639,11 +595,10 @@
     submitQuizBtn.addEventListener('click', submitQuiz);
     refreshBtn.addEventListener('click', refreshUser);
 
-    // 快捷回车
     phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
     nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 
-    console.log('🐿️ 松鼠逛逛商家学堂已启动');
+    console.log('🐿️ 松鼠逛逛商家学堂已启动 (supabaseClient)');
 </script>
 </body>
 </html>
