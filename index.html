@@ -169,6 +169,19 @@
         }
         .hidden { display: none; }
         .flex { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        input {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 40px;
+            border: 1px solid #dce3eb;
+            font-size: 15px;
+            margin-bottom: 12px;
+            outline: none;
+            transition: border 0.2s;
+        }
+        input:focus {
+            border-color: #1f7b4d;
+        }
     </style>
 </head>
 <body>
@@ -182,8 +195,9 @@
     <!-- 注册/登录卡片 -->
     <div id="authCard" class="card">
         <div style="font-weight:600; margin-bottom:12px;">商家身份</div>
-        <input id="phoneInput" type="text" placeholder="手机号 (注册/登录)" style="width:100%; padding:14px 16px; border-radius:40px; border:1px solid #dce3eb; font-size:15px; margin-bottom:12px;" />
-        <input id="nameInput" type="text" placeholder="店铺名称 (首次注册)" style="width:100%; padding:14px 16px; border-radius:40px; border:1px solid #dce3eb; font-size:15px; margin-bottom:12px;" />
+        <input id="phoneInput" type="text" placeholder="手机号 (注册/登录)" />
+        <input id="passwordInput" type="password" placeholder="密码 (6位以上)" />
+        <input id="nameInput" type="text" placeholder="店铺名称 (首次注册时填写)" />
         <button id="authBtn" class="btn">注册 / 登录</button>
         <div id="authMsg" class="msg hidden"></div>
     </div>
@@ -229,15 +243,20 @@
     </div>
 </div>
 
-<!-- Supabase SDK -->
+<!-- Supabase SDK + CryptoJS (SHA-256) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <script>
     // ========== 配置 ==========
     const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_qnadIPVLPkAgIe5w_aR0lg_zy7VnqPC'; // 替换为你真实的anon key
+    const SUPABASE_ANON_KEY = 'sb_publishable_qnadIPVLPkAgIe5w_aR0lg_zy7VnqPC';
 
-    // 使用唯一的变量名，避免与 window.supabase 冲突
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ========== 哈希函数 ==========
+    function hashPassword(password) {
+        return CryptoJS.SHA256(password).toString();
+    }
 
     // ========== 等级定义 ==========
     const LEVELS = [
@@ -256,7 +275,7 @@
         6: { title: '第六阶段：运营进阶', desc: '日常落地营销技巧 (增收必修)' }
     };
 
-    // ========== 题库（按阶段） ==========
+    // ========== 题库 ==========
     const QUIZ_DB = {
         1: {
             questions: [
@@ -308,6 +327,7 @@
     const authCard = document.getElementById('authCard');
     const dashboard = document.getElementById('dashboard');
     const phoneInput = document.getElementById('phoneInput');
+    const passwordInput = document.getElementById('passwordInput');
     const nameInput = document.getElementById('nameInput');
     const authBtn = document.getElementById('authBtn');
     const authMsg = document.getElementById('authMsg');
@@ -374,7 +394,6 @@
                 const parent = this.parentNode;
                 const allOpts = parent.querySelectorAll('.option');
                 const currentIdx = Array.from(allOpts).indexOf(this);
-                // 如果当前已经选中则取消选中，否则选中并取消同组其他
                 if (this.classList.contains('selected')) {
                     this.classList.remove('selected');
                     quizAnswers[idx] = null;
@@ -433,10 +452,16 @@
     // ========== 认证 ==========
     async function handleAuth() {
         const phone = phoneInput.value.trim();
+        const password = passwordInput.value.trim();
         const name = nameInput.value.trim();
-        if (!phone) { authMsg.classList.remove('hidden'); authMsg.textContent = '请输入手机号'; return; }
-        authMsg.classList.add('hidden');
+
+        if (!phone) { showAuthMsg('请输入手机号'); return; }
+        if (!password || password.length < 6) { showAuthMsg('密码至少6位'); return; }
+
+        const hashed = hashPassword(password);
+
         try {
+            // 查询是否已存在
             let { data: existing, error } = await supabaseClient
                 .from('merchants')
                 .select('*')
@@ -446,17 +471,23 @@
             if (error && error.code !== 'PGRST116') throw error;
 
             if (existing) {
+                // 登录验证密码
+                if (existing.password !== hashed) {
+                    showAuthMsg('❌ 密码错误，请重试');
+                    return;
+                }
                 currentUser = existing;
                 authCard.classList.add('hidden');
                 dashboard.classList.remove('hidden');
                 updateDashboard(currentUser);
-                authMsg.textContent = `欢迎回来，${existing.name}`;
-                authMsg.classList.remove('hidden');
+                showAuthMsg(`欢迎回来，${existing.name}`, false);
             } else {
-                if (!name) { authMsg.classList.remove('hidden'); authMsg.textContent = '请填写店铺名称'; return; }
+                // 注册
+                if (!name) { showAuthMsg('请填写店铺名称'); return; }
                 const newUser = {
                     phone,
                     name,
+                    password: hashed,
                     level: 'beginner',
                     completed_stages: [],
                     quiz_results: {},
@@ -472,13 +503,23 @@
                 authCard.classList.add('hidden');
                 dashboard.classList.remove('hidden');
                 updateDashboard(currentUser);
-                authMsg.textContent = `🎉 注册成功，${name}！开始学习吧。`;
-                authMsg.classList.remove('hidden');
+                showAuthMsg(`🎉 注册成功，${name}！开始学习吧。`, false);
             }
         } catch (e) {
-            authMsg.classList.remove('hidden');
-            authMsg.textContent = '❌ ' + e.message;
+            showAuthMsg('❌ ' + e.message);
             console.error(e);
+        }
+    }
+
+    function showAuthMsg(text, isError = true) {
+        authMsg.classList.remove('hidden');
+        authMsg.textContent = text;
+        if (!isError) {
+            authMsg.style.background = '#e3f3ea';
+            authMsg.style.color = '#1a4d33';
+        } else {
+            authMsg.style.background = '#f8dddd';
+            authMsg.style.color = '#8b3a3a';
         }
     }
 
@@ -595,10 +636,12 @@
     submitQuizBtn.addEventListener('click', submitQuiz);
     refreshBtn.addEventListener('click', refreshUser);
 
+    // 回车提交
     phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
+    passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
     nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 
-    console.log('🐿️ 松鼠逛逛商家学堂已启动 (supabaseClient)');
+    console.log('🐿️ 松鼠逛逛商家学堂已启动 (密码版)');
 </script>
 </body>
 </html>
