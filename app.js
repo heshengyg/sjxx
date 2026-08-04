@@ -4,7 +4,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_qnadIPVLPkAgIe5w_aR0lg_zy7VnqPC";
 // ==========================================
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
-import { md5 } from 'https://cdn.jsdelivr.net/npm/md5-js@0.0.1/+esm'
+import CryptoJS from 'https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js-esm.js'
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -59,7 +59,7 @@ async function register() {
     msgBox.innerText = "密码至少6位";
     return;
   }
-  const pwdMd5 = md5(password);
+  const pwdMd5 = CryptoJS.MD5(password).toString();
   const {data,error} = await supabase.from("shop_account").insert([{
     username,
     password:pwdMd5,
@@ -70,6 +70,29 @@ async function register() {
     return;
   }
   currentAccount = data[0];
+  localStorage.setItem("shop_account",JSON.stringify(currentAccount));
+  renderMainPage();
+}
+
+// 登录
+async function login() {
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("pwd").value;
+  const msgBox = document.getElementById("msg");
+  const pwdMd5 = CryptoJS.MD5(password).toString();
+
+  const {data,error} = await supabase
+    .from("shop_account")
+    .select("*")
+    .eq("username",username)
+    .eq("password",pwdMd5)
+    .single();
+
+  if(error || !data){
+    msgBox.innerText = "账号或密码错误";
+    return;
+  }
+  currentAccount = data;
   localStorage.setItem("shop_account",JSON.stringify(currentAccount));
   renderMainPage();
 }
