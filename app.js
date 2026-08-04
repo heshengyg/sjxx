@@ -99,16 +99,14 @@ async function login() {
 // 主页面：课程列表 + 考试入口
 async function renderMainPage() {
   const levelName = {1:"入门商家",2:"进阶商家",3:"资深商家",4:"精英商家"}[currentAccount.level];
-
   const { data: courses } = await supabase
     .from("courses")
     .select("*")
     .lte("unlock_level", currentAccount.level)
     .order("sort");
-
   const { data: exams } = await supabase.from("exams").select("*");
   const availableExams = exams.filter(e => e.target_level > currentAccount.level || currentAccount.level === 4);
-
+  
   let html = `
     <div style="max-width:800px;margin:2rem auto;padding:1rem">
       <div style="display:flex;justify-content:space-between;align-items:center">
@@ -120,22 +118,21 @@ async function renderMainPage() {
         <h3>登录账号：${currentAccount.username}</h3>
         <h3>等级：⭐${levelName} (Lv${currentAccount.level})</h3>
       </div>
-
       <h3>📚 已解锁学习课程</h3>
       <div id="courseList">
   `;
 
-(courses || []).forEach(c=>{
-  html += `
+  // 循环拼接课程，不提前关闭外层模板字符串
+  (courses || []).forEach(c=>{
+    html += `
       <div style="border:1px solid #ccc;padding:12px;margin:8px 0;border-radius:6px">
         <h4>${c.title || '暂无课程标题'}</h4>
         <div>${c.content || '暂无课程内容'}</div>
       </div>
-  `
-})
     `
-  })
+  });
 
+  // 课程区块闭合
   html += `
       </div>
       <hr>
@@ -156,7 +153,8 @@ async function renderMainPage() {
     `
   })
 
-  html += `</div></div>`
+  // 整体页面闭合
+  html += `</div></div>`;
   appDiv.innerHTML = html;
 
   document.getElementById("logout").onclick = ()=>{
@@ -164,12 +162,10 @@ async function renderMainPage() {
     currentAccount = null;
     renderLoginPage();
   }
-
   document.querySelectorAll(".startExam").forEach(btn=>{
     btn.onclick = ()=> openExam(Number(btn.dataset.examid))
   })
 }
-
 // 打开考试页面
 async function openExam(examId){
   currentExamAnswers = {};
