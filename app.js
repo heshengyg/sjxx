@@ -4,8 +4,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_qnadIPVLPkAgIe5w_aR0lg_zy7VnqPC";
 // ==========================================
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
-import CryptoJS from 'https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js-esm.js'
-
+import CryptoJS from 'https://esm.sh/crypto-js@4.2.0'
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // 全局状态
