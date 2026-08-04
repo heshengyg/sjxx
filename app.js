@@ -125,12 +125,14 @@ async function renderMainPage() {
       <div id="courseList">
   `;
 
-  courses.forEach(c=>{
-    html += `
+(courses || []).forEach(c=>{
+  html += `
       <div style="border:1px solid #ccc;padding:12px;margin:8px 0;border-radius:6px">
-        <h4>${c.title}</h4>
-        <div>${c.content}</div>
+        <h4>${c.title || '暂无课程标题'}</h4>
+        <div>${c.content || '暂无课程内容'}</div>
       </div>
+  `
+})
     `
   })
 
