@@ -284,7 +284,6 @@ body {
     text-align: center;
     margin-top: 20px;
 }
-.flex { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .modal-overlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -354,7 +353,7 @@ body {
     margin: 0 auto;
 }
 
-/* 考核题目样式 */
+/* 考核样式 */
 .quiz-item {
     background: #f8faff;
     border-radius: 16px;

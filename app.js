@@ -11,7 +11,7 @@ function hashPassword(password) {
     return CryptoJS.SHA256(password).toString();
 }
 
-// ========== 等级定义（仍保留，用于晋级逻辑） ==========
+// ========== 等级定义 ==========
 const LEVELS = [
     { id: 'beginner', label: '入门商家', stages: [1,2], quizPass: 80, next: 'advanced' },
     { id: 'advanced', label: '进阶商家', stages: [3,4], quizPass: 85, next: 'senior' },
@@ -31,8 +31,8 @@ const STAGE_INFO = {
 // ========== 状态 ==========
 let currentUser = null;
 let currentLevelObj = null;
-let quizData = {};           // 缓存当前阶段题目 { stage: [question...] }
-let questionStates = [];     // 每个题目的状态 { confirmed: false, selected: [] }
+let quizData = {};
+let questionStates = [];
 
 // ========== DOM 引用 ==========
 const authCard = document.getElementById('authCard');
@@ -161,26 +161,16 @@ async function loadQuizQuestions(stage) {
     }
 }
 
-// ========== 渲染学习内容 ==========
+// ========== 渲染学习内容（直接渲染 article_content，不处理额外字段） ==========
 function renderLearningContent(content) {
-    if (!content) {
-        stageContent.innerHTML = '<p>暂无学习内容，请联系管理员。</p>';
+    if (!content || !content.article_content) {
+        stageContent.innerHTML = '<p>📖 暂无学习内容，请联系管理员。</p>';
         return;
     }
-    let html = '';
-    if (content.video_url) {
-        html += `<video controls src="${content.video_url}" style="width:100%; border-radius:12px; margin:8px 0;"></video>`;
-    }
-    if (content.image_url) {
-        html += `<img src="${content.image_url}" alt="学习图片" style="max-width:100%; border-radius:12px; margin:8px 0;">`;
-    }
-    if (content.article_content) {
-        html += `<div>${content.article_content}</div>`;
-    }
-    stageContent.innerHTML = html || '<p>内容加载中...</p>';
+    stageContent.innerHTML = content.article_content;
 }
 
-// ========== 渲染考核题目 ==========
+// ========== 渲染考核题目（带单选/多选 + 确认/修改） ==========
 function renderQuizQuestions(questions) {
     quizContainer.innerHTML = '';
     quizResult.classList.add('hidden');
@@ -193,7 +183,6 @@ function renderQuizQuestions(questions) {
     submitQuizBtn.disabled = false;
     submitQuizBtn.style.opacity = 1;
 
-    // 初始化状态
     questionStates = questions.map(() => ({
         confirmed: false,
         selected: []
@@ -207,13 +196,11 @@ function renderQuizQuestions(questions) {
         const isMultiple = q.type === 'multiple';
         const options = q.options || [];
 
-        // 题目文本
         const qText = document.createElement('div');
         qText.className = 'q-text';
         qText.textContent = `${idx+1}. ${q.question}`;
         wrapper.appendChild(qText);
 
-        // 选项容器
         const optionsDiv = document.createElement('div');
         optionsDiv.className = 'options';
 
@@ -225,7 +212,6 @@ function renderQuizQuestions(questions) {
             input.name = `q${idx}`;
             input.value = optIdx;
             input.dataset.idx = optIdx;
-            // 初始不禁用
             input.disabled = false;
 
             const span = document.createElement('span');
@@ -235,13 +221,11 @@ function renderQuizQuestions(questions) {
             label.appendChild(span);
             optionsDiv.appendChild(label);
 
-            // 点击选项时更新状态（仅当未确认）
             input.addEventListener('change', function() {
                 if (questionStates[idx].confirmed) {
-                    this.checked = false; // 不允许修改
+                    this.checked = false;
                     return;
                 }
-                // 更新选中
                 const selected = questionStates[idx].selected;
                 if (isMultiple) {
                     if (this.checked) {
@@ -251,17 +235,14 @@ function renderQuizQuestions(questions) {
                         if (pos !== -1) selected.splice(pos, 1);
                     }
                 } else {
-                    // 单选：清除其他选项
                     if (this.checked) {
                         selected.length = 0;
                         selected.push(optIdx);
-                        // 取消同组其他选中
                         const siblings = this.closest('.options').querySelectorAll('input[type="radio"]');
                         siblings.forEach(sib => {
                             if (sib !== this) sib.checked = false;
                         });
                     } else {
-                        // 如果取消选中（一般不发生，但为了安全）
                         const pos = selected.indexOf(optIdx);
                         if (pos !== -1) selected.splice(pos, 1);
                     }
@@ -271,7 +252,6 @@ function renderQuizQuestions(questions) {
 
         wrapper.appendChild(optionsDiv);
 
-        // 确认/修改按钮
         const btnDiv = document.createElement('div');
         const confirmBtn = document.createElement('button');
         confirmBtn.className = 'confirm-btn';
@@ -282,21 +262,17 @@ function renderQuizQuestions(questions) {
             const i = parseInt(this.dataset.idx);
             const state = questionStates[i];
             if (!state.confirmed) {
-                // 确认：检查是否有选择
                 if (state.selected.length === 0) {
                     alert('请先选择一个选项');
                     return;
                 }
                 state.confirmed = true;
-                // 禁用所有选项输入
                 const item = this.closest('.quiz-item');
                 const inputs = item.querySelectorAll('input');
                 inputs.forEach(inp => inp.disabled = true);
-                // 标记样式
                 item.classList.add('confirmed');
                 this.textContent = '修改答案';
                 this.classList.add('modify');
-                // 更新状态显示
                 const badge = document.createElement('span');
                 badge.className = 'status-badge';
                 badge.textContent = '✅ 已确认';
@@ -304,7 +280,6 @@ function renderQuizQuestions(questions) {
                 if (existing) existing.remove();
                 this.parentNode.appendChild(badge);
             } else {
-                // 修改：解锁
                 state.confirmed = false;
                 const item = this.closest('.quiz-item');
                 const inputs = item.querySelectorAll('input');
@@ -335,7 +310,6 @@ async function updateDashboard(user) {
     shopNameDisplay.textContent = user.name || '商家';
     levelDisplay.textContent = level.label;
 
-    // 更新进度
     const totalStages = 6;
     const done = Math.min(stages.length, totalStages);
     const pct = Math.round((done / totalStages) * 100);
@@ -347,10 +321,11 @@ async function updateDashboard(user) {
     const stageStatus = (currentStage > 6) ? '已完成全部阶段' : `当前阶段：${currentStage}`;
     statusText.textContent = `📖 ${stageStatus} · 等级 ${level.label}`;
 
-    // 加载学习内容
     const stageInfo = STAGE_INFO[currentStage] || { title: '已完成全部阶段', desc: '恭喜！' };
     stageTitle.textContent = `📘 ${stageInfo.title}`;
     stageDesc.textContent = stageInfo.desc;
+
+    // 加载学习内容（只取 article_content）
     const content = await loadLearningContent(currentStage);
     renderLearningContent(content);
 
@@ -358,7 +333,6 @@ async function updateDashboard(user) {
     const questions = await loadQuizQuestions(currentStage);
     renderQuizQuestions(questions);
 
-    // 更新头像
     updateAvatar(user);
     avatarWrapper.classList.add('visible');
     learnMsg.classList.add('hidden');
@@ -473,7 +447,6 @@ async function submitQuiz() {
     const stages = currentUser.completed_stages || [];
     const currentStage = getCurrentStage(stages);
     if (currentStage > 6) return;
-    // 检查是否所有题目都已确认
     const allConfirmed = questionStates.every(s => s.confirmed);
     if (!allConfirmed) {
         quizResult.classList.remove('hidden');
@@ -481,7 +454,6 @@ async function submitQuiz() {
         return;
     }
 
-    // 获取当前阶段题目
     const questions = await loadQuizQuestions(currentStage);
     if (!questions || questions.length === 0) {
         quizResult.classList.remove('hidden');
@@ -492,7 +464,6 @@ async function submitQuiz() {
     let correctCount = 0;
     questions.forEach((q, idx) => {
         const selected = questionStates[idx].selected || [];
-        // 排序后比较
         const sortedSelected = [...selected].sort();
         const sortedCorrect = (q.correct_answers || []).sort();
         if (JSON.stringify(sortedSelected) === JSON.stringify(sortedCorrect)) {
@@ -506,14 +477,12 @@ async function submitQuiz() {
     const passThreshold = level.quizPass || 80;
     const passed = passRate >= passThreshold;
 
-    // 保存考核结果
     const results = currentUser.quiz_results || {};
     results[`stage_${currentStage}`] = { correct: correctCount, total, passRate, passed, date: new Date().toISOString() };
     try {
         await supabaseClient.from('merchants').update({ quiz_results: results }).eq('id', currentUser.id);
         currentUser.quiz_results = results;
 
-        // 若通过且当前阶段已完成学习，自动晋级下一等级
         if (passed && stages.includes(currentStage)) {
             const nextLevel = level.next ? getLevelById(level.next) : null;
             if (nextLevel) {
@@ -554,7 +523,7 @@ async function refreshUser() {
     }
 }
 
-// ========== 头像上传（限制50KB） ==========
+// ========== 头像上传 ==========
 let selectedFile = null;
 
 function openAvatarModal() {
@@ -701,7 +670,7 @@ function logout() {
     }
 }
 
-// ========== 下拉菜单控制 ==========
+// ========== 下拉菜单 ==========
 avatarWrapper.addEventListener('click', function(e) {
     e.stopPropagation();
     dropdownMenu.classList.toggle('open');
@@ -746,4 +715,4 @@ phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(
 passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 
-console.log('🐿️ 松鼠逛逛商家学堂 (分离版 + 动态内容)');
+console.log('🐿️ 松鼠逛逛商家学堂 (本地资源版)');
