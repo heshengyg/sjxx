@@ -6,7 +6,6 @@
     <title>松鼠逛逛 · 管理后台</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* 后台专用样式 */
         .admin-container { max-width: 1200px; margin: 0 auto; padding: 20px; }
         .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
         .admin-table { width: 100%; border-collapse: collapse; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
@@ -20,12 +19,17 @@
         .tag-elite { background: #f0d4e6; color: #7a1a5a; }
         .login-box { max-width: 400px; margin: 100px auto; }
         .hidden { display: none; }
+        .msg { background: #eef5f0; padding: 10px 14px; border-radius: 40px; color: #1a4d33; font-size: 14px; margin: 12px 0 8px; }
+        .msg.error { background: #f8dddd; color: #8b3a3a; }
+        .btn { background: #1a2e3b; color: white; font-weight: 500; font-size: 15px; padding: 14px 18px; border-radius: 60px; width: 100%; cursor: pointer; border: none; transition: 0.15s; margin-top: 6px; }
+        .btn-outline { background: transparent; border: 1.5px solid #d0d9e2; color: #1a2e3b; width: auto; padding: 8px 20px; }
+        .input-field { width: 100%; padding: 14px 16px; border-radius: 40px; border: 1px solid #dce3eb; font-size: 16px; margin-bottom: 12px; outline: none; display: block; }
     </style>
 </head>
 <body>
 <div id="adminApp">
     <div id="adminLogin" class="login-box card">
-        <h2>管理员登录</h2>
+        <h2 style="margin-bottom:16px;">🔐 管理员登录</h2>
         <input id="adminUser" class="input-field" type="text" placeholder="用户名" value="admin">
         <input id="adminPass" class="input-field" type="password" placeholder="密码">
         <button id="adminLoginBtn" class="btn">登录</button>
@@ -35,12 +39,15 @@
     <div id="adminDashboard" class="hidden admin-container">
         <div class="admin-header">
             <h1>📊 商家学习总览</h1>
-            <button id="adminLogoutBtn" class="btn btn-outline" style="width:auto;">退出</button>
+            <button id="adminLogoutBtn" class="btn btn-outline">退出</button>
         </div>
         <div id="adminContent"></div>
     </div>
 </div>
+
+<!-- 加载依赖库 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <script src="admin.js"></script>
 </body>
 </html>
