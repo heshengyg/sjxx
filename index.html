@@ -28,9 +28,9 @@
     <!-- 登录卡片 -->
     <div id="authCard" class="card">
         <div class="auth-title">商家身份</div>
-        <input id="phoneInput" class="input-field" type="text" placeholder="手机号 (注册/登录)" />
-        <input id="passwordInput" class="input-field" type="password" placeholder="密码 (6位以上)" />
-        <input id="nameInput" class="input-field" type="text" placeholder="店铺名称 (首次注册时填写)" />
+        <input id="phoneInput" class="input-field" type="text" placeholder="手机号 (注册/登录)">
+        <input id="passwordInput" class="input-field" type="password" placeholder="密码 (6位以上)">
+        <input id="nameInput" class="input-field" type="text" placeholder="店铺名称 (首次注册时填写)">
         <button id="authBtn" class="btn">注册 / 登录</button>
         <div id="authMsg" class="msg hidden"></div>
     </div>
@@ -54,7 +54,7 @@
             <select id="stageSelector"></select>
         </div>
 
-        <!-- 学习资源列表 -->
+        <!-- 学习资源 -->
         <div id="studyArea" class="card">
             <div id="stageTitle" class="stage-title">📘 第一阶段</div>
             <div id="stageDesc" class="stage-desc"></div>
@@ -62,7 +62,7 @@
             <div id="learnMsg" class="msg hidden"></div>
         </div>
 
-        <!-- 考核区 -->
+        <!-- 考核 -->
         <div class="quiz-area">
             <div class="quiz-title">📝 阶段考核</div>
             <div id="quizContainer"></div>
@@ -76,7 +76,39 @@
         <div class="footnote">系统自动考核 · 达标即晋级</div>
     </div>
 
-    <!-- 资源详情模态框 -->
+    <!-- ========== 头像模态框 ========== -->
+    <div class="modal-overlay" id="avatarModal">
+        <div class="modal-card">
+            <h3>🖼️ 更改头像</h3>
+            <div style="text-align:center; margin-bottom:12px;">
+                <div class="avatar-circle" id="modalAvatarPreview" style="width:80px; height:80px; font-size:32px; margin:0 auto;">商</div>
+            </div>
+            <label class="upload-label" for="avatarFileInput">📁 选择图片 (≤50KB)</label>
+            <input type="file" id="avatarFileInput" accept="image/*">
+            <div id="avatarModalMsg" class="msg hidden"></div>
+            <div class="btn-row">
+                <button class="btn" id="avatarSaveBtn">保存头像</button>
+                <button class="btn btn-outline" id="avatarCancelBtn">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 密码模态框 ========== -->
+    <div class="modal-overlay" id="passwordModal">
+        <div class="modal-card">
+            <h3>🔑 更改密码</h3>
+            <input type="password" id="oldPasswordInput" class="input-field" placeholder="旧密码">
+            <input type="password" id="newPasswordInput" class="input-field" placeholder="新密码 (至少6位)">
+            <input type="password" id="confirmPasswordInput" class="input-field" placeholder="确认新密码">
+            <div id="passwordModalMsg" class="msg hidden"></div>
+            <div class="btn-row">
+                <button class="btn" id="passwordSaveBtn">保存密码</button>
+                <button class="btn btn-outline" id="passwordCancelBtn">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 资源详情模态框 ========== -->
     <div class="modal-overlay" id="detailModal">
         <div class="modal-card modal-large">
             <div class="modal-header">
@@ -87,10 +119,6 @@
             <div id="detailProgress" class="progress-info"></div>
         </div>
     </div>
-
-    <!-- 头像/密码模态框（略，同前） -->
-    <div class="modal-overlay" id="avatarModal">...</div>
-    <div class="modal-overlay" id="passwordModal">...</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
