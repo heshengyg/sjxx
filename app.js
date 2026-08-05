@@ -1,5 +1,5 @@
 // =====================================================
-// app.js - 视频缩略图使用第一帧（完整版）
+// app.js - 最终稳定版（修复数据库类型、进度记忆、防拖拽、关闭暂停）
 // =====================================================
 
 const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
@@ -27,7 +27,6 @@ let activeResourceId = null;
 let currentImageResources = [];
 let currentImageIdx = 0;
 let questionStates = [];
-// 缩略图缓存
 const thumbCache = {};
 
 // DOM helpers
@@ -105,9 +104,8 @@ function updateAvatar(user) {
     }
 }
 
-// ========== 生成视频第一帧缩略图（异步） ==========
+// ========== 缩略图生成 ==========
 function generateVideoThumbnail(videoSrc, callback) {
-    // 检查缓存
     if (thumbCache[videoSrc]) {
         callback(thumbCache[videoSrc]);
         return;
@@ -118,18 +116,16 @@ function generateVideoThumbnail(videoSrc, callback) {
     video.muted = true;
     video.src = videoSrc;
     video.addEventListener('loadeddata', function() {
-        // 跳到第一帧
-        video.currentTime = 0.1; // 有些视频第一帧可能黑屏，稍微偏移
+        video.currentTime = 0.1;
         video.addEventListener('seeked', function() {
             const canvas = document.createElement('canvas');
-            canvas.width = 160;   // 缩略图宽度
-            canvas.height = 120;  // 保持比例
+            canvas.width = 160;
+            canvas.height = 120;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
             thumbCache[videoSrc] = dataUrl;
             callback(dataUrl);
-            // 释放资源
             video.src = '';
             video.load();
         });
@@ -190,23 +186,18 @@ function renderResources(stage, resources) {
         const thumb = document.createElement('div');
         thumb.className = 'thumb';
         if (r.type === 'video') {
-            // 先显示加载占位，异步生成第一帧缩略图
             thumb.textContent = '🎬';
             thumb.style.background = '#d0d9e2';
             thumb.style.display = 'flex';
             thumb.style.alignItems = 'center';
             thumb.style.justifyContent = 'center';
             thumb.style.fontSize = '32px';
-            // 异步生成缩略图
             generateVideoThumbnail(r.file, function(dataUrl) {
                 if (dataUrl) {
                     thumb.style.backgroundImage = `url(${dataUrl})`;
                     thumb.style.backgroundSize = 'cover';
                     thumb.style.backgroundPosition = 'center';
                     thumb.textContent = '';
-                } else {
-                    // 失败则保留图标
-                    console.warn('视频缩略图生成失败，保留图标:', r.file);
                 }
             });
         } else if (r.type === 'image') {
@@ -333,6 +324,9 @@ function renderQuiz(quiz) {
 }
 
 // ========== Resource Detail Modal ==========
+let currentVideoElement = null;
+let isDragging = false;
+
 function openResourceDetail(resource, allResources) {
     if (!detailModal || !detailTitle || !detailBody || !detailProgress) return;
     currentImageResources = allResources.filter(r => r.type === resource.type);
@@ -383,10 +377,33 @@ function openResourceDetail(resource, allResources) {
             }
         });
 
+        // 防拖拽：监听拖动开始/结束
+        video.addEventListener('mousedown', function(e) {
+            // 检测是否点击在进度条区域
+            const rect = video.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const progressWidth = video.offsetWidth;
+            // 判断是否在进度条区域（底部约30px）
+            if (e.clientY - rect.top > rect.height - 30) {
+                isDragging = true;
+            }
+        });
+        video.addEventListener('mouseup', function() {
+            isDragging = false;
+        });
+        video.addEventListener('touchstart', function() {
+            isDragging = true;
+        });
+        video.addEventListener('touchend', function() {
+            isDragging = false;
+        });
+
         video.addEventListener('seeking', function() {
-            if (Math.abs(video.currentTime - lastTime) > 0.5) {
+            if (isDragging) {
+                // 拖动时强制回退
                 video.currentTime = lastTime;
             }
+            // 如果是点击进度条（非拖动），isDragging为false，允许跳转
         });
 
         video.addEventListener('ended', function() {
@@ -396,6 +413,7 @@ function openResourceDetail(resource, allResources) {
         });
 
         detailBody.appendChild(video);
+        currentVideoElement = video;
         video.play();
         activeResourceId = resource.id;
     } else if (resource.type === 'image') {
@@ -435,13 +453,19 @@ function openResourceDetail(resource, allResources) {
 function closeDetailModal() {
     if (!detailModal) return;
     detailModal.classList.remove('open');
-    if (activeResourceId) {
-        const video = detailBody.querySelector('video');
-        if (video && video.duration) {
-            const pct = Math.round((video.currentTime / video.duration) * 100);
-            const pos = Math.floor(video.currentTime);
+    // 暂停视频并清理
+    if (currentVideoElement) {
+        currentVideoElement.pause();
+        // 保存当前进度
+        if (currentVideoElement.duration) {
+            const pct = Math.round((currentVideoElement.currentTime / currentVideoElement.duration) * 100);
+            const pos = Math.floor(currentVideoElement.currentTime);
             updateResourceProgress(activeResourceId, pct, pos);
         }
+        // 移除事件监听避免内存泄漏（可选）
+        currentVideoElement = null;
+    }
+    if (activeResourceId) {
         stopTimer(activeResourceId);
         activeResourceId = null;
     }
@@ -505,7 +529,7 @@ async function updateResourceProgress(resourceId, progress, position = 0) {
     if (position) progressMap[resourceId].last_position = position;
     const payload = {
         user_id: currentUser.id,
-        resource_id: resourceId,
+        resource_id: resourceId,   // 字符串类型
         progress_percent: progressMap[resourceId].progress,
         completed: progressMap[resourceId].completed || false,
         last_position: progressMap[resourceId].last_position || 0,
@@ -947,4 +971,4 @@ if (phoneInput) phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Ent
 if (passwordInput) passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 if (nameInput) nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 
-console.log('🐿️ 松鼠逛逛商家学堂 (视频缩略图第一帧)');
+console.log('🐿️ 松鼠逛逛商家学堂 (最终稳定版)');
