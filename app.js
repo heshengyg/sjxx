@@ -944,12 +944,22 @@ function logout() {
     }
 }
 
-// ========== 事件绑定 ==========
+// 在文件末尾，将所有事件绑定替换为如下（保留之前的全部逻辑，仅修改绑定方式）
+
+// ========== 安全事件绑定 ==========
+function safeAddEventListener(id, event, handler) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.addEventListener(event, handler);
+    } else {
+        console.warn(`Element #${id} not found, skip event binding.`);
+    }
+}
+
 // 阶段选择
-stageSelector.addEventListener('change', function() {
+safeAddEventListener('stageSelector', 'change', function() {
     currentViewStage = parseInt(this.value);
     if (currentUser) {
-        // 直接加载该阶段数据
         (async () => {
             const data = await loadStageData(currentViewStage);
             if (data) {
@@ -974,44 +984,45 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// 按钮事件
-authBtn.addEventListener('click', handleAuth);
-submitQuizBtn.addEventListener('click', submitQuiz);
-refreshBtn.addEventListener('click', refreshUser);
+// 按钮
+safeAddEventListener('authBtn', 'click', handleAuth);
+safeAddEventListener('submitQuizBtn', 'click', submitQuiz);
+safeAddEventListener('refreshBtn', 'click', refreshUser);
 
-changeAvatarBtn.addEventListener('click', function(e) {
+safeAddEventListener('changeAvatarBtn', 'click', function(e) {
     e.stopPropagation();
     dropdownMenu.classList.remove('open');
     openAvatarModal();
 });
-avatarCancelBtn.addEventListener('click', function() { avatarModal.classList.remove('open'); });
-avatarSaveBtn.addEventListener('click', saveAvatar);
+safeAddEventListener('avatarCancelBtn', 'click', function() { avatarModal.classList.remove('open'); });
+safeAddEventListener('avatarSaveBtn', 'click', saveAvatar);
 
-changePasswordBtn.addEventListener('click', function(e) {
+safeAddEventListener('changePasswordBtn', 'click', function(e) {
     e.stopPropagation();
     dropdownMenu.classList.remove('open');
     openPasswordModal();
 });
-passwordCancelBtn.addEventListener('click', function() { passwordModal.classList.remove('open'); });
-passwordSaveBtn.addEventListener('click', savePassword);
+safeAddEventListener('passwordCancelBtn', 'click', function() { passwordModal.classList.remove('open'); });
+safeAddEventListener('passwordSaveBtn', 'click', savePassword);
 
-logoutBtn.addEventListener('click', function(e) {
+safeAddEventListener('logoutBtn', 'click', function(e) {
     e.stopPropagation();
     dropdownMenu.classList.remove('open');
     logout();
 });
 
 // 详情模态框关闭
-if (detailCloseBtn) {
-    detailCloseBtn.addEventListener('click', closeDetailModal);
+safeAddEventListener('detailCloseBtn', 'click', closeDetailModal);
+if (detailModal) {
+    detailModal.addEventListener('click', function(e) {
+        if (e.target === this) closeDetailModal();
+    });
 }
-detailModal.addEventListener('click', function(e) {
-    if (e.target === this) closeDetailModal();
-});
 
 // 回车登录
-phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
-passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
-nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
+if (phoneInput) phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
+if (passwordInput) passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
+if (nameInput) nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 
-console.log('🐿️ 松鼠逛逛商家学堂 (JSON驱动完整版)');
+// avatarFileInput 的 change 事件（在文件顶部已定义，这里不再重复）
+console.log('🐿️ 松鼠逛逛商家学堂 (JSON驱动完整版，安全绑定)');
