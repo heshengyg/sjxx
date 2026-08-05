@@ -1,5 +1,5 @@
 // =====================================================
-// app.js - 最终稳定版（修复数据库类型、进度记忆、防拖拽、关闭暂停）
+// app.js - 终极稳定版（锁定进度条 + 实时更新 + 正确统计）
 // =====================================================
 
 const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
@@ -325,7 +325,7 @@ function renderQuiz(quiz) {
 
 // ========== Resource Detail Modal ==========
 let currentVideoElement = null;
-let isDragging = false;
+let isSeekingLock = false;
 
 function openResourceDetail(resource, allResources) {
     if (!detailModal || !detailTitle || !detailBody || !detailProgress) return;
@@ -354,14 +354,20 @@ function openResourceDetail(resource, allResources) {
         video.addEventListener('loadedmetadata', function() {
             if (savedPosition > 0 && savedPosition < video.duration) {
                 video.currentTime = savedPosition;
+                lastTime = savedPosition;
             }
+            // 立即更新进度显示
+            updateDetailProgress(resource.id);
         });
 
         let saveTimer = null;
         function updateAndSave() {
+            if (!video.duration) return;
             const pct = Math.round((video.currentTime / video.duration) * 100);
             const pos = Math.floor(video.currentTime);
             updateResourceProgress(resource.id, pct, pos);
+            // 更新模态框内的进度显示
+            updateDetailProgress(resource.id);
             if (pct >= 100) {
                 markResourceCompleted(resource.id);
             }
@@ -369,6 +375,13 @@ function openResourceDetail(resource, allResources) {
 
         video.addEventListener('timeupdate', function() {
             lastTime = video.currentTime;
+            // 实时更新进度显示
+            const pct = Math.round((video.currentTime / video.duration) * 100);
+            // 直接更新detailProgress，不等待数据库
+            if (detailProgress) {
+                detailProgress.textContent = `学习进度：${pct}%`;
+            }
+            // 每5秒保存一次
             if (!saveTimer) {
                 saveTimer = setTimeout(() => {
                     updateAndSave();
@@ -377,33 +390,15 @@ function openResourceDetail(resource, allResources) {
             }
         });
 
-        // 防拖拽：监听拖动开始/结束
-        video.addEventListener('mousedown', function(e) {
-            // 检测是否点击在进度条区域
-            const rect = video.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const progressWidth = video.offsetWidth;
-            // 判断是否在进度条区域（底部约30px）
-            if (e.clientY - rect.top > rect.height - 30) {
-                isDragging = true;
-            }
-        });
-        video.addEventListener('mouseup', function() {
-            isDragging = false;
-        });
-        video.addEventListener('touchstart', function() {
-            isDragging = true;
-        });
-        video.addEventListener('touchend', function() {
-            isDragging = false;
-        });
-
+        // 完全锁定进度条：禁止任何跳转（拖拽或点击）
         video.addEventListener('seeking', function() {
-            if (isDragging) {
-                // 拖动时强制回退
+            if (isSeekingLock) return;
+            // 如果当前时间与lastTime差超过0.5秒，强制回退
+            if (Math.abs(video.currentTime - lastTime) > 0.5) {
+                isSeekingLock = true;
                 video.currentTime = lastTime;
+                isSeekingLock = false;
             }
-            // 如果是点击进度条（非拖动），isDragging为false，允许跳转
         });
 
         video.addEventListener('ended', function() {
@@ -453,16 +448,13 @@ function openResourceDetail(resource, allResources) {
 function closeDetailModal() {
     if (!detailModal) return;
     detailModal.classList.remove('open');
-    // 暂停视频并清理
     if (currentVideoElement) {
         currentVideoElement.pause();
-        // 保存当前进度
         if (currentVideoElement.duration) {
             const pct = Math.round((currentVideoElement.currentTime / currentVideoElement.duration) * 100);
             const pos = Math.floor(currentVideoElement.currentTime);
             updateResourceProgress(activeResourceId, pct, pos);
         }
-        // 移除事件监听避免内存泄漏（可选）
         currentVideoElement = null;
     }
     if (activeResourceId) {
@@ -525,11 +517,21 @@ function updateDetailProgress(resourceId) {
 async function updateResourceProgress(resourceId, progress, position = 0) {
     if (!currentUser) return;
     if (!progressMap[resourceId]) progressMap[resourceId] = { progress: 0, completed: false, last_position: 0 };
-    progressMap[resourceId].progress = Math.min(100, progress);
-    if (position) progressMap[resourceId].last_position = position;
+    // 只更新更高的进度（避免后退）
+    if (progress > progressMap[resourceId].progress) {
+        progressMap[resourceId].progress = Math.min(100, progress);
+    }
+    if (position > progressMap[resourceId].last_position) {
+        progressMap[resourceId].last_position = position;
+    }
+    // 如果进度达到100，自动标记完成
+    if (progressMap[resourceId].progress >= 100) {
+        progressMap[resourceId].completed = true;
+        progressMap[resourceId].progress = 100;
+    }
     const payload = {
         user_id: currentUser.id,
-        resource_id: resourceId,   // 字符串类型
+        resource_id: resourceId,
         progress_percent: progressMap[resourceId].progress,
         completed: progressMap[resourceId].completed || false,
         last_position: progressMap[resourceId].last_position || 0,
@@ -544,6 +546,7 @@ async function updateResourceProgress(resourceId, progress, position = 0) {
         console.error('Progress update error:', e);
     }
     renderCurrentStageResources();
+    updateDetailProgress(resourceId);
 }
 
 async function markResourceCompleted(resourceId) {
@@ -580,19 +583,31 @@ function renderCurrentStageResources() {
     }
 }
 
+// ========== 修正后的阶段进度统计 ==========
 function updateStageProgress(stage, resources) {
     if (!stageDesc) return;
     if (!resources) { stageDesc.innerHTML = ''; return; }
     const total = resources.length;
-    const completed = resources.filter(r => progressMap[r.id] && progressMap[r.id].completed).length;
+    let completedCount = 0;
     let totalDuration = 0, elapsed = 0;
+
     resources.forEach(r => {
-        totalDuration += r.duration || 0;
         const prog = progressMap[r.id];
-        if (prog) elapsed += (prog.progress / 100) * (r.duration || 0);
+        const dur = r.duration || 0;
+        totalDuration += dur;
+        if (prog && prog.completed) {
+            // 已完成资源：直接累计完整时长
+            elapsed += dur;
+            completedCount++;
+        } else if (prog) {
+            // 未完成但部分学习：按比例累计
+            elapsed += (prog.progress / 100) * dur;
+        }
+        // 如果没有任何记录，elapsed += 0
     });
+
     const remaining = Math.max(0, totalDuration - elapsed);
-    stageDesc.innerHTML = `资源完成：${completed}/${total}  |  已学 ${formatTime(elapsed)}  /  总需 ${formatTime(totalDuration)}  |  剩余 ${formatTime(remaining)}`;
+    stageDesc.innerHTML = `资源完成：${completedCount}/${total}  |  已学 ${formatTime(elapsed)}  /  总需 ${formatTime(totalDuration)}  |  剩余 ${formatTime(remaining)}`;
 }
 
 // ========== Submit Quiz ==========
@@ -971,4 +986,4 @@ if (phoneInput) phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Ent
 if (passwordInput) passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 if (nameInput) nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 
-console.log('🐿️ 松鼠逛逛商家学堂 (最终稳定版)');
+console.log('🐿️ 松鼠逛逛商家学堂 (终极稳定版)');
