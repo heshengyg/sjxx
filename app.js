@@ -1,20 +1,14 @@
 // =====================================================
-// app.js - 修复版（空值判断 + 去除废弃引用）
+// app.js - 视频缩略图使用第一帧（完整版）
 // =====================================================
 
-// ========== 配置 ==========
 const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_qnadIPVLPkAgIe5w_aR0lg_zy7VnqPC';
 const STORAGE_BUCKET = 'avatars';
-
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ========== 哈希 ==========
-function hashPassword(password) {
-    return CryptoJS.SHA256(password).toString();
-}
+function hashPassword(pwd) { return CryptoJS.SHA256(pwd).toString(); }
 
-// ========== 等级定义 ==========
 const LEVELS = [
     { id: 'beginner', label: '入门商家', stages: [1,2], quizPass: 80, next: 'advanced' },
     { id: 'advanced', label: '进阶商家', stages: [3,4], quizPass: 85, next: 'senior' },
@@ -23,7 +17,6 @@ const LEVELS = [
 ];
 const TOTAL_STAGES = 6;
 
-// ========== 全局状态 ==========
 let currentUser = null;
 let currentViewStage = 1;
 let stageData = {};
@@ -34,61 +27,36 @@ let activeResourceId = null;
 let currentImageResources = [];
 let currentImageIdx = 0;
 let questionStates = [];
+// 缩略图缓存
+const thumbCache = {};
 
-// ========== DOM 引用（全部做空值保护） ==========
+// DOM helpers
 const $ = id => document.getElementById(id);
-const authCard = $('authCard');
-const dashboard = $('dashboard');
-const phoneInput = $('phoneInput');
-const passwordInput = $('passwordInput');
-const nameInput = $('nameInput');
-const authBtn = $('authBtn');
-const authMsg = $('authMsg');
-const shopNameDisplay = $('shopNameDisplay');
-const levelDisplay = $('levelDisplay');
-const statusText = $('statusText');
-const progressFill = $('progressFill');
-const stepLabel = $('stepLabel');
-const nextLevelLabel = $('nextLevelLabel');
-const stageTitle = $('stageTitle');
-const stageDesc = $('stageDesc');
-const resourcesContainer = $('resourcesContainer');
-const learnMsg = $('learnMsg');
-const quizContainer = $('quizContainer');
-const submitQuizBtn = $('submitQuizBtn');
-const quizResult = $('quizResult');
-const refreshBtn = $('refreshBtn');
-const stageSelector = $('stageSelector');
-
-const avatarWrapper = $('avatarWrapper');
-const avatarCircle = $('avatarCircle');
-const dropdownMenu = $('dropdownMenu');
-const changeAvatarBtn = $('changeAvatarBtn');
-const changePasswordBtn = $('changePasswordBtn');
-const logoutBtn = $('logoutBtn');
-
-const avatarModal = $('avatarModal');
-const avatarFileInput = $('avatarFileInput');
-const modalAvatarPreview = $('modalAvatarPreview');
-const avatarModalMsg = $('avatarModalMsg');
-const avatarSaveBtn = $('avatarSaveBtn');
-const avatarCancelBtn = $('avatarCancelBtn');
-
-const passwordModal = $('passwordModal');
-const oldPasswordInput = $('oldPasswordInput');
-const newPasswordInput = $('newPasswordInput');
-const confirmPasswordInput = $('confirmPasswordInput');
-const passwordModalMsg = $('passwordModalMsg');
-const passwordSaveBtn = $('passwordSaveBtn');
+const authCard = $('authCard'), dashboard = $('dashboard');
+const phoneInput = $('phoneInput'), passwordInput = $('passwordInput'), nameInput = $('nameInput');
+const authBtn = $('authBtn'), authMsg = $('authMsg');
+const shopNameDisplay = $('shopNameDisplay'), levelDisplay = $('levelDisplay');
+const statusText = $('statusText'), progressFill = $('progressFill');
+const stepLabel = $('stepLabel'), nextLevelLabel = $('nextLevelLabel');
+const stageTitle = $('stageTitle'), stageDesc = $('stageDesc');
+const resourcesContainer = $('resourcesContainer'), learnMsg = $('learnMsg');
+const quizContainer = $('quizContainer'), submitQuizBtn = $('submitQuizBtn');
+const quizResult = $('quizResult'), refreshBtn = $('refreshBtn'), stageSelector = $('stageSelector');
+const avatarWrapper = $('avatarWrapper'), avatarCircle = $('avatarCircle');
+const dropdownMenu = $('dropdownMenu'), changeAvatarBtn = $('changeAvatarBtn');
+const changePasswordBtn = $('changePasswordBtn'), logoutBtn = $('logoutBtn');
+const avatarModal = $('avatarModal'), avatarFileInput = $('avatarFileInput');
+const modalAvatarPreview = $('modalAvatarPreview'), avatarModalMsg = $('avatarModalMsg');
+const avatarSaveBtn = $('avatarSaveBtn'), avatarCancelBtn = $('avatarCancelBtn');
+const passwordModal = $('passwordModal'), oldPasswordInput = $('oldPasswordInput');
+const newPasswordInput = $('newPasswordInput'), confirmPasswordInput = $('confirmPasswordInput');
+const passwordModalMsg = $('passwordModalMsg'), passwordSaveBtn = $('passwordSaveBtn');
 const passwordCancelBtn = $('passwordCancelBtn');
-
-const detailModal = $('detailModal');
-const detailTitle = $('detailTitle');
-const detailBody = $('detailBody');
-const detailProgress = $('detailProgress');
+const detailModal = $('detailModal'), detailTitle = $('detailTitle');
+const detailBody = $('detailBody'), detailProgress = $('detailProgress');
 const detailCloseBtn = $('detailCloseBtn');
 
-// ========== 辅助函数 ==========
+// ========== Helper ==========
 function getLevelFromStages(stages) {
     if (!stages || stages.length === 0) return LEVELS[0];
     const max = Math.max(...stages);
@@ -97,30 +65,24 @@ function getLevelFromStages(stages) {
     if (max >= 3) return LEVELS[1];
     return LEVELS[0];
 }
-
 function getCurrentStage(stages) {
     if (!stages || stages.length === 0) return 1;
     const max = Math.max(...stages);
     if (max >= 6) return 6;
     return max + 1;
 }
-
-function getLevelById(id) {
-    return LEVELS.find(l => l.id === id) || LEVELS[0];
-}
-
-function formatTime(seconds) {
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
+function getLevelById(id) { return LEVELS.find(l => l.id === id) || LEVELS[0]; }
+function formatTime(sec) {
+    const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
     return `${m}分${s}秒`;
 }
 
-// ========== 更新头像 ==========
+// ========== Avatar ==========
 function updateAvatar(user) {
     if (!user || !avatarCircle) return;
-    const avatarUrl = user.avatar_url;
-    if (avatarUrl) {
-        avatarCircle.style.backgroundImage = `url(${avatarUrl})`;
+    const url = user.avatar_url;
+    if (url) {
+        avatarCircle.style.backgroundImage = `url(${url})`;
         avatarCircle.style.backgroundSize = 'cover';
         avatarCircle.style.backgroundPosition = 'center';
         avatarCircle.textContent = '';
@@ -131,8 +93,8 @@ function updateAvatar(user) {
         avatarCircle.classList.remove('has-avatar');
     }
     if (modalAvatarPreview) {
-        if (avatarUrl) {
-            modalAvatarPreview.style.backgroundImage = `url(${avatarUrl})`;
+        if (url) {
+            modalAvatarPreview.style.backgroundImage = `url(${url})`;
             modalAvatarPreview.style.backgroundSize = 'cover';
             modalAvatarPreview.style.backgroundPosition = 'center';
             modalAvatarPreview.textContent = '';
@@ -143,7 +105,43 @@ function updateAvatar(user) {
     }
 }
 
-// ========== 加载阶段 JSON ==========
+// ========== 生成视频第一帧缩略图（异步） ==========
+function generateVideoThumbnail(videoSrc, callback) {
+    // 检查缓存
+    if (thumbCache[videoSrc]) {
+        callback(thumbCache[videoSrc]);
+        return;
+    }
+    const video = document.createElement('video');
+    video.crossOrigin = 'anonymous';
+    video.preload = 'metadata';
+    video.muted = true;
+    video.src = videoSrc;
+    video.addEventListener('loadeddata', function() {
+        // 跳到第一帧
+        video.currentTime = 0.1; // 有些视频第一帧可能黑屏，稍微偏移
+        video.addEventListener('seeked', function() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 160;   // 缩略图宽度
+            canvas.height = 120;  // 保持比例
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            thumbCache[videoSrc] = dataUrl;
+            callback(dataUrl);
+            // 释放资源
+            video.src = '';
+            video.load();
+        });
+    });
+    video.addEventListener('error', function(e) {
+        console.warn('视频缩略图生成失败:', videoSrc, e);
+        callback(null);
+    });
+    video.load();
+}
+
+// ========== Load JSON ==========
 async function loadStageData(stage) {
     if (stageData[stage]) return stageData[stage];
     try {
@@ -158,7 +156,7 @@ async function loadStageData(stage) {
     }
 }
 
-// ========== 加载用户进度 ==========
+// ========== Load progress ==========
 async function loadUserProgress(userId) {
     const { data, error } = await supabaseClient
         .from('user_learning_progress')
@@ -167,11 +165,15 @@ async function loadUserProgress(userId) {
     if (error) throw error;
     progressMap = {};
     data.forEach(p => {
-        progressMap[p.resource_id] = { progress: p.progress_percent, completed: p.completed };
+        progressMap[p.resource_id] = {
+            progress: p.progress_percent || 0,
+            completed: p.completed || false,
+            last_position: p.last_position || 0
+        };
     });
 }
 
-// ========== 渲染资源列表 ==========
+// ========== Render resources ==========
 function renderResources(stage, resources) {
     if (!resourcesContainer) return;
     resourcesContainer.innerHTML = '';
@@ -188,10 +190,25 @@ function renderResources(stage, resources) {
         const thumb = document.createElement('div');
         thumb.className = 'thumb';
         if (r.type === 'video') {
-            const cover = r.file.replace(/\.[^.]+$/, '.jpg');
-            thumb.style.backgroundImage = `url('${cover}')`;
-            thumb.style.backgroundSize = 'cover';
-            thumb.style.backgroundPosition = 'center';
+            // 先显示加载占位，异步生成第一帧缩略图
+            thumb.textContent = '🎬';
+            thumb.style.background = '#d0d9e2';
+            thumb.style.display = 'flex';
+            thumb.style.alignItems = 'center';
+            thumb.style.justifyContent = 'center';
+            thumb.style.fontSize = '32px';
+            // 异步生成缩略图
+            generateVideoThumbnail(r.file, function(dataUrl) {
+                if (dataUrl) {
+                    thumb.style.backgroundImage = `url(${dataUrl})`;
+                    thumb.style.backgroundSize = 'cover';
+                    thumb.style.backgroundPosition = 'center';
+                    thumb.textContent = '';
+                } else {
+                    // 失败则保留图标
+                    console.warn('视频缩略图生成失败，保留图标:', r.file);
+                }
+            });
         } else if (r.type === 'image') {
             thumb.style.backgroundImage = `url('${r.file}')`;
             thumb.style.backgroundSize = 'cover';
@@ -236,7 +253,7 @@ function renderResources(stage, resources) {
     });
 }
 
-// ========== 渲染考核 ==========
+// ========== Render Quiz ==========
 function renderQuiz(quiz) {
     if (!quizContainer) return;
     quizContainer.innerHTML = '';
@@ -251,13 +268,10 @@ function renderQuiz(quiz) {
     quiz.forEach((q, idx) => {
         const wrapper = document.createElement('div');
         wrapper.className = 'quiz-item';
-        wrapper.dataset.idx = idx;
-
         const qText = document.createElement('div');
         qText.className = 'q-text';
         qText.textContent = `${idx+1}. ${q.question}`;
         wrapper.appendChild(qText);
-
         const optionsDiv = document.createElement('div');
         optionsDiv.className = 'options';
         q.options.forEach((optText, optIdx) => {
@@ -267,90 +281,58 @@ function renderQuiz(quiz) {
             input.type = q.type === 'multiple' ? 'checkbox' : 'radio';
             input.name = `q${idx}`;
             input.value = optIdx;
-            input.disabled = false;
             const span = document.createElement('span');
             span.textContent = optText;
             label.appendChild(input);
             label.appendChild(span);
             optionsDiv.appendChild(label);
-
             input.addEventListener('change', function() {
-                if (questionStates[idx].confirmed) {
-                    this.checked = false;
-                    return;
-                }
-                const selected = questionStates[idx].selected;
+                if (questionStates[idx].confirmed) { this.checked = false; return; }
+                const sel = questionStates[idx].selected;
                 if (q.type === 'multiple') {
-                    if (this.checked) {
-                        if (!selected.includes(optIdx)) selected.push(optIdx);
-                    } else {
-                        const pos = selected.indexOf(optIdx);
-                        if (pos !== -1) selected.splice(pos, 1);
-                    }
+                    if (this.checked) { if (!sel.includes(optIdx)) sel.push(optIdx); }
+                    else { const pos = sel.indexOf(optIdx); if (pos!==-1) sel.splice(pos,1); }
                 } else {
-                    if (this.checked) {
-                        selected.length = 0;
-                        selected.push(optIdx);
-                        const siblings = this.closest('.options').querySelectorAll('input[type="radio"]');
-                        siblings.forEach(sib => {
-                            if (sib !== this) sib.checked = false;
-                        });
-                    } else {
-                        const pos = selected.indexOf(optIdx);
-                        if (pos !== -1) selected.splice(pos, 1);
-                    }
+                    if (this.checked) { sel.length=0; sel.push(optIdx); }
+                    else { const pos = sel.indexOf(optIdx); if (pos!==-1) sel.splice(pos,1); }
                 }
             });
         });
         wrapper.appendChild(optionsDiv);
-
         const btnDiv = document.createElement('div');
         const confirmBtn = document.createElement('button');
         confirmBtn.className = 'confirm-btn';
         confirmBtn.textContent = '确认答案';
-        confirmBtn.dataset.idx = idx;
-        confirmBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const i = parseInt(this.dataset.idx);
-            const state = questionStates[i];
+        confirmBtn.addEventListener('click', function() {
+            const state = questionStates[idx];
             if (!state.confirmed) {
-                if (state.selected.length === 0) {
-                    alert('请先选择一个选项');
-                    return;
-                }
+                if (state.selected.length === 0) { alert('请选择选项'); return; }
                 state.confirmed = true;
-                const item = this.closest('.quiz-item');
-                const inputs = item.querySelectorAll('input');
-                inputs.forEach(inp => inp.disabled = true);
-                item.classList.add('confirmed');
+                wrapper.querySelectorAll('input').forEach(inp => inp.disabled = true);
+                wrapper.classList.add('confirmed');
                 this.textContent = '修改答案';
                 this.classList.add('modify');
                 const badge = document.createElement('span');
                 badge.className = 'status-badge';
                 badge.textContent = '✅ 已确认';
-                const existing = item.querySelector('.status-badge');
-                if (existing) existing.remove();
                 this.parentNode.appendChild(badge);
             } else {
                 state.confirmed = false;
-                const item = this.closest('.quiz-item');
-                const inputs = item.querySelectorAll('input');
-                inputs.forEach(inp => inp.disabled = false);
-                item.classList.remove('confirmed');
+                wrapper.querySelectorAll('input').forEach(inp => inp.disabled = false);
+                wrapper.classList.remove('confirmed');
                 this.textContent = '确认答案';
                 this.classList.remove('modify');
-                const badge = item.querySelector('.status-badge');
+                const badge = wrapper.querySelector('.status-badge');
                 if (badge) badge.remove();
             }
         });
         btnDiv.appendChild(confirmBtn);
         wrapper.appendChild(btnDiv);
-
         quizContainer.appendChild(wrapper);
     });
 }
 
-// ========== 资源详情模态框 ==========
+// ========== Resource Detail Modal ==========
 function openResourceDetail(resource, allResources) {
     if (!detailModal || !detailTitle || !detailBody || !detailProgress) return;
     currentImageResources = allResources.filter(r => r.type === resource.type);
@@ -368,20 +350,51 @@ function openResourceDetail(resource, allResources) {
         video.style.width = '100%';
         video.style.borderRadius = '12px';
         let lastTime = 0;
+        let savedPosition = 0;
+
+        const prog = progressMap[resource.id];
+        if (prog && prog.last_position) {
+            savedPosition = prog.last_position;
+        }
+
+        video.addEventListener('loadedmetadata', function() {
+            if (savedPosition > 0 && savedPosition < video.duration) {
+                video.currentTime = savedPosition;
+            }
+        });
+
+        let saveTimer = null;
+        function updateAndSave() {
+            const pct = Math.round((video.currentTime / video.duration) * 100);
+            const pos = Math.floor(video.currentTime);
+            updateResourceProgress(resource.id, pct, pos);
+            if (pct >= 100) {
+                markResourceCompleted(resource.id);
+            }
+        }
+
         video.addEventListener('timeupdate', function() {
             lastTime = video.currentTime;
-            const pct = Math.round((video.currentTime / video.duration) * 100);
-            updateResourceProgress(resource.id, pct);
-            if (pct >= 100) markResourceCompleted(resource.id);
+            if (!saveTimer) {
+                saveTimer = setTimeout(() => {
+                    updateAndSave();
+                    saveTimer = null;
+                }, 5000);
+            }
         });
+
         video.addEventListener('seeking', function() {
             if (Math.abs(video.currentTime - lastTime) > 0.5) {
                 video.currentTime = lastTime;
             }
         });
+
         video.addEventListener('ended', function() {
             markResourceCompleted(resource.id);
+            if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+            updateAndSave();
         });
+
         detailBody.appendChild(video);
         video.play();
         activeResourceId = resource.id;
@@ -423,6 +436,12 @@ function closeDetailModal() {
     if (!detailModal) return;
     detailModal.classList.remove('open');
     if (activeResourceId) {
+        const video = detailBody.querySelector('video');
+        if (video && video.duration) {
+            const pct = Math.round((video.currentTime / video.duration) * 100);
+            const pos = Math.floor(video.currentTime);
+            updateResourceProgress(activeResourceId, pct, pos);
+        }
         stopTimer(activeResourceId);
         activeResourceId = null;
     }
@@ -442,7 +461,7 @@ function navigateImage(delta) {
     updateDetailProgress(newRes.id);
 }
 
-// ========== 计时器管理 ==========
+// ========== Timer ==========
 function startTimer(resourceId, duration) {
     if (timerIntervals[resourceId]) return;
     if (progressMap[resourceId] && progressMap[resourceId].completed) return;
@@ -451,7 +470,7 @@ function startTimer(resourceId, duration) {
         timerElapsed[resourceId] += 1;
         const elapsed = timerElapsed[resourceId];
         const progress = Math.min(100, Math.round((elapsed / duration) * 100));
-        updateResourceProgress(resourceId, progress);
+        updateResourceProgress(resourceId, progress, 0);
         updateDetailProgress(resourceId);
         if (progress >= 100) {
             stopTimer(resourceId);
@@ -478,27 +497,35 @@ function updateDetailProgress(resourceId) {
     }
 }
 
-// ========== 进度更新与完成 ==========
-async function updateResourceProgress(resourceId, progress) {
+// ========== Progress Update ==========
+async function updateResourceProgress(resourceId, progress, position = 0) {
     if (!currentUser) return;
-    if (!progressMap[resourceId]) progressMap[resourceId] = { progress: 0, completed: false };
+    if (!progressMap[resourceId]) progressMap[resourceId] = { progress: 0, completed: false, last_position: 0 };
     progressMap[resourceId].progress = Math.min(100, progress);
-    await supabaseClient
-        .from('user_learning_progress')
-        .upsert({
-            user_id: currentUser.id,
-            resource_id: resourceId,
-            progress_percent: progressMap[resourceId].progress,
-            completed: progressMap[resourceId].completed,
-            last_updated: new Date().toISOString()
-        }, { onConflict: 'user_id, resource_id' });
+    if (position) progressMap[resourceId].last_position = position;
+    const payload = {
+        user_id: currentUser.id,
+        resource_id: resourceId,
+        progress_percent: progressMap[resourceId].progress,
+        completed: progressMap[resourceId].completed || false,
+        last_position: progressMap[resourceId].last_position || 0,
+        last_updated: new Date().toISOString()
+    };
+    try {
+        const { error } = await supabaseClient
+            .from('user_learning_progress')
+            .upsert(payload, { onConflict: 'user_id, resource_id' });
+        if (error) console.error('Upsert error:', error);
+    } catch (e) {
+        console.error('Progress update error:', e);
+    }
     renderCurrentStageResources();
 }
 
 async function markResourceCompleted(resourceId) {
     if (!currentUser) return;
     if (progressMap[resourceId] && progressMap[resourceId].completed) return;
-    progressMap[resourceId] = { progress: 100, completed: true };
+    progressMap[resourceId] = { progress: 100, completed: true, last_position: 0 };
     await supabaseClient
         .from('user_learning_progress')
         .upsert({
@@ -506,6 +533,7 @@ async function markResourceCompleted(resourceId) {
             resource_id: resourceId,
             progress_percent: 100,
             completed: true,
+            last_position: 0,
             last_updated: new Date().toISOString()
         }, { onConflict: 'user_id, resource_id' });
     const data = stageData[currentViewStage];
@@ -528,7 +556,6 @@ function renderCurrentStageResources() {
     }
 }
 
-// ========== 阶段进度汇总 ==========
 function updateStageProgress(stage, resources) {
     if (!stageDesc) return;
     if (!resources) { stageDesc.innerHTML = ''; return; }
@@ -544,69 +571,48 @@ function updateStageProgress(stage, resources) {
     stageDesc.innerHTML = `资源完成：${completed}/${total}  |  已学 ${formatTime(elapsed)}  /  总需 ${formatTime(totalDuration)}  |  剩余 ${formatTime(remaining)}`;
 }
 
-// ========== 提交考核 ==========
+// ========== Submit Quiz ==========
 async function submitQuiz() {
     if (!currentUser) return;
     const stages = currentUser.completed_stages || [];
     const actualStage = getCurrentStage(stages);
     if (currentViewStage !== actualStage || actualStage > TOTAL_STAGES) {
-        if (quizResult) {
-            quizResult.classList.remove('hidden');
-            quizResult.textContent = '⚠️ 只能提交当前阶段的考核。';
-        }
+        if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = '⚠️ 只能提交当前阶段的考核。'; }
         return;
     }
-
     const data = stageData[actualStage];
     if (!data || !data.quiz || data.quiz.length === 0) {
-        if (quizResult) {
-            quizResult.classList.remove('hidden');
-            quizResult.textContent = '本阶段无考核，无需提交。';
-        }
+        if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = '本阶段无考核，无需提交。'; }
         return;
     }
-
     const resources = data.resources || [];
     const allCompleted = resources.every(r => progressMap[r.id] && progressMap[r.id].completed);
     if (!allCompleted) {
-        if (quizResult) {
-            quizResult.classList.remove('hidden');
-            quizResult.textContent = '⚠️ 请先完成本阶段所有学习资源再提交考核。';
-        }
+        if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = '⚠️ 请先完成本阶段所有学习资源再提交考核。'; }
         return;
     }
-
     const allConfirmed = questionStates.every(s => s.confirmed);
     if (!allConfirmed) {
-        if (quizResult) {
-            quizResult.classList.remove('hidden');
-            quizResult.textContent = '⚠️ 请先确认每道题的答案（点击「确认答案」）。';
-        }
+        if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = '⚠️ 请先确认每道题的答案。'; }
         return;
     }
-
     let correctCount = 0;
     data.quiz.forEach((q, idx) => {
         const selected = questionStates[idx].selected || [];
         const sortedSelected = [...selected].sort();
         const sortedCorrect = (q.correct || []).sort();
-        if (JSON.stringify(sortedSelected) === JSON.stringify(sortedCorrect)) {
-            correctCount++;
-        }
+        if (JSON.stringify(sortedSelected) === JSON.stringify(sortedCorrect)) correctCount++;
     });
-
     const total = data.quiz.length;
     const passRate = Math.round((correctCount / total) * 100);
     const level = getLevelFromStages(stages);
     const passThreshold = level.quizPass || 80;
     const passed = passRate >= passThreshold;
-
     const results = currentUser.quiz_results || {};
     results[`stage_${actualStage}`] = { correct: correctCount, total, passRate, passed, date: new Date().toISOString() };
     try {
         await supabaseClient.from('merchants').update({ quiz_results: results }).eq('id', currentUser.id);
         currentUser.quiz_results = results;
-
         if (passed) {
             if (!stages.includes(actualStage)) {
                 const newStages = [...stages, actualStage];
@@ -618,51 +624,34 @@ async function submitQuiz() {
                     currentUser.level = newLevel.id;
                 }
                 const nextStage = getCurrentStage(newStages);
-                if (nextStage <= TOTAL_STAGES) {
-                    currentViewStage = nextStage;
-                }
-                if (quizResult) {
-                    quizResult.classList.remove('hidden');
-                    quizResult.textContent = `🎉 考核通过 (${passRate}%)，已晋级！${nextStage <= TOTAL_STAGES ? '进入下一阶段' : '全部完成！'}`;
-                }
+                if (nextStage <= TOTAL_STAGES) currentViewStage = nextStage;
+                if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = `🎉 考核通过 (${passRate}%)，已晋级！${nextStage <= TOTAL_STAGES ? '进入下一阶段' : '全部完成！'}`; }
                 await updateDashboard(currentUser);
                 return;
             } else {
-                if (quizResult) {
-                    quizResult.classList.remove('hidden');
-                    quizResult.textContent = `✅ 考核通过 (${passRate}%)，但阶段已标记完成。`;
-                }
+                if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = `✅ 考核通过 (${passRate}%)，但阶段已标记完成。`; }
             }
         } else {
-            if (quizResult) {
-                quizResult.classList.remove('hidden');
-                quizResult.textContent = `❌ 考核未通过 (${passRate}%，需≥${passThreshold}%)，请复习后重试。`;
-            }
+            if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = `❌ 考核未通过 (${passRate}%，需≥${passThreshold}%)，请复习后重试。`; }
         }
         await updateDashboard(currentUser);
     } catch (e) {
-        if (quizResult) {
-            quizResult.classList.remove('hidden');
-            quizResult.textContent = '❌ ' + e.message;
-        }
+        if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = '❌ ' + e.message; }
     }
 }
 
-// ========== 更新仪表盘（主入口） ==========
+// ========== Dashboard ==========
 async function updateDashboard(user) {
     if (!user) return;
     currentUser = user;
     const stages = user.completed_stages || [];
     const level = getLevelFromStages(stages);
     const actualStage = getCurrentStage(stages);
-
     if (!currentViewStage || currentViewStage < 1 || currentViewStage > TOTAL_STAGES) {
         currentViewStage = actualStage > TOTAL_STAGES ? TOTAL_STAGES : actualStage;
     }
-
     if (shopNameDisplay) shopNameDisplay.textContent = user.name || '商家';
     if (levelDisplay) levelDisplay.textContent = level.label;
-
     const done = Math.min(stages.length, TOTAL_STAGES);
     const pct = Math.round((done / TOTAL_STAGES) * 100);
     if (progressFill) progressFill.style.width = pct + '%';
@@ -709,32 +698,24 @@ async function updateDashboard(user) {
     if (quizResult) quizResult.classList.add('hidden');
 }
 
-// ========== 登录/注册 ==========
+// ========== Auth ==========
 async function handleAuth() {
     if (!phoneInput || !passwordInput || !nameInput) return;
     const phone = phoneInput.value.trim();
     const password = passwordInput.value.trim();
     const name = nameInput.value.trim();
-
     if (!phone) { showAuthMsg('请输入手机号'); return; }
     if (!password || password.length < 6) { showAuthMsg('密码至少6位'); return; }
-
     const hashed = hashPassword(password);
-
     try {
         let { data: existing, error } = await supabaseClient
             .from('merchants')
             .select('*')
             .eq('phone', phone)
             .maybeSingle();
-
         if (error && error.code !== 'PGRST116') throw error;
-
         if (existing) {
-            if (existing.password !== hashed) {
-                showAuthMsg('❌ 密码错误，请重试');
-                return;
-            }
+            if (existing.password !== hashed) { showAuthMsg('❌ 密码错误'); return; }
             currentUser = existing;
             if (authCard) authCard.classList.add('hidden');
             if (dashboard) dashboard.classList.remove('hidden');
@@ -746,8 +727,7 @@ async function handleAuth() {
         } else {
             if (!name) { showAuthMsg('请填写店铺名称'); return; }
             const newUser = {
-                phone,
-                name,
+                phone, name,
                 password: hashed,
                 level: 'beginner',
                 completed_stages: [],
@@ -766,7 +746,7 @@ async function handleAuth() {
             if (dashboard) dashboard.classList.remove('hidden');
             currentViewStage = 1;
             await updateDashboard(currentUser);
-            showAuthMsg(`🎉 注册成功，${name}！开始学习吧。`, false);
+            showAuthMsg(`🎉 注册成功，${name}！`, false);
         }
     } catch (e) {
         showAuthMsg('❌ ' + e.message);
@@ -781,7 +761,6 @@ function showAuthMsg(text, isError = true) {
     authMsg.className = 'msg' + (isError ? ' error' : '');
 }
 
-// ========== 刷新 ==========
 async function refreshUser() {
     if (!currentUser) return;
     try {
@@ -792,26 +771,19 @@ async function refreshUser() {
         currentViewStage = getCurrentStage(stages);
         if (currentViewStage > TOTAL_STAGES) currentViewStage = TOTAL_STAGES;
         await updateDashboard(currentUser);
-    } catch (e) {
-        alert('刷新失败: ' + e.message);
-    }
+    } catch (e) { alert('刷新失败: ' + e.message); }
 }
 
-// ========== 头像上传 ==========
+// ========== Avatar Upload ==========
 let selectedFile = null;
-
 function openAvatarModal() {
     if (!avatarModal) return;
     selectedFile = null;
     if (avatarFileInput) avatarFileInput.value = '';
-    if (avatarModalMsg) {
-        avatarModalMsg.classList.add('hidden');
-        avatarModalMsg.textContent = '';
-    }
+    if (avatarModalMsg) { avatarModalMsg.classList.add('hidden'); avatarModalMsg.textContent = ''; }
     updateAvatar(currentUser);
     avatarModal.classList.add('open');
 }
-
 if (avatarFileInput) {
     avatarFileInput.addEventListener('change', function(e) {
         const file = e.target.files[0];
@@ -819,7 +791,7 @@ if (avatarFileInput) {
         if (file.size > 50 * 1024) {
             if (avatarModalMsg) {
                 avatarModalMsg.classList.remove('hidden');
-                avatarModalMsg.textContent = '❌ 图片大小不能超过50KB，请压缩后重试。';
+                avatarModalMsg.textContent = '❌ 图片不能超过50KB';
                 avatarModalMsg.className = 'msg error';
             }
             this.value = '';
@@ -839,130 +811,59 @@ if (avatarFileInput) {
         if (avatarModalMsg) avatarModalMsg.classList.add('hidden');
     });
 }
-
 async function saveAvatar() {
-    if (!selectedFile) {
-        if (avatarModalMsg) {
-            avatarModalMsg.classList.remove('hidden');
-            avatarModalMsg.textContent = '请先选择一张图片。';
-        }
-        return;
-    }
+    if (!selectedFile) { if (avatarModalMsg) { avatarModalMsg.classList.remove('hidden'); avatarModalMsg.textContent = '请选择图片'; } return; }
     if (!currentUser) return;
     const fileExt = selectedFile.name.split('.').pop();
     const fileName = `${currentUser.id}_${Date.now()}.${fileExt}`;
     const filePath = `public/${fileName}`;
-
     try {
-        const { data, error } = await supabaseClient.storage
-            .from(STORAGE_BUCKET)
-            .upload(filePath, selectedFile, { cacheControl: '3600', upsert: false });
+        const { error } = await supabaseClient.storage.from(STORAGE_BUCKET).upload(filePath, selectedFile, { cacheControl: '3600' });
         if (error) throw error;
-
-        const { data: urlData } = supabaseClient.storage
-            .from(STORAGE_BUCKET)
-            .getPublicUrl(filePath);
+        const { data: urlData } = supabaseClient.storage.from(STORAGE_BUCKET).getPublicUrl(filePath);
         const avatarUrl = urlData.publicUrl;
-
-        const { error: updateErr } = await supabaseClient
-            .from('merchants')
-            .update({ avatar_url: avatarUrl })
-            .eq('id', currentUser.id);
-        if (updateErr) throw updateErr;
-
+        await supabaseClient.from('merchants').update({ avatar_url: avatarUrl }).eq('id', currentUser.id);
         currentUser.avatar_url = avatarUrl;
         updateAvatar(currentUser);
-        if (avatarModalMsg) {
-            avatarModalMsg.classList.remove('hidden');
-            avatarModalMsg.textContent = '✅ 头像已更新！';
-            avatarModalMsg.className = 'msg';
-        }
+        if (avatarModalMsg) { avatarModalMsg.classList.remove('hidden'); avatarModalMsg.textContent = '✅ 头像已更新！'; avatarModalMsg.className = 'msg'; }
         setTimeout(() => { if (avatarModal) avatarModal.classList.remove('open'); }, 1000);
     } catch (e) {
-        if (avatarModalMsg) {
-            avatarModalMsg.classList.remove('hidden');
-            avatarModalMsg.textContent = '❌ ' + e.message;
-            avatarModalMsg.className = 'msg error';
-        }
+        if (avatarModalMsg) { avatarModalMsg.classList.remove('hidden'); avatarModalMsg.textContent = '❌ ' + e.message; avatarModalMsg.className = 'msg error'; }
     }
 }
 
-// ========== 更改密码 ==========
+// ========== Change Password ==========
 function openPasswordModal() {
     if (!passwordModal) return;
     if (oldPasswordInput) oldPasswordInput.value = '';
     if (newPasswordInput) newPasswordInput.value = '';
     if (confirmPasswordInput) confirmPasswordInput.value = '';
-    if (passwordModalMsg) {
-        passwordModalMsg.classList.add('hidden');
-        passwordModalMsg.textContent = '';
-    }
+    if (passwordModalMsg) { passwordModalMsg.classList.add('hidden'); passwordModalMsg.textContent = ''; }
     passwordModal.classList.add('open');
 }
-
 async function savePassword() {
     if (!oldPasswordInput || !newPasswordInput || !confirmPasswordInput) return;
     const old = oldPasswordInput.value.trim();
     const newPwd = newPasswordInput.value.trim();
     const confirm = confirmPasswordInput.value.trim();
-
-    if (!old || !newPwd || !confirm) {
-        if (passwordModalMsg) {
-            passwordModalMsg.classList.remove('hidden');
-            passwordModalMsg.textContent = '请填写所有字段。';
-        }
-        return;
-    }
-    if (newPwd.length < 6) {
-        if (passwordModalMsg) {
-            passwordModalMsg.classList.remove('hidden');
-            passwordModalMsg.textContent = '新密码至少6位。';
-        }
-        return;
-    }
-    if (newPwd !== confirm) {
-        if (passwordModalMsg) {
-            passwordModalMsg.classList.remove('hidden');
-            passwordModalMsg.textContent = '两次输入的新密码不一致。';
-        }
-        return;
-    }
-
+    if (!old || !newPwd || !confirm) { if (passwordModalMsg) { passwordModalMsg.classList.remove('hidden'); passwordModalMsg.textContent = '请填写所有字段'; } return; }
+    if (newPwd.length < 6) { if (passwordModalMsg) { passwordModalMsg.classList.remove('hidden'); passwordModalMsg.textContent = '新密码至少6位'; } return; }
+    if (newPwd !== confirm) { if (passwordModalMsg) { passwordModalMsg.classList.remove('hidden'); passwordModalMsg.textContent = '两次密码不一致'; } return; }
     const hashedOld = hashPassword(old);
-    if (hashedOld !== currentUser.password) {
-        if (passwordModalMsg) {
-            passwordModalMsg.classList.remove('hidden');
-            passwordModalMsg.textContent = '❌ 旧密码错误。';
-        }
-        return;
-    }
-
+    if (hashedOld !== currentUser.password) { if (passwordModalMsg) { passwordModalMsg.classList.remove('hidden'); passwordModalMsg.textContent = '❌ 旧密码错误'; } return; }
     const hashedNew = hashPassword(newPwd);
     try {
-        const { error } = await supabaseClient
-            .from('merchants')
-            .update({ password: hashedNew })
-            .eq('id', currentUser.id);
-        if (error) throw error;
+        await supabaseClient.from('merchants').update({ password: hashedNew }).eq('id', currentUser.id);
         currentUser.password = hashedNew;
-        if (passwordModalMsg) {
-            passwordModalMsg.classList.remove('hidden');
-            passwordModalMsg.textContent = '✅ 密码已更改！';
-            passwordModalMsg.className = 'msg';
-        }
+        if (passwordModalMsg) { passwordModalMsg.classList.remove('hidden'); passwordModalMsg.textContent = '✅ 密码已更改！'; passwordModalMsg.className = 'msg'; }
         setTimeout(() => { if (passwordModal) passwordModal.classList.remove('open'); }, 1000);
     } catch (e) {
-        if (passwordModalMsg) {
-            passwordModalMsg.classList.remove('hidden');
-            passwordModalMsg.textContent = '❌ ' + e.message;
-            passwordModalMsg.className = 'msg error';
-        }
+        if (passwordModalMsg) { passwordModalMsg.classList.remove('hidden'); passwordModalMsg.textContent = '❌ ' + e.message; passwordModalMsg.className = 'msg error'; }
     }
 }
 
-// ========== 退出登录 ==========
 function logout() {
-    if (confirm('确定要退出登录吗？')) {
+    if (confirm('确定退出？')) {
         currentUser = null;
         if (dashboard) dashboard.classList.add('hidden');
         if (authCard) authCard.classList.remove('hidden');
@@ -979,7 +880,7 @@ function logout() {
     }
 }
 
-// ========== 事件绑定（全部带空值判断） ==========
+// ========== Event Bindings ==========
 if (stageSelector) {
     stageSelector.addEventListener('change', function() {
         currentViewStage = parseInt(this.value);
@@ -997,7 +898,6 @@ if (stageSelector) {
         }
     });
 }
-
 if (avatarWrapper) {
     avatarWrapper.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -1009,11 +909,9 @@ document.addEventListener('click', function(e) {
         if (dropdownMenu) dropdownMenu.classList.remove('open');
     }
 });
-
 if (authBtn) authBtn.addEventListener('click', handleAuth);
 if (submitQuizBtn) submitQuizBtn.addEventListener('click', submitQuiz);
 if (refreshBtn) refreshBtn.addEventListener('click', refreshUser);
-
 if (changeAvatarBtn) {
     changeAvatarBtn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -1021,11 +919,8 @@ if (changeAvatarBtn) {
         openAvatarModal();
     });
 }
-if (avatarCancelBtn) {
-    avatarCancelBtn.addEventListener('click', function() { if (avatarModal) avatarModal.classList.remove('open'); });
-}
+if (avatarCancelBtn) avatarCancelBtn.addEventListener('click', function() { if (avatarModal) avatarModal.classList.remove('open'); });
 if (avatarSaveBtn) avatarSaveBtn.addEventListener('click', saveAvatar);
-
 if (changePasswordBtn) {
     changePasswordBtn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -1033,11 +928,8 @@ if (changePasswordBtn) {
         openPasswordModal();
     });
 }
-if (passwordCancelBtn) {
-    passwordCancelBtn.addEventListener('click', function() { if (passwordModal) passwordModal.classList.remove('open'); });
-}
+if (passwordCancelBtn) passwordCancelBtn.addEventListener('click', function() { if (passwordModal) passwordModal.classList.remove('open'); });
 if (passwordSaveBtn) passwordSaveBtn.addEventListener('click', savePassword);
-
 if (logoutBtn) {
     logoutBtn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -1045,24 +937,14 @@ if (logoutBtn) {
         logout();
     });
 }
-
-if (detailCloseBtn) {
-    detailCloseBtn.addEventListener('click', closeDetailModal);
-}
+if (detailCloseBtn) detailCloseBtn.addEventListener('click', closeDetailModal);
 if (detailModal) {
     detailModal.addEventListener('click', function(e) {
         if (e.target === this) closeDetailModal();
     });
 }
+if (phoneInput) phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
+if (passwordInput) passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
+if (nameInput) nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 
-if (phoneInput) {
-    phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
-}
-if (passwordInput) {
-    passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
-}
-if (nameInput) {
-    nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
-}
-
-console.log('🐿️ 松鼠逛逛商家学堂 (修复版)');
+console.log('🐿️ 松鼠逛逛商家学堂 (视频缩略图第一帧)');
