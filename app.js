@@ -1,4 +1,4 @@
-// app.js
+// app.js - 完整版（含阶段导航）
 // ========== 配置 ==========
 const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_qnadIPVLPkAgIe5w_aR0lg_zy7VnqPC';
@@ -33,6 +33,7 @@ let currentUser = null;
 let currentLevelObj = null;
 let quizData = {};
 let questionStates = [];
+let currentViewStage = 1; // 当前查看的阶段
 
 // ========== DOM 引用 ==========
 const authCard = document.getElementById('authCard');
@@ -57,6 +58,7 @@ const quizContainer = document.getElementById('quizContainer');
 const submitQuizBtn = document.getElementById('submitQuizBtn');
 const quizResult = document.getElementById('quizResult');
 const refreshBtn = document.getElementById('refreshBtn');
+const stageSelector = document.getElementById('stageSelector');
 
 const avatarWrapper = document.getElementById('avatarWrapper');
 const avatarCircle = document.getElementById('avatarCircle');
@@ -161,7 +163,7 @@ async function loadQuizQuestions(stage) {
     }
 }
 
-// ========== 渲染学习内容（直接渲染 article_content，不处理额外字段） ==========
+// ========== 渲染学习内容 ==========
 function renderLearningContent(content) {
     if (!content || !content.article_content) {
         stageContent.innerHTML = '<p>📖 暂无学习内容，请联系管理员。</p>';
@@ -170,7 +172,7 @@ function renderLearningContent(content) {
     stageContent.innerHTML = content.article_content;
 }
 
-// ========== 渲染考核题目（带单选/多选 + 确认/修改） ==========
+// ========== 渲染考核题目 ==========
 function renderQuizQuestions(questions) {
     quizContainer.innerHTML = '';
     quizResult.classList.add('hidden');
@@ -305,11 +307,18 @@ async function updateDashboard(user) {
     const stages = user.completed_stages || [];
     const level = getLevelFromStages(stages);
     currentLevelObj = level;
-    const currentStage = getCurrentStage(stages);
+    const actualStage = getCurrentStage(stages);
 
+    // 若未设置查看阶段或超出范围，自动设为实际阶段
+    if (!currentViewStage || currentViewStage < 1 || currentViewStage > 6) {
+        currentViewStage = actualStage > 6 ? 6 : actualStage;
+    }
+
+    // 更新用户信息
     shopNameDisplay.textContent = user.name || '商家';
     levelDisplay.textContent = level.label;
 
+    // 进度
     const totalStages = 6;
     const done = Math.min(stages.length, totalStages);
     const pct = Math.round((done / totalStages) * 100);
@@ -318,20 +327,31 @@ async function updateDashboard(user) {
     const nextLevel = level.next ? getLevelById(level.next) : null;
     nextLevelLabel.textContent = nextLevel ? `下一等级：${nextLevel.label}` : '🏆 已达最高等级';
 
-    const stageStatus = (currentStage > 6) ? '已完成全部阶段' : `当前阶段：${currentStage}`;
+    const stageStatus = (actualStage > 6) ? '已完成全部阶段' : `当前阶段：${actualStage}`;
     statusText.textContent = `📖 ${stageStatus} · 等级 ${level.label}`;
 
-    const stageInfo = STAGE_INFO[currentStage] || { title: '已完成全部阶段', desc: '恭喜！' };
+    // 根据查看阶段加载内容
+    const stageInfo = STAGE_INFO[currentViewStage] || { title: `第${currentViewStage}阶段`, desc: '' };
     stageTitle.textContent = `📘 ${stageInfo.title}`;
     stageDesc.textContent = stageInfo.desc;
 
-    // 加载学习内容（只取 article_content）
-    const content = await loadLearningContent(currentStage);
+    const content = await loadLearningContent(currentViewStage);
     renderLearningContent(content);
 
-    // 加载考核题目
-    const questions = await loadQuizQuestions(currentStage);
+    const questions = await loadQuizQuestions(currentViewStage);
     renderQuizQuestions(questions);
+
+    // 控制按钮可用性：只有查看阶段 == 实际阶段（且未完成全部）才可操作
+    const isCurrent = (currentViewStage === actualStage && actualStage <= 6);
+    markLearnBtn.disabled = !isCurrent;
+    submitQuizBtn.disabled = !isCurrent;
+    // 视觉提示
+    if (!isCurrent && actualStage <= 6) {
+        // 可以加个小提示，但先不处理
+    }
+
+    // 更新下拉框选中值
+    stageSelector.value = currentViewStage;
 
     updateAvatar(user);
     avatarWrapper.classList.add('visible');
@@ -367,6 +387,10 @@ async function handleAuth() {
             currentUser = existing;
             authCard.classList.add('hidden');
             dashboard.classList.remove('hidden');
+            // 初始化查看阶段为实际阶段
+            const stages = existing.completed_stages || [];
+            const actual = getCurrentStage(stages);
+            currentViewStage = actual > 6 ? 6 : actual;
             await updateDashboard(currentUser);
             showAuthMsg(`欢迎回来，${existing.name}`, false);
         } else {
@@ -390,6 +414,7 @@ async function handleAuth() {
             currentUser = inserted;
             authCard.classList.add('hidden');
             dashboard.classList.remove('hidden');
+            currentViewStage = 1;
             await updateDashboard(currentUser);
             showAuthMsg(`🎉 注册成功，${name}！开始学习吧。`, false);
         }
@@ -409,14 +434,19 @@ function showAuthMsg(text, isError = true) {
 async function markLearn() {
     if (!currentUser) return;
     const stages = currentUser.completed_stages || [];
-    const currentStage = getCurrentStage(stages);
-    if (currentStage > 6) { learnMsg.classList.remove('hidden'); learnMsg.textContent = '您已完成所有阶段！'; return; }
-    if (stages.includes(currentStage)) {
+    const actualStage = getCurrentStage(stages);
+    // 只能标记当前阶段
+    if (currentViewStage !== actualStage || actualStage > 6) {
+        learnMsg.classList.remove('hidden');
+        learnMsg.textContent = '⚠️ 只能标记当前阶段的学习。';
+        return;
+    }
+    if (stages.includes(actualStage)) {
         learnMsg.classList.remove('hidden');
         learnMsg.textContent = '⚠️ 本章已学习，可继续下一阶段';
         return;
     }
-    const newStages = [...stages, currentStage];
+    const newStages = [...stages, actualStage];
     try {
         const { error } = await supabaseClient
             .from('merchants')
@@ -434,6 +464,9 @@ async function markLearn() {
             learnMsg.classList.remove('hidden');
             learnMsg.textContent = '✅ 学习进度已保存！';
         }
+        // 重新计算实际阶段
+        const newActual = getCurrentStage(newStages);
+        currentViewStage = newActual > 6 ? 6 : newActual;
         await updateDashboard(currentUser);
     } catch (e) {
         learnMsg.classList.remove('hidden');
@@ -445,8 +478,12 @@ async function markLearn() {
 async function submitQuiz() {
     if (!currentUser) return;
     const stages = currentUser.completed_stages || [];
-    const currentStage = getCurrentStage(stages);
-    if (currentStage > 6) return;
+    const actualStage = getCurrentStage(stages);
+    if (currentViewStage !== actualStage || actualStage > 6) {
+        quizResult.classList.remove('hidden');
+        quizResult.textContent = '⚠️ 只能提交当前阶段的考核。';
+        return;
+    }
     const allConfirmed = questionStates.every(s => s.confirmed);
     if (!allConfirmed) {
         quizResult.classList.remove('hidden');
@@ -454,7 +491,7 @@ async function submitQuiz() {
         return;
     }
 
-    const questions = await loadQuizQuestions(currentStage);
+    const questions = await loadQuizQuestions(actualStage);
     if (!questions || questions.length === 0) {
         quizResult.classList.remove('hidden');
         quizResult.textContent = '本阶段无考核，无需提交。';
@@ -478,12 +515,12 @@ async function submitQuiz() {
     const passed = passRate >= passThreshold;
 
     const results = currentUser.quiz_results || {};
-    results[`stage_${currentStage}`] = { correct: correctCount, total, passRate, passed, date: new Date().toISOString() };
+    results[`stage_${actualStage}`] = { correct: correctCount, total, passRate, passed, date: new Date().toISOString() };
     try {
         await supabaseClient.from('merchants').update({ quiz_results: results }).eq('id', currentUser.id);
         currentUser.quiz_results = results;
 
-        if (passed && stages.includes(currentStage)) {
+        if (passed && stages.includes(actualStage)) {
             const nextLevel = level.next ? getLevelById(level.next) : null;
             if (nextLevel) {
                 const requiredStages = nextLevel.stages || [];
@@ -493,6 +530,9 @@ async function submitQuiz() {
                     currentUser.level = nextLevel.id;
                     quizResult.classList.remove('hidden');
                     quizResult.textContent = `🎉 考核通过 (${passRate}%)，自动晋级 ${nextLevel.label}！`;
+                    // 更新查看阶段为新的实际阶段
+                    const newActual = getCurrentStage(stages);
+                    currentViewStage = newActual > 6 ? 6 : newActual;
                     await updateDashboard(currentUser);
                     return;
                 }
@@ -517,6 +557,9 @@ async function refreshUser() {
         const { data, error } = await supabaseClient.from('merchants').select('*').eq('id', currentUser.id).single();
         if (error) throw error;
         currentUser = data;
+        const stages = currentUser.completed_stages || [];
+        const actual = getCurrentStage(stages);
+        currentViewStage = actual > 6 ? 6 : actual;
         await updateDashboard(currentUser);
     } catch (e) {
         alert('刷新失败: ' + e.message);
@@ -682,6 +725,14 @@ document.addEventListener('click', function(e) {
     }
 });
 
+// ========== 阶段选择器事件 ==========
+stageSelector.addEventListener('change', function() {
+    currentViewStage = parseInt(this.value);
+    if (currentUser) {
+        updateDashboard(currentUser);
+    }
+});
+
 // ========== 事件绑定 ==========
 authBtn.addEventListener('click', handleAuth);
 markLearnBtn.addEventListener('click', markLearn);
@@ -715,4 +766,4 @@ phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(
 passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 
-console.log('🐿️ 松鼠逛逛商家学堂 (本地资源版)');
+console.log('🐿️ 松鼠逛逛商家学堂 (带阶段导航)');
