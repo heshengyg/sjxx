@@ -1,5 +1,5 @@
 // =====================================================
-// app.js - 完整版（阶段卡片 + 防拖拽 + 进度记忆）
+// app.js - 完整版（阶段卡片 + 防拖拽 + 进度记忆 + 分组考核）
 // =====================================================
 
 const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
@@ -252,7 +252,7 @@ function renderResources(stage, resources) {
     });
 }
 
-// ========== Render Quiz ==========
+// ==================== 修改后的 renderQuiz ====================
 function renderQuiz(quiz) {
     if (!quizContainer) return;
     quizContainer.innerHTML = '';
@@ -262,73 +262,117 @@ function renderQuiz(quiz) {
         return;
     }
     if (submitQuizBtn) submitQuizBtn.disabled = false;
+
+    // 按题型分组
+    const groups = {
+        single: { label: '一、单选题', items: [], totalScore: 0 },
+        multiple: { label: '二、多选题', items: [], totalScore: 0 },
+        judge: { label: '三、判断题', items: [], totalScore: 0 }
+    };
+
+    quiz.forEach(q => {
+        const type = q.type || 'single';
+        if (groups[type]) {
+            groups[type].items.push(q);
+            groups[type].totalScore += (q.score || 0);
+        } else {
+            // 未知类型归入单选
+            groups.single.items.push(q);
+            groups.single.totalScore += (q.score || 0);
+        }
+    });
+
+    // 存储题目状态（全局）
     questionStates = quiz.map(() => ({ confirmed: false, selected: [] }));
 
-    quiz.forEach((q, idx) => {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'quiz-item';
-        const qText = document.createElement('div');
-        qText.className = 'q-text';
-        qText.textContent = `${idx+1}. ${q.question}`;
-        wrapper.appendChild(qText);
-        const optionsDiv = document.createElement('div');
-        optionsDiv.className = 'options';
-        q.options.forEach((optText, optIdx) => {
-            const label = document.createElement('label');
-            label.className = 'option-item';
-            const input = document.createElement('input');
-            input.type = q.type === 'multiple' ? 'checkbox' : 'radio';
-            input.name = `q${idx}`;
-            input.value = optIdx;
-            const span = document.createElement('span');
-            span.textContent = optText;
-            label.appendChild(input);
-            label.appendChild(span);
-            optionsDiv.appendChild(label);
-            input.addEventListener('change', function() {
-                if (questionStates[idx].confirmed) { this.checked = false; return; }
-                const sel = questionStates[idx].selected;
-                if (q.type === 'multiple') {
-                    if (this.checked) { if (!sel.includes(optIdx)) sel.push(optIdx); }
-                    else { const pos = sel.indexOf(optIdx); if (pos!==-1) sel.splice(pos,1); }
+    // 渲染每个分组
+    for (const [type, group] of Object.entries(groups)) {
+        if (group.items.length === 0) continue;
+
+        // 分组标题
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'group-title';
+        const perScore = group.items.length > 0 ? (group.totalScore / group.items.length) : 0;
+        titleDiv.textContent = `${group.label}（每题${perScore}分，共${group.totalScore}分）`;
+        quizContainer.appendChild(titleDiv);
+
+        // 渲染该组所有题目
+        group.items.forEach(q => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'quiz-item';
+            const idx = quiz.indexOf(q); // 获取全局索引
+            wrapper.dataset.idx = idx;
+
+            const qText = document.createElement('div');
+            qText.className = 'q-text';
+            // 显示该组内的序号
+            const localIdx = group.items.indexOf(q) + 1;
+            qText.textContent = `${localIdx}. ${q.question}`;
+            wrapper.appendChild(qText);
+
+            const optionsDiv = document.createElement('div');
+            optionsDiv.className = 'options';
+            const isMultiple = (q.type === 'multiple');
+            q.options.forEach((optText, optIdx) => {
+                const label = document.createElement('label');
+                label.className = 'option-item';
+                const input = document.createElement('input');
+                input.type = isMultiple ? 'checkbox' : 'radio';
+                input.name = `q${idx}`;
+                input.value = optIdx;
+                const span = document.createElement('span');
+                span.textContent = optText;
+                label.appendChild(input);
+                label.appendChild(span);
+                optionsDiv.appendChild(label);
+
+                input.addEventListener('change', function() {
+                    if (questionStates[idx].confirmed) { this.checked = false; return; }
+                    const sel = questionStates[idx].selected;
+                    if (isMultiple) {
+                        if (this.checked) { if (!sel.includes(optIdx)) sel.push(optIdx); }
+                        else { const pos = sel.indexOf(optIdx); if (pos!==-1) sel.splice(pos,1); }
+                    } else {
+                        if (this.checked) { sel.length=0; sel.push(optIdx); }
+                        else { const pos = sel.indexOf(optIdx); if (pos!==-1) sel.splice(pos,1); }
+                    }
+                });
+            });
+            wrapper.appendChild(optionsDiv);
+
+            const btnDiv = document.createElement('div');
+            const confirmBtn = document.createElement('button');
+            confirmBtn.className = 'confirm-btn';
+            confirmBtn.textContent = '确认答案';
+            confirmBtn.addEventListener('click', function() {
+                const state = questionStates[idx];
+                if (!state.confirmed) {
+                    if (state.selected.length === 0) { alert('请选择选项'); return; }
+                    state.confirmed = true;
+                    wrapper.querySelectorAll('input').forEach(inp => inp.disabled = true);
+                    wrapper.classList.add('confirmed');
+                    this.textContent = '修改答案';
+                    this.classList.add('modify');
+                    const badge = document.createElement('span');
+                    badge.className = 'status-badge';
+                    badge.textContent = '✅ 已确认';
+                    this.parentNode.appendChild(badge);
                 } else {
-                    if (this.checked) { sel.length=0; sel.push(optIdx); }
-                    else { const pos = sel.indexOf(optIdx); if (pos!==-1) sel.splice(pos,1); }
+                    state.confirmed = false;
+                    wrapper.querySelectorAll('input').forEach(inp => inp.disabled = false);
+                    wrapper.classList.remove('confirmed');
+                    this.textContent = '确认答案';
+                    this.classList.remove('modify');
+                    const badge = wrapper.querySelector('.status-badge');
+                    if (badge) badge.remove();
                 }
             });
+            btnDiv.appendChild(confirmBtn);
+            wrapper.appendChild(btnDiv);
+
+            quizContainer.appendChild(wrapper);
         });
-        wrapper.appendChild(optionsDiv);
-        const btnDiv = document.createElement('div');
-        const confirmBtn = document.createElement('button');
-        confirmBtn.className = 'confirm-btn';
-        confirmBtn.textContent = '确认答案';
-        confirmBtn.addEventListener('click', function() {
-            const state = questionStates[idx];
-            if (!state.confirmed) {
-                if (state.selected.length === 0) { alert('请选择选项'); return; }
-                state.confirmed = true;
-                wrapper.querySelectorAll('input').forEach(inp => inp.disabled = true);
-                wrapper.classList.add('confirmed');
-                this.textContent = '修改答案';
-                this.classList.add('modify');
-                const badge = document.createElement('span');
-                badge.className = 'status-badge';
-                badge.textContent = '✅ 已确认';
-                this.parentNode.appendChild(badge);
-            } else {
-                state.confirmed = false;
-                wrapper.querySelectorAll('input').forEach(inp => inp.disabled = false);
-                wrapper.classList.remove('confirmed');
-                this.textContent = '确认答案';
-                this.classList.remove('modify');
-                const badge = wrapper.querySelector('.status-badge');
-                if (badge) badge.remove();
-            }
-        });
-        btnDiv.appendChild(confirmBtn);
-        wrapper.appendChild(btnDiv);
-        quizContainer.appendChild(wrapper);
-    });
+    }
 }
 
 // ========== Resource Detail Modal ==========
@@ -602,7 +646,7 @@ function updateStageProgress(stage, resources) {
     stageDesc.innerHTML = `资源完成：${completedCount}/${total}  |  已学 ${formatTime(elapsed)}  /  总需 ${formatTime(totalDuration)}  |  剩余 ${formatTime(remaining)}`;
 }
 
-// ========== Submit Quiz ==========
+// ==================== 修改后的 submitQuiz ====================
 async function submitQuiz() {
     if (!currentUser) return;
     const stages = currentUser.completed_stages || [];
@@ -627,20 +671,32 @@ async function submitQuiz() {
         if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = '⚠️ 请先确认每道题的答案。'; }
         return;
     }
-    let correctCount = 0;
+
+    // 计算总分和得分
+    let totalScore = 0;
+    let earnedScore = 0;
     data.quiz.forEach((q, idx) => {
+        totalScore += (q.score || 0);
         const selected = questionStates[idx].selected || [];
         const sortedSelected = [...selected].sort();
         const sortedCorrect = (q.correct || []).sort();
-        if (JSON.stringify(sortedSelected) === JSON.stringify(sortedCorrect)) correctCount++;
+        if (JSON.stringify(sortedSelected) === JSON.stringify(sortedCorrect)) {
+            earnedScore += (q.score || 0);
+        }
     });
-    const total = data.quiz.length;
-    const passRate = Math.round((correctCount / total) * 100);
-    const level = getLevelFromStages(stages);
-    const passThreshold = level.quizPass || 80;
-    const passed = passRate >= passThreshold;
+
+    const scorePercent = Math.round((earnedScore / totalScore) * 100);
+    const passThreshold = 80; // 固定80分及格
+    const passed = earnedScore >= (totalScore * 0.8);
+
     const results = currentUser.quiz_results || {};
-    results[`stage_${actualStage}`] = { correct: correctCount, total, passRate, passed, date: new Date().toISOString() };
+    results[`stage_${actualStage}`] = {
+        correct: earnedScore,
+        total: totalScore,
+        passRate: scorePercent,
+        passed: passed,
+        date: new Date().toISOString()
+    };
     try {
         await supabaseClient.from('merchants').update({ quiz_results: results }).eq('id', currentUser.id);
         currentUser.quiz_results = results;
@@ -656,14 +712,14 @@ async function submitQuiz() {
                 }
                 const nextStage = getCurrentStage(newStages);
                 if (nextStage <= TOTAL_STAGES) currentViewStage = nextStage;
-                if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = `🎉 考核通过 (${passRate}%)，已晋级！${nextStage <= TOTAL_STAGES ? '进入下一阶段' : '全部完成！'}`; }
+                if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = `🎉 考核通过 (${earnedScore}/${totalScore}，得分率${scorePercent}%)，已晋级！${nextStage <= TOTAL_STAGES ? '进入下一阶段' : '全部完成！'}`; }
                 await updateDashboard(currentUser);
                 return;
             } else {
-                if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = `✅ 考核通过 (${passRate}%)，但阶段已标记完成。`; }
+                if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = `✅ 考核通过 (${earnedScore}/${totalScore}，得分率${scorePercent}%)，但阶段已标记完成。`; }
             }
         } else {
-            if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = `❌ 考核未通过 (${passRate}%，需≥${passThreshold}%)，请复习后重试。`; }
+            if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = `❌ 考核未通过 (${earnedScore}/${totalScore}，得分率${scorePercent}%，需≥${Math.round(totalScore*0.8)}分)，请复习后重试。`; }
         }
         await updateDashboard(currentUser);
     } catch (e) {
