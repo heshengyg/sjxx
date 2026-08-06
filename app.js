@@ -421,18 +421,20 @@ function openResourceDetail(resource, allResources) {
     video.playsInline = true;
     video.style.width = '100%';
     video.style.borderRadius = '12px';
-    let lastTime = 0;
+    
     let savedPosition = 0;
-
     const prog = progressMap[resource.id];
     if (prog && prog.last_position) {
         savedPosition = prog.last_position;
     }
 
+    // 初始化挂载属性
+    video._lastValidTime = savedPosition;
+
     video.addEventListener('loadedmetadata', function() {
         if (savedPosition > 0 && savedPosition < video.duration) {
             video.currentTime = savedPosition;
-            lastTime = savedPosition;
+            this._lastValidTime = savedPosition;
         }
         updateDetailProgress(resource.id);
     });
@@ -440,15 +442,19 @@ function openResourceDetail(resource, allResources) {
     let saveTimer = null;
     function updateAndSave() {
         if (!video.duration) return;
-        const pct = Math.round((video.currentTime / video.duration) * 100);
-        const pos = Math.floor(video.currentTime);
+        const pos = video._lastValidTime;
+        const pct = Math.round((pos / video.duration) * 100);
         updateResourceProgress(resource.id, pct, pos);
         updateDetailProgress(resource.id);
         if (pct >= 100) markResourceCompleted(resource.id);
     }
 
     video.addEventListener('timeupdate', function() {
-        lastTime = video.currentTime;
+        // 只有在非 seeking 状态下才更新合法位置（防止拖动过程中更新）
+        // 但 seeking 时 timeupdate 也会触发，所以我们用标志区分
+        if (!this._seeking) {
+            this._lastValidTime = video.currentTime;
+        }
         const pct = Math.round((video.currentTime / video.duration) * 100);
         if (detailProgress) detailProgress.textContent = `学习进度：${pct}%`;
         if (!saveTimer) {
@@ -459,22 +465,28 @@ function openResourceDetail(resource, allResources) {
         }
     });
 
-    // 允许拖动/点选，但松手后回退到 lastTime
-    video.addEventListener('seeked', function() {
-        if (Math.abs(video.currentTime - lastTime) > 0.5) {
-            video.currentTime = lastTime;
-        }
+    // 锁定进度条
+    video.addEventListener('seeking', function() {
+        // 标记正在 seeking，防止 timeupdate 覆盖合法位置
+        this._seeking = true;
+        // 强制回退到合法位置
+        this.currentTime = this._lastValidTime;
+        // 延迟解除标记（等待 seek 完成）
+        setTimeout(() => {
+            this._seeking = false;
+        }, 50);
     });
 
     video.addEventListener('ended', function() {
         markResourceCompleted(resource.id);
         if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+        // 结束时 lastValidTime 应等于 duration，但保险起见用 currentTime
+        this._lastValidTime = video.duration;
         updateAndSave();
     });
 
     detailBody.appendChild(video);
     currentVideoElement = video;
-    // 播放并捕获 AbortError（可能因加载中断）
     video.play().catch(e => {
         if (e.name !== 'AbortError') {
             console.error('视频播放错误:', e);
@@ -520,14 +532,14 @@ function closeDetailModal() {
     if (!detailModal) return;
     detailModal.classList.remove('open');
     if (currentVideoElement) {
-        currentVideoElement.pause();
-        if (currentVideoElement.duration) {
-            const pct = Math.round((currentVideoElement.currentTime / currentVideoElement.duration) * 100);
-            const pos = Math.floor(currentVideoElement.currentTime);
-            updateResourceProgress(activeResourceId, pct, pos);
-        }
-        currentVideoElement = null;
+    currentVideoElement.pause();
+    if (currentVideoElement.duration) {
+        const pos = currentVideoElement._lastValidTime || 0;
+        const pct = Math.round((pos / currentVideoElement.duration) * 100);
+        updateResourceProgress(activeResourceId, pct, pos);
     }
+    currentVideoElement = null;
+}
     if (activeResourceId) {
         stopTimer(activeResourceId);
         activeResourceId = null;
