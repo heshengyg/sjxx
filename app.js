@@ -1,5 +1,5 @@
 // =====================================================
-// app.js - 终极稳定版（锁定进度条 + 实时更新 + 正确统计）
+// app.js - 完整版（阶段卡片 + 防拖拽 + 进度记忆）
 // =====================================================
 
 const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
@@ -16,7 +16,8 @@ const LEVELS = [
     { id: 'elite', label: '精英商家', stages: [6], quizPass: 90, next: null }
 ];
 const TOTAL_STAGES = 6;
-// ========== 阶段标题映射（新增） ==========
+
+// 阶段标题映射
 const STAGE_INFO = {
     1: { title: '第一阶段：认知破局' },
     2: { title: '第二阶段：方向定位' },
@@ -49,7 +50,8 @@ const stepLabel = $('stepLabel'), nextLevelLabel = $('nextLevelLabel');
 const stageTitle = $('stageTitle'), stageDesc = $('stageDesc');
 const resourcesContainer = $('resourcesContainer'), learnMsg = $('learnMsg');
 const quizContainer = $('quizContainer'), submitQuizBtn = $('submitQuizBtn');
-const quizResult = $('quizResult'), refreshBtn = $('refreshBtn'), stageSelector = $('stageSelector');
+const quizResult = $('quizResult'), refreshBtn = $('refreshBtn');
+const stageList = $('stageList'); // 新增
 const avatarWrapper = $('avatarWrapper'), avatarCircle = $('avatarCircle');
 const dropdownMenu = $('dropdownMenu'), changeAvatarBtn = $('changeAvatarBtn');
 const changePasswordBtn = $('changePasswordBtn'), logoutBtn = $('logoutBtn');
@@ -115,10 +117,7 @@ function updateAvatar(user) {
 
 // ========== 缩略图生成 ==========
 function generateVideoThumbnail(videoSrc, callback) {
-    if (thumbCache[videoSrc]) {
-        callback(thumbCache[videoSrc]);
-        return;
-    }
+    if (thumbCache[videoSrc]) { callback(thumbCache[videoSrc]); return; }
     const video = document.createElement('video');
     video.crossOrigin = 'anonymous';
     video.preload = 'metadata';
@@ -365,7 +364,6 @@ function openResourceDetail(resource, allResources) {
                 video.currentTime = savedPosition;
                 lastTime = savedPosition;
             }
-            // 立即更新进度显示
             updateDetailProgress(resource.id);
         });
 
@@ -375,22 +373,14 @@ function openResourceDetail(resource, allResources) {
             const pct = Math.round((video.currentTime / video.duration) * 100);
             const pos = Math.floor(video.currentTime);
             updateResourceProgress(resource.id, pct, pos);
-            // 更新模态框内的进度显示
             updateDetailProgress(resource.id);
-            if (pct >= 100) {
-                markResourceCompleted(resource.id);
-            }
+            if (pct >= 100) markResourceCompleted(resource.id);
         }
 
         video.addEventListener('timeupdate', function() {
             lastTime = video.currentTime;
-            // 实时更新进度显示
             const pct = Math.round((video.currentTime / video.duration) * 100);
-            // 直接更新detailProgress，不等待数据库
-            if (detailProgress) {
-                detailProgress.textContent = `学习进度：${pct}%`;
-            }
-            // 每5秒保存一次
+            if (detailProgress) detailProgress.textContent = `学习进度：${pct}%`;
             if (!saveTimer) {
                 saveTimer = setTimeout(() => {
                     updateAndSave();
@@ -399,10 +389,8 @@ function openResourceDetail(resource, allResources) {
             }
         });
 
-        // 完全锁定进度条：禁止任何跳转（拖拽或点击）
+        // 完全锁定进度条：禁止拖拽和点击跳转
         video.addEventListener('seeking', function() {
-            if (isSeekingLock) return;
-            // 如果当前时间与lastTime差超过0.5秒，强制回退
             if (Math.abs(video.currentTime - lastTime) > 0.5) {
                 isSeekingLock = true;
                 video.currentTime = lastTime;
@@ -526,14 +514,12 @@ function updateDetailProgress(resourceId) {
 async function updateResourceProgress(resourceId, progress, position = 0) {
     if (!currentUser) return;
     if (!progressMap[resourceId]) progressMap[resourceId] = { progress: 0, completed: false, last_position: 0 };
-    // 只更新更高的进度（避免后退）
     if (progress > progressMap[resourceId].progress) {
         progressMap[resourceId].progress = Math.min(100, progress);
     }
     if (position > progressMap[resourceId].last_position) {
         progressMap[resourceId].last_position = position;
     }
-    // 如果进度达到100，自动标记完成
     if (progressMap[resourceId].progress >= 100) {
         progressMap[resourceId].completed = true;
         progressMap[resourceId].progress = 100;
@@ -592,7 +578,7 @@ function renderCurrentStageResources() {
     }
 }
 
-// ========== 修正后的阶段进度统计 ==========
+// ========== 阶段进度统计 ==========
 function updateStageProgress(stage, resources) {
     if (!stageDesc) return;
     if (!resources) { stageDesc.innerHTML = ''; return; }
@@ -605,14 +591,11 @@ function updateStageProgress(stage, resources) {
         const dur = r.duration || 0;
         totalDuration += dur;
         if (prog && prog.completed) {
-            // 已完成资源：直接累计完整时长
             elapsed += dur;
             completedCount++;
         } else if (prog) {
-            // 未完成但部分学习：按比例累计
             elapsed += (prog.progress / 100) * dur;
         }
-        // 如果没有任何记录，elapsed += 0
     });
 
     const remaining = Math.max(0, totalDuration - elapsed);
@@ -725,51 +708,51 @@ async function updateDashboard(user) {
         if (quizContainer) quizContainer.innerHTML = '';
     }
 
+    // ========== 渲染阶段卡片（新） ==========
     const maxUnlocked = stages.length > 0 ? Math.max(...stages) : 0;
-const stageList = document.getElementById('stageList');
-if (stageList) {
-    stageList.innerHTML = '';
-    for (let i = 1; i <= TOTAL_STAGES; i++) {
-        const card = document.createElement('div');
-        card.className = 'stage-card';
-        if (i === currentViewStage) card.classList.add('active');
-        const isUnlocked = (i <= maxUnlocked + 1);
-        if (!isUnlocked) {
-            card.classList.add('locked');
-            card.style.cursor = 'not-allowed';
-        } else {
-            card.addEventListener('click', function() {
-                if (i !== currentViewStage) {
-                    currentViewStage = i;
-                    (async () => {
-                        const data = await loadStageData(currentViewStage);
-                        if (data) {
-                            if (stageTitle) stageTitle.textContent = `📘 ${data.title}`;
-                            if (stageDesc) stageDesc.textContent = data.description;
-                            renderResources(currentViewStage, data.resources);
-                            renderQuiz(data.quiz);
-                            updateStageProgress(currentViewStage, data.resources);
-                            document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
-                            card.classList.add('active');
-                        }
-                    })();
-                }
-            });
+    if (stageList) {
+        stageList.innerHTML = '';
+        for (let i = 1; i <= TOTAL_STAGES; i++) {
+            const card = document.createElement('div');
+            card.className = 'stage-card';
+            if (i === currentViewStage) card.classList.add('active');
+            const isUnlocked = (i <= maxUnlocked + 1);
+            if (!isUnlocked) {
+                card.classList.add('locked');
+                card.style.cursor = 'not-allowed';
+            } else {
+                card.addEventListener('click', function() {
+                    if (i !== currentViewStage) {
+                        currentViewStage = i;
+                        (async () => {
+                            const d = await loadStageData(currentViewStage);
+                            if (d) {
+                                if (stageTitle) stageTitle.textContent = `📘 ${d.title}`;
+                                if (stageDesc) stageDesc.textContent = d.description;
+                                renderResources(currentViewStage, d.resources);
+                                renderQuiz(d.quiz);
+                                updateStageProgress(currentViewStage, d.resources);
+                                document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
+                                card.classList.add('active');
+                            }
+                        })();
+                    }
+                });
+            }
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'stage-label';
+            const info = STAGE_INFO[i] || { title: `第${i}阶段` };
+            labelSpan.textContent = info.title;
+            card.appendChild(labelSpan);
+
+            const statusSpan = document.createElement('span');
+            statusSpan.className = 'stage-status';
+            statusSpan.textContent = isUnlocked ? (i <= maxUnlocked ? '✅ 已解锁' : '🔓 可学习') : '🔒 未解锁';
+            card.appendChild(statusSpan);
+
+            stageList.appendChild(card);
         }
-        const labelSpan = document.createElement('span');
-        labelSpan.className = 'stage-label';
-        const info = STAGE_INFO[i] || { title: `第${i}阶段` };
-        labelSpan.textContent = info.title;
-        card.appendChild(labelSpan);
-
-        const statusSpan = document.createElement('span');
-        statusSpan.className = 'stage-status';
-        statusSpan.textContent = isUnlocked ? (i <= maxUnlocked ? '✅ 已解锁' : '🔓 可学习') : '🔒 未解锁';
-        card.appendChild(statusSpan);
-
-        stageList.appendChild(card);
     }
-}
 
     const isCurrent = (currentViewStage === actualStage && actualStage <= TOTAL_STAGES);
     if (submitQuizBtn) submitQuizBtn.disabled = !isCurrent;
@@ -963,23 +946,9 @@ function logout() {
 }
 
 // ========== Event Bindings ==========
-if (stageSelector) {
-    stageSelector.addEventListener('change', function() {
-        currentViewStage = parseInt(this.value);
-        if (currentUser) {
-            (async () => {
-                const data = await loadStageData(currentViewStage);
-                if (data) {
-                    if (stageTitle) stageTitle.textContent = `📘 ${data.title}`;
-                    if (stageDesc) stageDesc.textContent = data.description;
-                    renderResources(currentViewStage, data.resources);
-                    renderQuiz(data.quiz);
-                    updateStageProgress(currentViewStage, data.resources);
-                }
-            })();
-        }
-    });
-}
+if (authBtn) authBtn.addEventListener('click', handleAuth);
+if (submitQuizBtn) submitQuizBtn.addEventListener('click', submitQuiz);
+if (refreshBtn) refreshBtn.addEventListener('click', refreshUser);
 if (avatarWrapper) {
     avatarWrapper.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -991,9 +960,6 @@ document.addEventListener('click', function(e) {
         if (dropdownMenu) dropdownMenu.classList.remove('open');
     }
 });
-if (authBtn) authBtn.addEventListener('click', handleAuth);
-if (submitQuizBtn) submitQuizBtn.addEventListener('click', submitQuiz);
-if (refreshBtn) refreshBtn.addEventListener('click', refreshUser);
 if (changeAvatarBtn) {
     changeAvatarBtn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -1029,4 +995,4 @@ if (phoneInput) phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Ent
 if (passwordInput) passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 if (nameInput) nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 
-console.log('🐿️ 松鼠逛逛商家学堂 (终极稳定版)');
+console.log('🐿️ 松鼠逛逛商家学堂 (最终稳定版)');

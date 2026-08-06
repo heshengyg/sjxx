@@ -28,9 +28,9 @@
     <!-- 登录卡片 -->
     <div id="authCard" class="card">
         <div class="auth-title">商家身份</div>
-        <input id="phoneInput" class="input-field" type="text" placeholder="手机号 (注册/登录)">
-        <input id="passwordInput" class="input-field" type="password" placeholder="密码 (6位以上)">
-        <input id="nameInput" class="input-field" type="text" placeholder="店铺名称 (首次注册时填写)">
+        <input id="phoneInput" class="input-field" type="text" placeholder="手机号 (注册/登录)" />
+        <input id="passwordInput" class="input-field" type="password" placeholder="密码 (6位以上)" />
+        <input id="nameInput" class="input-field" type="text" placeholder="店铺名称 (首次注册时填写)" />
         <button id="authBtn" class="btn">注册 / 登录</button>
         <div id="authMsg" class="msg hidden"></div>
     </div>
@@ -48,17 +48,15 @@
             <span id="nextLevelLabel">下一等级：进阶商家</span>
         </div>
 
-        <!-- 阶段导航 -->
+        <!-- 阶段导航（卡片式） -->
         <div class="stage-nav">
-            <label for="stageSelector">切换阶段：</label>
-            <div class="stage-nav">
-    <label>切换阶段：</label>
-    <div id="stageList" class="stage-list"></div>
-</div>
+            <label>切换阶段：</label>
+            <div id="stageList" class="stage-list"></div>
+        </div>
 
         <!-- 学习资源 -->
         <div id="studyArea" class="card">
-            <div id="stageTitle" class="stage-title">📘 第一阶段</div>
+            <div id="stageTitle" class="stage-title">📘 第一阶段：认知破局</div>
             <div id="stageDesc" class="stage-desc"></div>
             <div id="resourcesContainer"></div>
             <div id="learnMsg" class="msg hidden"></div>
@@ -78,7 +76,19 @@
         <div class="footnote">系统自动考核 · 达标即晋级</div>
     </div>
 
-    <!-- ========== 头像模态框 ========== -->
+    <!-- 资源详情模态框 -->
+    <div class="modal-overlay" id="detailModal">
+        <div class="modal-card modal-large">
+            <div class="modal-header">
+                <h3 id="detailTitle">标题</h3>
+                <button class="modal-close" id="detailCloseBtn">&times;</button>
+            </div>
+            <div id="detailBody"></div>
+            <div id="detailProgress" class="progress-info"></div>
+        </div>
+    </div>
+
+    <!-- 头像模态框 -->
     <div class="modal-overlay" id="avatarModal">
         <div class="modal-card">
             <h3>🖼️ 更改头像</h3>
@@ -95,7 +105,7 @@
         </div>
     </div>
 
-    <!-- ========== 密码模态框 ========== -->
+    <!-- 密码模态框 -->
     <div class="modal-overlay" id="passwordModal">
         <div class="modal-card">
             <h3>🔑 更改密码</h3>
@@ -107,18 +117,6 @@
                 <button class="btn" id="passwordSaveBtn">保存密码</button>
                 <button class="btn btn-outline" id="passwordCancelBtn">取消</button>
             </div>
-        </div>
-    </div>
-
-    <!-- ========== 资源详情模态框 ========== -->
-    <div class="modal-overlay" id="detailModal">
-        <div class="modal-card modal-large">
-            <div class="modal-header">
-                <h3 id="detailTitle">标题</h3>
-                <button class="modal-close" id="detailCloseBtn">&times;</button>
-            </div>
-            <div id="detailBody"></div>
-            <div id="detailProgress" class="progress-info"></div>
         </div>
     </div>
 </div>
