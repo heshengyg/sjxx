@@ -77,3 +77,45 @@ body { background: #f5f7fb; min-height:100vh; display:flex; align-items:center; 
 .tag-advanced { background:#d4e3f0; color:#1a4d7a; }
 .tag-senior { background:#f0e6d4; color:#7a5a1a; }
 .tag-elite { background:#f0d4e6; color:#7a1a5a; }
+.stage-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+.stage-card {
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: #eef2f6;
+    color: #1a2e3b;
+    font-size: 13px;
+    cursor: pointer;
+    transition: 0.2s;
+    border: 2px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.stage-card.active {
+    border-color: #1f7b4d;
+    background: #e3f3ea;
+}
+.stage-card.locked {
+    background: #e6e9ed;
+    color: #a0aab4;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+.stage-card .stage-label {
+    font-weight: 500;
+}
+.stage-card .stage-status {
+    font-size: 11px;
+    color: #5e6f7d;
+}
+.stage-card.locked .stage-status {
+    color: #a0aab4;
+}
+.stage-card.active .stage-status {
+    color: #1f7b4d;
+}

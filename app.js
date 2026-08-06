@@ -16,6 +16,15 @@ const LEVELS = [
     { id: 'elite', label: '精英商家', stages: [6], quizPass: 90, next: null }
 ];
 const TOTAL_STAGES = 6;
+// ========== 阶段标题映射（新增） ==========
+const STAGE_INFO = {
+    1: { title: '第一阶段：认知破局' },
+    2: { title: '第二阶段：方向定位' },
+    3: { title: '第三阶段：资源深挖' },
+    4: { title: '第四阶段：平台认知' },
+    5: { title: '第五阶段：商家实操' },
+    6: { title: '第六阶段：运营进阶' }
+};
 
 let currentUser = null;
 let currentViewStage = 1;
@@ -717,16 +726,50 @@ async function updateDashboard(user) {
     }
 
     const maxUnlocked = stages.length > 0 ? Math.max(...stages) : 0;
-    if (stageSelector) {
-        stageSelector.innerHTML = '';
-        for (let i = 1; i <= Math.min(maxUnlocked + 1, TOTAL_STAGES); i++) {
-            const opt = document.createElement('option');
-            opt.value = i;
-            opt.textContent = `第${i}阶段`;
-            if (i === currentViewStage) opt.selected = true;
-            stageSelector.appendChild(opt);
+const stageList = document.getElementById('stageList');
+if (stageList) {
+    stageList.innerHTML = '';
+    for (let i = 1; i <= TOTAL_STAGES; i++) {
+        const card = document.createElement('div');
+        card.className = 'stage-card';
+        if (i === currentViewStage) card.classList.add('active');
+        const isUnlocked = (i <= maxUnlocked + 1);
+        if (!isUnlocked) {
+            card.classList.add('locked');
+            card.style.cursor = 'not-allowed';
+        } else {
+            card.addEventListener('click', function() {
+                if (i !== currentViewStage) {
+                    currentViewStage = i;
+                    (async () => {
+                        const data = await loadStageData(currentViewStage);
+                        if (data) {
+                            if (stageTitle) stageTitle.textContent = `📘 ${data.title}`;
+                            if (stageDesc) stageDesc.textContent = data.description;
+                            renderResources(currentViewStage, data.resources);
+                            renderQuiz(data.quiz);
+                            updateStageProgress(currentViewStage, data.resources);
+                            document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
+                            card.classList.add('active');
+                        }
+                    })();
+                }
+            });
         }
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'stage-label';
+        const info = STAGE_INFO[i] || { title: `第${i}阶段` };
+        labelSpan.textContent = info.title;
+        card.appendChild(labelSpan);
+
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'stage-status';
+        statusSpan.textContent = isUnlocked ? (i <= maxUnlocked ? '✅ 已解锁' : '🔓 可学习') : '🔒 未解锁';
+        card.appendChild(statusSpan);
+
+        stageList.appendChild(card);
     }
+}
 
     const isCurrent = (currentViewStage === actualStage && actualStage <= TOTAL_STAGES);
     if (submitQuizBtn) submitQuizBtn.disabled = !isCurrent;
