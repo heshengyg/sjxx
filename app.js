@@ -415,70 +415,67 @@ function openResourceDetail(resource, allResources) {
     detailProgress.textContent = '';
 
     if (resource.type === 'video') {
-        const video = document.createElement('video');
-        video.src = resource.file;
-        video.controls = true;
-        video.playsInline = true;
-        video.style.width = '100%';
-        video.style.borderRadius = '12px';
-        let lastTime = 0;
-        let savedPosition = 0;
+    const video = document.createElement('video');
+    video.src = resource.file;
+    video.controls = true;
+    video.playsInline = true;
+    video.style.width = '100%';
+    video.style.borderRadius = '12px';
+    let lastTime = 0;
+    let savedPosition = 0;
 
-        const prog = progressMap[resource.id];
-        if (prog && prog.last_position) {
-            savedPosition = prog.last_position;
+    const prog = progressMap[resource.id];
+    if (prog && prog.last_position) {
+        savedPosition = prog.last_position;
+    }
+
+    video.addEventListener('loadedmetadata', function() {
+        if (savedPosition > 0 && savedPosition < video.duration) {
+            video.currentTime = savedPosition;
+            lastTime = savedPosition;
         }
+        updateDetailProgress(resource.id);
+    });
 
-        video.addEventListener('loadedmetadata', function() {
-            if (savedPosition > 0 && savedPosition < video.duration) {
-                video.currentTime = savedPosition;
-                lastTime = savedPosition;
-            }
-            updateDetailProgress(resource.id);
-        });
+    let saveTimer = null;
+    function updateAndSave() {
+        if (!video.duration) return;
+        const pct = Math.round((video.currentTime / video.duration) * 100);
+        const pos = Math.floor(video.currentTime);
+        updateResourceProgress(resource.id, pct, pos);
+        updateDetailProgress(resource.id);
+        if (pct >= 100) markResourceCompleted(resource.id);
+    }
 
-        let saveTimer = null;
-        function updateAndSave() {
-            if (!video.duration) return;
-            const pct = Math.round((video.currentTime / video.duration) * 100);
-            const pos = Math.floor(video.currentTime);
-            updateResourceProgress(resource.id, pct, pos);
-            updateDetailProgress(resource.id);
-            if (pct >= 100) markResourceCompleted(resource.id);
+    video.addEventListener('timeupdate', function() {
+        lastTime = video.currentTime;
+        const pct = Math.round((video.currentTime / video.duration) * 100);
+        if (detailProgress) detailProgress.textContent = `学习进度：${pct}%`;
+        if (!saveTimer) {
+            saveTimer = setTimeout(() => {
+                updateAndSave();
+                saveTimer = null;
+            }, 5000);
         }
+    });
 
-        video.addEventListener('timeupdate', function() {
-            lastTime = video.currentTime;
-            const pct = Math.round((video.currentTime / video.duration) * 100);
-            if (detailProgress) detailProgress.textContent = `学习进度：${pct}%`;
-            if (!saveTimer) {
-                saveTimer = setTimeout(() => {
-                    updateAndSave();
-                    saveTimer = null;
-                }, 5000);
-            }
-        });
+    // === 完全锁定进度条：禁止任何跳转 ===
+    video.addEventListener('seeking', function() {
+        video.currentTime = lastTime;
+    });
 
-        // 完全锁定进度条：禁止拖拽和点击跳转
-        video.addEventListener('seeking', function() {
-            if (Math.abs(video.currentTime - lastTime) > 0.5) {
-                isSeekingLock = true;
-                video.currentTime = lastTime;
-                isSeekingLock = false;
-            }
-        });
+    video.addEventListener('ended', function() {
+        markResourceCompleted(resource.id);
+        if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+        updateAndSave();
+    });
 
-        video.addEventListener('ended', function() {
-            markResourceCompleted(resource.id);
-            if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
-            updateAndSave();
-        });
-
-        detailBody.appendChild(video);
-        currentVideoElement = video;
-        video.play();
-        activeResourceId = resource.id;
-    } else if (resource.type === 'image') {
+    detailBody.appendChild(video);
+    currentVideoElement = video;
+    video.play();
+    activeResourceId = resource.id;
+}
+else if (resource.type === 'image') {
         const img = document.createElement('img');
         img.src = resource.file;
         img.style.width = '100%';
