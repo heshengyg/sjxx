@@ -459,13 +459,11 @@ function openResourceDetail(resource, allResources) {
         }
     });
 
-    // 完全锁定进度条，并防止循环
-    let _seekingBack = false;
-    video.addEventListener('seeking', function() {
-        if (_seekingBack) return;
-        _seekingBack = true;
-        video.currentTime = lastTime;
-        _seekingBack = false;
+    // 允许拖动/点选，但松手后回退到 lastTime
+    video.addEventListener('seeked', function() {
+        if (Math.abs(video.currentTime - lastTime) > 0.5) {
+            video.currentTime = lastTime;
+        }
     });
 
     video.addEventListener('ended', function() {
@@ -476,11 +474,9 @@ function openResourceDetail(resource, allResources) {
 
     detailBody.appendChild(video);
     currentVideoElement = video;
-    // 播放并捕获 AbortError
+    // 播放并捕获 AbortError（可能因加载中断）
     video.play().catch(e => {
-        if (e.name === 'AbortError') {
-            // 用户主动中断，忽略
-        } else {
+        if (e.name !== 'AbortError') {
             console.error('视频播放错误:', e);
         }
     });
