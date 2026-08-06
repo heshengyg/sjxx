@@ -459,9 +459,13 @@ function openResourceDetail(resource, allResources) {
         }
     });
 
-    // === 完全锁定进度条：禁止任何跳转 ===
+    // 完全锁定进度条，并防止循环
+    let _seekingBack = false;
     video.addEventListener('seeking', function() {
+        if (_seekingBack) return;
+        _seekingBack = true;
         video.currentTime = lastTime;
+        _seekingBack = false;
     });
 
     video.addEventListener('ended', function() {
@@ -472,7 +476,14 @@ function openResourceDetail(resource, allResources) {
 
     detailBody.appendChild(video);
     currentVideoElement = video;
-    video.play();
+    // 播放并捕获 AbortError
+    video.play().catch(e => {
+        if (e.name === 'AbortError') {
+            // 用户主动中断，忽略
+        } else {
+            console.error('视频播放错误:', e);
+        }
+    });
     activeResourceId = resource.id;
 }
 else if (resource.type === 'image') {
