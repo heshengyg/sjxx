@@ -145,7 +145,7 @@ function generateVideoThumbnail(videoSrc, callback) {
     video.load();
 }
 
-// ========== Load JSON（增加资源时长动态计算） ==========
+// ========== Load JSON（增加资源ID前缀 + 动态时长） ==========
 async function loadStageData(stage) {
     if (stageData[stage]) return stageData[stage];
     try {
@@ -153,30 +153,31 @@ async function loadStageData(stage) {
         if (!resp.ok) throw new Error(`加载阶段 ${stage} 失败`);
         const data = await resp.json();
         
-        // ========== 对资源进行时长重新计算 ==========
+        // 为资源ID添加阶段前缀，使其全局唯一
         if (data.resources) {
             data.resources.forEach(r => {
-                if (r.type === 'video') {
-                    // 视频保留原时长，若未设置则默认为 0（需用户自行填写）
-                    r.duration = r.duration || 0;
-                } else if (r.type === 'image') {
-                    // 图片固定 5 分钟 = 300 秒
+                r.id = stage + '-' + r.id;
+                // 重新计算时长（视频保留原值，图片固定300秒，文章按字数）
+                if (r.type === 'image') {
                     r.duration = 300;
                 } else if (r.type === 'article') {
-                    // 文章：去除 HTML 标签，统计纯文本字数（中文字符数）
                     let text = r.content || '';
-                    // 去除 HTML 标签
                     let plainText = text.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ');
-                    // 统计中文字符数（或总字数，更准确）
-                    const charCount = plainText.replace(/\s/g, '').length; // 去除空格换行
-                    // 按 300 字/分钟计算秒数，向上取整
+                    const charCount = plainText.replace(/\s/g, '').length;
                     const minutes = charCount / 300;
                     const seconds = Math.ceil(minutes * 60);
-                    r.duration = seconds > 0 ? seconds : 10; // 至少 10 秒，避免 0 时长
+                    r.duration = seconds > 0 ? seconds : 10;
+                } else if (r.type === 'video') {
+                    r.duration = r.duration || 0;
                 }
             });
         }
-        
+        // 如果 quiz 中也需要 ID（暂未使用），也加前缀
+        if (data.quiz) {
+            data.quiz.forEach(q => {
+                q.id = stage + '-' + q.id;
+            });
+        }
         stageData[stage] = data;
         return data;
     } catch (e) {
@@ -184,6 +185,7 @@ async function loadStageData(stage) {
         return null;
     }
 }
+
 // ========== Load progress ==========
 async function loadUserProgress(userId) {
     const { data, error } = await supabaseClient
