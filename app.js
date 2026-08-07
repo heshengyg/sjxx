@@ -1,6 +1,5 @@
 // =====================================================
-// app.js - 完整版（阶段卡片 + 防拖拽 + 进度记忆 + 分组考核）
-// 视频部分已重构：锁定进度条 + 断点记忆 + 关闭停止
+// app.js - 双保险版（Supabase + localStorage 进度记忆）
 // =====================================================
 
 const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
@@ -18,7 +17,6 @@ const LEVELS = [
 ];
 const TOTAL_STAGES = 6;
 
-// 阶段标题映射
 const STAGE_INFO = {
     1: { title: '第一阶段：认知破局' },
     2: { title: '第二阶段：方向定位' },
@@ -116,34 +114,10 @@ function updateAvatar(user) {
     }
 }
 
-// ========== 缩略图生成 ==========
+// ========== 缩略图 ==========
 function generateVideoThumbnail(videoSrc, callback) {
-    if (thumbCache[videoSrc]) { callback(thumbCache[videoSrc]); return; }
-    const video = document.createElement('video');
-    video.crossOrigin = 'anonymous';
-    video.preload = 'metadata';
-    video.muted = true;
-    video.src = videoSrc;
-    video.addEventListener('loadeddata', function() {
-        video.currentTime = 0.1;
-        video.addEventListener('seeked', function() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 160;
-            canvas.height = 120;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-            thumbCache[videoSrc] = dataUrl;
-            callback(dataUrl);
-            video.src = '';
-            video.load();
-        });
-    });
-    video.addEventListener('error', function(e) {
-        console.warn('视频缩略图生成失败:', videoSrc, e);
-        callback(null);
-    });
-    video.load();
+    // 直接返回图标，不加载视频
+    callback(null);
 }
 
 // ========== Load JSON ==========
@@ -184,21 +158,140 @@ async function loadStageData(stage) {
     }
 }
 
-// ========== Load progress ==========
+// ========== 进度存取（双保险：Supabase + localStorage） ==========
 async function loadUserProgress(userId) {
-    const { data, error } = await supabaseClient
-        .from('user_learning_progress')
-        .select('*')
-        .eq('user_id', userId);
-    if (error) throw error;
+    // 1. 从 localStorage 读取
+    let localData = {};
+    try {
+        const local = localStorage.getItem('progress_' + userId);
+        if (local) {
+            localData = JSON.parse(local);
+        }
+    } catch (e) {}
+
+    // 2. 从 Supabase 读取
+    let supabaseData = {};
+    try {
+        const { data, error } = await supabaseClient
+            .from('user_learning_progress')
+            .select('*')
+            .eq('user_id', userId);
+        if (!error && data) {
+            data.forEach(p => {
+                supabaseData[p.resource_id] = p;
+            });
+        } else {
+            console.warn('Supabase 进度加载失败，使用本地缓存');
+        }
+    } catch (e) {
+        console.warn('Supabase 进度加载异常，使用本地缓存');
+    }
+
+    // 3. 合并：Supabase 优先，localStorage 作为补充
+    const merged = { ...localData, ...supabaseData };
     progressMap = {};
-    data.forEach(p => {
-        progressMap[p.resource_id] = {
-            progress: p.progress_percent || 0,
-            completed: p.completed || false,
-            last_position: p.last_position || 0
+    Object.keys(merged).forEach(key => {
+        const item = merged[key];
+        progressMap[key] = {
+            progress: item.progress_percent || 0,
+            completed: item.completed || false,
+            last_position: item.last_position || 0
         };
     });
+}
+
+async function saveProgressToSupabase(resourceId, progress, position, completed) {
+    if (!currentUser) return false;
+    try {
+        const payload = {
+            user_id: currentUser.id,
+            resource_id: resourceId,
+            progress_percent: progress,
+            completed: completed || false,
+            last_position: position || 0,
+            last_updated: new Date().toISOString()
+        };
+        const { error } = await supabaseClient
+            .from('user_learning_progress')
+            .upsert(payload, { onConflict: 'user_id, resource_id' });
+        if (error) {
+            console.warn('Supabase 保存失败:', error);
+            return false;
+        }
+        return true;
+    } catch (e) {
+        console.warn('Supabase 保存异常:', e);
+        return false;
+    }
+}
+
+function saveProgressToLocal(resourceId, progress, position, completed) {
+    if (!currentUser) return;
+    const key = 'progress_' + currentUser.id;
+    let data = {};
+    try {
+        const existing = localStorage.getItem(key);
+        if (existing) data = JSON.parse(existing);
+    } catch (e) {}
+    data[resourceId] = {
+        progress_percent: progress,
+        completed: completed || false,
+        last_position: position || 0
+    };
+    localStorage.setItem(key, JSON.stringify(data));
+}
+
+// 统一更新函数
+async function updateResourceProgress(resourceId, progress, position = 0) {
+    if (!currentUser) return;
+    if (!progressMap[resourceId]) {
+        progressMap[resourceId] = { progress: 0, completed: false, last_position: 0 };
+    }
+    // 更新本地 progressMap
+    if (progress > progressMap[resourceId].progress) {
+        progressMap[resourceId].progress = Math.min(100, progress);
+    }
+    if (position > progressMap[resourceId].last_position) {
+        progressMap[resourceId].last_position = position;
+    }
+    if (progressMap[resourceId].progress >= 100) {
+        progressMap[resourceId].completed = true;
+        progressMap[resourceId].progress = 100;
+    }
+    // 同步到 localStorage（总是成功）
+    saveProgressToLocal(
+        resourceId,
+        progressMap[resourceId].progress,
+        progressMap[resourceId].last_position,
+        progressMap[resourceId].completed
+    );
+    // 尝试保存到 Supabase（失败不影响本地）
+    await saveProgressToSupabase(
+        resourceId,
+        progressMap[resourceId].progress,
+        progressMap[resourceId].last_position,
+        progressMap[resourceId].completed
+    );
+    renderCurrentStageResources();
+    updateDetailProgress(resourceId);
+}
+
+async function markResourceCompleted(resourceId) {
+    if (!currentUser) return;
+    if (progressMap[resourceId] && progressMap[resourceId].completed) return;
+    progressMap[resourceId] = { progress: 100, completed: true, last_position: 0 };
+    saveProgressToLocal(resourceId, 100, 0, true);
+    await saveProgressToSupabase(resourceId, 100, 0, true);
+    const data = stageData[currentViewStage];
+    if (data && data.resources) {
+        const allCompleted = data.resources.every(r => progressMap[r.id] && progressMap[r.id].completed);
+        if (allCompleted && learnMsg) {
+            learnMsg.classList.remove('hidden');
+            learnMsg.textContent = '🎉 本阶段所有学习资源已完成，请完成考核以晋级！';
+        }
+    }
+    renderCurrentStageResources();
+    updateDetailProgress(resourceId);
 }
 
 // ========== Render resources ==========
@@ -404,18 +497,18 @@ function openResourceDetail(resource, allResources) {
         video.style.width = '100%';
         video.style.borderRadius = '12px';
 
-        // 从进度中获取保存位置
+        // 从 progressMap 获取保存位置
         let savedPosition = 0;
         const prog = progressMap[resource.id];
         if (prog && prog.last_position) {
             savedPosition = prog.last_position;
         }
+        console.log(`🎬 视频 ${resource.id} 恢复位置: ${savedPosition}s`);
 
-        // 合法播放位置（仅在此变量更新，用户无法修改）
+        // 合法播放位置
         let lastValidTime = savedPosition;
         video._lastValidTime = savedPosition;
 
-        // 标记是否正在恢复（防止递归）
         let isRestoring = false;
 
         video.addEventListener('loadedmetadata', function() {
@@ -423,6 +516,7 @@ function openResourceDetail(resource, allResources) {
                 video.currentTime = savedPosition;
                 lastValidTime = savedPosition;
                 this._lastValidTime = savedPosition;
+                console.log(`✅ 视频 ${resource.id} 跳转到 ${savedPosition}s`);
             }
             updateDetailProgress(resource.id);
         });
@@ -438,7 +532,6 @@ function openResourceDetail(resource, allResources) {
         }
 
         video.addEventListener('timeupdate', function() {
-            // 只有非恢复状态下才更新合法位置
             if (!isRestoring) {
                 lastValidTime = video.currentTime;
                 this._lastValidTime = video.currentTime;
@@ -453,14 +546,11 @@ function openResourceDetail(resource, allResources) {
             }
         });
 
-        // 锁定进度条：任何跳转都回退到 lastValidTime
         video.addEventListener('seeking', function() {
             if (isRestoring) return;
-            // 如果当前时间与合法位置偏差大于0.3秒，说明是用户操作
             if (Math.abs(video.currentTime - lastValidTime) > 0.3) {
                 isRestoring = true;
                 video.currentTime = lastValidTime;
-                // 等待 seek 完成后清除标记
                 const onSeeked = function() {
                     isRestoring = false;
                     video.removeEventListener('seeked', onSeeked);
@@ -478,7 +568,6 @@ function openResourceDetail(resource, allResources) {
 
         detailBody.appendChild(video);
         currentVideoElement = video;
-        // 播放
         video.play().catch(e => {
             if (e.name !== 'AbortError') {
                 console.warn('视频自动播放被阻止:', e);
@@ -523,15 +612,13 @@ function closeDetailModal() {
     if (!detailModal) return;
     detailModal.classList.remove('open');
     if (currentVideoElement) {
-        // 暂停并清除事件监听（可选）
         currentVideoElement.pause();
-        // 保存当前合法位置
         if (currentVideoElement.duration) {
             const pos = currentVideoElement._lastValidTime || 0;
             const pct = Math.round((pos / currentVideoElement.duration) * 100);
+            console.log(`💾 视频 ${activeResourceId} 保存位置: ${pos}s`);
             updateResourceProgress(activeResourceId, pct, pos);
         }
-        // 清除视频元素引用（释放内存）
         currentVideoElement = null;
     }
     if (activeResourceId) {
@@ -590,66 +677,7 @@ function updateDetailProgress(resourceId) {
     }
 }
 
-// ========== Progress Update ==========
-async function updateResourceProgress(resourceId, progress, position = 0) {
-    if (!currentUser) return;
-    if (!progressMap[resourceId]) progressMap[resourceId] = { progress: 0, completed: false, last_position: 0 };
-    if (progress > progressMap[resourceId].progress) {
-        progressMap[resourceId].progress = Math.min(100, progress);
-    }
-    if (position > progressMap[resourceId].last_position) {
-        progressMap[resourceId].last_position = position;
-    }
-    if (progressMap[resourceId].progress >= 100) {
-        progressMap[resourceId].completed = true;
-        progressMap[resourceId].progress = 100;
-    }
-    const payload = {
-        user_id: currentUser.id,
-        resource_id: resourceId,
-        progress_percent: progressMap[resourceId].progress,
-        completed: progressMap[resourceId].completed || false,
-        last_position: progressMap[resourceId].last_position || 0,
-        last_updated: new Date().toISOString()
-    };
-    try {
-        const { error } = await supabaseClient
-            .from('user_learning_progress')
-            .upsert(payload, { onConflict: 'user_id, resource_id' });
-        if (error) console.error('Upsert error:', error);
-    } catch (e) {
-        console.error('Progress update error:', e);
-    }
-    renderCurrentStageResources();
-    updateDetailProgress(resourceId);
-}
-
-async function markResourceCompleted(resourceId) {
-    if (!currentUser) return;
-    if (progressMap[resourceId] && progressMap[resourceId].completed) return;
-    progressMap[resourceId] = { progress: 100, completed: true, last_position: 0 };
-    await supabaseClient
-        .from('user_learning_progress')
-        .upsert({
-            user_id: currentUser.id,
-            resource_id: resourceId,
-            progress_percent: 100,
-            completed: true,
-            last_position: 0,
-            last_updated: new Date().toISOString()
-        }, { onConflict: 'user_id, resource_id' });
-    const data = stageData[currentViewStage];
-    if (data && data.resources) {
-        const allCompleted = data.resources.every(r => progressMap[r.id] && progressMap[r.id].completed);
-        if (allCompleted && learnMsg) {
-            learnMsg.classList.remove('hidden');
-            learnMsg.textContent = '🎉 本阶段所有学习资源已完成，请完成考核以晋级！';
-        }
-    }
-    renderCurrentStageResources();
-    updateDetailProgress(resourceId);
-}
-
+// ========== 阶段进度 ==========
 function renderCurrentStageResources() {
     const data = stageData[currentViewStage];
     if (data) {
@@ -658,7 +686,6 @@ function renderCurrentStageResources() {
     }
 }
 
-// ========== 阶段进度统计 ==========
 function updateStageProgress(stage, resources) {
     if (!stageDesc) return;
     if (!resources) { stageDesc.innerHTML = ''; return; }
@@ -1084,4 +1111,4 @@ if (phoneInput) phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Ent
 if (passwordInput) passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 if (nameInput) nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 
-console.log('🐿️ 松鼠逛逛商家学堂 (最终稳定版)');
+console.log('🐿️ 松鼠逛逛商家学堂 (双保险版)');
