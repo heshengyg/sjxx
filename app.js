@@ -525,7 +525,7 @@ function openResourceDetail(resource, allResources) {
             const pct = Math.round((pos / video.duration) * 100);
             updateResourceProgress(resource.id, pct, pos);
             updateDetailProgress(resource.id);
-            if (pct >= 100) markResourceCompleted(resource.id);
+
         }
 
         video.addEventListener('timeupdate', function() {
@@ -560,11 +560,11 @@ function openResourceDetail(resource, allResources) {
             }
         });
 
-        video.addEventListener('ended', function() {
+                video.addEventListener('ended', function() {
             markResourceCompleted(resource.id);
             if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
-            this._lastValidTime = video.duration;
-            updateAndSave();
+            this._lastValidTime = 0; // 改这里，防止关闭弹窗时又把进度改成总时长
+            // 删掉 updateAndSave()
         });
 
         detailBody.appendChild(video);
