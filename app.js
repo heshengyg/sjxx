@@ -258,8 +258,13 @@ async function updateResourceProgress(resourceId, progress, position = 0) {
 async function markResourceCompleted(resourceId) {
     if (!currentUser) return;
     if (progressMap[resourceId] && progressMap[resourceId].completed) return;
-    progressMap[resourceId] = { progress: 100, completed: true, last_position: 0 };
-    saveProgressToLocal(resourceId, 100, 0, true);
+    
+    // 读取当前的播放位置（可能是总时长，也可能因为用户提前看完是任意秒数）
+    const curLastPos = progressMap[resourceId] ? progressMap[resourceId].last_position : 0;
+    
+    progressMap[resourceId] = { progress: 100, completed: true, last_position: curLastPos };
+    
+    saveProgressToLocal(resourceId, 100, curLastPos, true);
     try {
         await supabaseClient
             .from('user_learning_progress')
@@ -268,7 +273,7 @@ async function markResourceCompleted(resourceId) {
                 resource_id: resourceId,
                 progress_percent: 100,
                 completed: true,
-                last_position: 0,
+                last_position: curLastPos,
                 last_updated: new Date().toISOString()
             }, { onConflict: 'user_id, resource_id' });
     } catch (e) {}
@@ -283,7 +288,6 @@ async function markResourceCompleted(resourceId) {
     renderCurrentStageResources();
     updateDetailProgress(resourceId);
 }
-
 // ========== Render resources ==========
 function renderResources(stage, resources) {
     if (!resourcesContainer) return;
@@ -479,103 +483,88 @@ function openResourceDetail(resource, allResources) {
     detailBody.innerHTML = '';
     detailProgress.textContent = '';
 
-    // ========== 视频分支（修复初始跳转回退） ==========
-    if (resource.type === 'video') {
-        const video = document.createElement('video');
-        video.src = resource.file;
-        video.controls = true;
-        video.playsInline = true;
-        video.style.width = '100%';
-        video.style.borderRadius = '12px';
-        video.preload = 'auto';
+            // ========== 视频分支（隐藏进度条，兼容微信、手机、电脑） ==========
+        if (resource.type === 'video') {
+            const video = document.createElement('video');
+            video.src = resource.file;
+            video.controls = false; // ⚠️ 核心改动：隐藏原生的进度条！
+            video.playsInline = true;
+            video.style.width = '100%';
+            video.style.borderRadius = '12px';
+            video.preload = 'auto';
 
-        let savedPosition = 0;
-        const prog = progressMap[resource.id];
-        if (prog && prog.last_position) {
-            savedPosition = prog.last_position;
-        }
-        console.log(`🎬 视频 ${resource.id} 恢复位置: ${savedPosition}s`);
-
-        let lastValidTime = savedPosition;
-        video._lastValidTime = savedPosition;
-        let isRestoring = false;
-        let initialSeek = false; // 标记初始跳转
-
-        video.addEventListener('loadedmetadata', function() {
-            if (savedPosition > 0 && savedPosition < video.duration) {
-                initialSeek = true;
-                video.currentTime = savedPosition;
-                // 在 seeked 中清除标记
-                const onSeeked = function() {
-                    initialSeek = false;
-                    video.removeEventListener('seeked', onSeeked);
-                };
-                video.addEventListener('seeked', onSeeked);
-                lastValidTime = savedPosition;
-                this._lastValidTime = savedPosition;
-                console.log(`✅ 视频 ${resource.id} 跳转到 ${savedPosition}s`);
+            let savedPosition = 0;
+            const prog = progressMap[resource.id];
+            if (prog && prog.last_position) {
+                savedPosition = prog.last_position;
             }
-            updateDetailProgress(resource.id);
-        });
+            console.log(`🎬 视频 ${resource.id} 恢复位置: ${savedPosition}s`);
 
-        let saveTimer = null;
-        function updateAndSave() {
-            if (!video.duration) return;
-            const pos = video._lastValidTime;
-            const pct = Math.round((pos / video.duration) * 100);
-            updateResourceProgress(resource.id, pct, pos);
-            updateDetailProgress(resource.id);
+            let lastValidTime = savedPosition;
+            let isInitialSeek = false;
 
-        }
+            video.addEventListener('loadedmetadata', function() {
+                // 如果保存的位置是 0，或者等于视频总长（说明已看完），则不进行强制跳转，自然从 0 开始
+                if (savedPosition > 0 && savedPosition < video.duration - 0.5) {
+                    isInitialSeek = true;
+                    video.currentTime = savedPosition;
+                    const onSeeked = function() {
+                        isInitialSeek = false;
+                        video.removeEventListener('seeked', onSeeked);
+                    };
+                    video.addEventListener('seeked', onSeeked);
+                    console.log(`✅ 视频 ${resource.id} 记忆跳转到 ${savedPosition}s`);
+                }
+                updateDetailProgress(resource.id);
+            });
 
-        video.addEventListener('timeupdate', function() {
-            if (!isRestoring && !initialSeek) {
-                lastValidTime = video.currentTime;
-                this._lastValidTime = video.currentTime;
+            let saveTimer = null;
+            function updateAndSave() {
+                if (!video.duration) return;
+                const pos = video.currentTime;
+                const pct = Math.round((pos / video.duration) * 100);
+                updateResourceProgress(resource.id, pct, pos);
+                updateDetailProgress(resource.id);
             }
-            const pct = Math.round((video.currentTime / video.duration) * 100);
-            if (detailProgress) detailProgress.textContent = `学习进度：${pct}%`;
-            if (!saveTimer) {
-                saveTimer = setTimeout(() => {
-                    updateAndSave();
-                    saveTimer = null;
-                }, 5000);
-            }
-        });
 
-        video.addEventListener('seeking', function() {
-            if (isRestoring) return;
-            if (initialSeek) {
-                // 初始跳转时，不干预
-                return;
-            }
-            if (Math.abs(video.currentTime - lastValidTime) > 0.3) {
-                isRestoring = true;
-                video.currentTime = lastValidTime;
-                const onSeeked = function() {
-                    isRestoring = false;
-                    video.removeEventListener('seeked', onSeeked);
-                };
-                video.addEventListener('seeked', onSeeked);
-            }
-        });
+            video.addEventListener('timeupdate', function() {
+                if (!isInitialSeek) {
+                    lastValidTime = video.currentTime;
+                }
+                const pct = Math.round((video.currentTime / video.duration) * 100);
+                if (detailProgress) detailProgress.textContent = `学习进度：${pct}%`;
+                if (!saveTimer) {
+                    saveTimer = setTimeout(() => {
+                        updateAndSave();
+                        saveTimer = null;
+                    }, 5000);
+                }
+            });
 
-                video.addEventListener('ended', function() {
-            markResourceCompleted(resource.id);
-            if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
-            this._lastValidTime = 0; // 改这里，防止关闭弹窗时又把进度改成总时长
-            // 删掉 updateAndSave()
-        });
+            // 播放完毕：标记完成即可，不强制重置位置为0，防止下次打开变成 0s
+            video.addEventListener('ended', function() {
+                markResourceCompleted(resource.id);
+                if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+                console.log(`✅ 视频 ${resource.id} 播放完毕`);
+            });
 
-        detailBody.appendChild(video);
-        currentVideoElement = video;
-        video.play().catch(e => {
-            if (e.name !== 'AbortError') {
-                console.warn('视频自动播放被阻止:', e);
-            }
-        });
-        activeResourceId = resource.id;
-    } else if (resource.type === 'image') {
+            // 弥补隐藏进度条：点击视频画面可暂停/继续
+            video.addEventListener('click', function() {
+                if (video.paused) {
+                    video.play();
+                } else {
+                    video.pause();
+                }
+            });
+
+            detailBody.appendChild(video);
+            currentVideoElement = video;
+            // 尝试自动播放（大部分手机浏览器会自动静音或阻止，所以加个 catch）
+            video.play().catch(e => {
+                if (e.name !== 'AbortError') console.warn('视频自动播放被阻止:', e);
+            });
+            activeResourceId = resource.id;
+        } else if (resource.type === 'image') {
         const img = document.createElement('img');
         img.src = resource.file;
         img.style.width = '100%';
@@ -612,14 +601,14 @@ function openResourceDetail(resource, allResources) {
 function closeDetailModal() {
     if (!detailModal) return;
     detailModal.classList.remove('open');
+    
     if (currentVideoElement) {
         currentVideoElement.pause();
-        if (currentVideoElement.duration) {
-            const pos = currentVideoElement._lastValidTime || 0;
-            const pct = Math.round((pos / currentVideoElement.duration) * 100);
-            console.log(`💾 视频 ${activeResourceId} 保存位置: ${pos}s`);
-            updateResourceProgress(activeResourceId, pct, pos);
-        }
+        // ⚠️ 核心改动：绝对不要去读 video.currentTime，防止读到闪回的 0 秒！
+        // 直接从 progressMap 里拿我们 5 秒前存好的安全秒数。
+        const safePos = progressMap[activeResourceId] ? progressMap[activeResourceId].last_position : 0;
+        console.log(`💾 视频 ${activeResourceId} 关闭时写入安全位置: ${safePos}s`);
+        
         currentVideoElement = null;
     }
     if (activeResourceId) {
@@ -627,7 +616,6 @@ function closeDetailModal() {
         activeResourceId = null;
     }
 }
-
 function navigateImage(delta) {
     const newIdx = currentImageIdx + delta;
     if (newIdx < 0 || newIdx >= currentImageResources.length) return;
