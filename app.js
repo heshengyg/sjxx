@@ -483,11 +483,11 @@ function openResourceDetail(resource, allResources) {
     detailBody.innerHTML = '';
     detailProgress.textContent = '';
 
-            // ========== 视频分支（隐藏进度条，兼容微信、手机、电脑） ==========
+        // ========== 视频分支（保留进度条，兼容微信与全平台，防快进，稳记忆） ==========
         if (resource.type === 'video') {
             const video = document.createElement('video');
             video.src = resource.file;
-            video.controls = false; // ⚠️ 核心改动：隐藏原生的进度条！
+            video.controls = true; // ✅ 恢复进度条，必须让用户看到进度！
             video.playsInline = true;
             video.style.width = '100%';
             video.style.borderRadius = '12px';
@@ -495,24 +495,28 @@ function openResourceDetail(resource, allResources) {
 
             let savedPosition = 0;
             const prog = progressMap[resource.id];
-            if (prog && prog.last_position) {
+            // 只有未完成的才需要记忆，完成的我们直接从头开始
+            if (prog && prog.last_position && !prog.completed) {
                 savedPosition = prog.last_position;
             }
             console.log(`🎬 视频 ${resource.id} 恢复位置: ${savedPosition}s`);
 
             let lastValidTime = savedPosition;
-            let isInitialSeek = false;
+            let isRestoring = false;
+            let initialSeek = false;
 
             video.addEventListener('loadedmetadata', function() {
-                // 如果保存的位置是 0，或者等于视频总长（说明已看完），则不进行强制跳转，自然从 0 开始
+                // 防止完全看完后，保存的是总时长导致下次打开又跳最后
                 if (savedPosition > 0 && savedPosition < video.duration - 0.5) {
-                    isInitialSeek = true;
+                    initialSeek = true;
                     video.currentTime = savedPosition;
                     const onSeeked = function() {
-                        isInitialSeek = false;
+                        initialSeek = false;
                         video.removeEventListener('seeked', onSeeked);
                     };
                     video.addEventListener('seeked', onSeeked);
+                    lastValidTime = savedPosition;
+                    this._lastValidTime = savedPosition;
                     console.log(`✅ 视频 ${resource.id} 记忆跳转到 ${savedPosition}s`);
                 }
                 updateDetailProgress(resource.id);
@@ -521,18 +525,22 @@ function openResourceDetail(resource, allResources) {
             let saveTimer = null;
             function updateAndSave() {
                 if (!video.duration) return;
-                const pos = video.currentTime;
+                // 🚨【核心修复】：绝对不读 video.currentTime，防止浏览器闪回 0！
+                // 只读我们自己 JS 内存里维护的 _lastValidTime
+                const pos = video._lastValidTime; 
                 const pct = Math.round((pos / video.duration) * 100);
                 updateResourceProgress(resource.id, pct, pos);
                 updateDetailProgress(resource.id);
             }
 
             video.addEventListener('timeupdate', function() {
-                if (!isInitialSeek) {
+                if (!isRestoring && !initialSeek) {
                     lastValidTime = video.currentTime;
+                    this._lastValidTime = video.currentTime; // 实时同步到内存安全变量
                 }
                 const pct = Math.round((video.currentTime / video.duration) * 100);
                 if (detailProgress) detailProgress.textContent = `学习进度：${pct}%`;
+                
                 if (!saveTimer) {
                     saveTimer = setTimeout(() => {
                         updateAndSave();
@@ -541,30 +549,47 @@ function openResourceDetail(resource, allResources) {
                 }
             });
 
-            // 播放完毕：标记完成即可，不强制重置位置为0，防止下次打开变成 0s
-            video.addEventListener('ended', function() {
-                markResourceCompleted(resource.id);
-                if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
-                console.log(`✅ 视频 ${resource.id} 播放完毕`);
+            // ✅【防快进逻辑优化】：看完后允许拖动回看，没看完禁止快进
+            video.addEventListener('seeking', function() {
+                if (isRestoring) return;
+                if (initialSeek) return;
+                
+                // 如果已经彻底完成，释放防快进限制，允许用户回看或随意拖拽
+                if (progressMap[resource.id] && progressMap[resource.id].completed) {
+                    lastValidTime = video.currentTime;
+                    this._lastValidTime = video.currentTime;
+                    return;
+                }
+
+                // 没看完的情况下：试图拖动超过 0.3 秒未看的内容，强弹回
+                if (video.currentTime > lastValidTime + 0.3) {
+                    isRestoring = true;
+                    video.currentTime = lastValidTime;
+                    const onSeeked = function() {
+                        isRestoring = false;
+                        video.removeEventListener('seeked', onSeeked);
+                    };
+                    video.addEventListener('seeked', onSeeked);
+                } else {
+                    // 允许在已看过的范围内拖动，或者往回拖动
+                    lastValidTime = video.currentTime;
+                    this._lastValidTime = video.currentTime;
+                }
             });
 
-            // 弥补隐藏进度条：点击视频画面可暂停/继续
-            video.addEventListener('click', function() {
-                if (video.paused) {
-                    video.play();
-                } else {
-                    video.pause();
-                }
+            video.addEventListener('ended', function() {
+                this._lastValidTime = video.duration;
+                if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+                markResourceCompleted(resource.id);
             });
 
             detailBody.appendChild(video);
             currentVideoElement = video;
-            // 尝试自动播放（大部分手机浏览器会自动静音或阻止，所以加个 catch）
             video.play().catch(e => {
                 if (e.name !== 'AbortError') console.warn('视频自动播放被阻止:', e);
             });
             activeResourceId = resource.id;
-        } else if (resource.type === 'image') {
+        }  else if (resource.type === 'image') {
         const img = document.createElement('img');
         img.src = resource.file;
         img.style.width = '100%';
@@ -601,14 +626,15 @@ function openResourceDetail(resource, allResources) {
 function closeDetailModal() {
     if (!detailModal) return;
     detailModal.classList.remove('open');
-    
     if (currentVideoElement) {
         currentVideoElement.pause();
-        // ⚠️ 核心改动：绝对不要去读 video.currentTime，防止读到闪回的 0 秒！
-        // 直接从 progressMap 里拿我们 5 秒前存好的安全秒数。
-        const safePos = progressMap[activeResourceId] ? progressMap[activeResourceId].last_position : 0;
-        console.log(`💾 视频 ${activeResourceId} 关闭时写入安全位置: ${safePos}s`);
-        
+        if (currentVideoElement.duration) {
+            // 🚨 这里必须用 _lastValidTime，禁止用 currentVideoElement.currentTime！
+            const pos = currentVideoElement._lastValidTime || 0; 
+            const pct = Math.round((pos / currentVideoElement.duration) * 100);
+            console.log(`💾 视频 ${activeResourceId} 保存位置: ${pos}s`);
+            updateResourceProgress(activeResourceId, pct, pos);
+        }
         currentVideoElement = null;
     }
     if (activeResourceId) {
