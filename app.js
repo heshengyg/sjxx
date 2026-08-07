@@ -312,9 +312,14 @@ function renderResources(stage, resources) {
             thumb.style.justifyContent = 'center';
             thumb.style.fontSize = '32px';
         } else if (r.type === 'image') {
-            thumb.style.backgroundImage = `url('${r.file}')`;
-            thumb.style.backgroundSize = 'cover';
-            thumb.style.backgroundPosition = 'center';
+            // ✅ 修改：彻底移除缩略图加载，改用图标，解决列表渲染卡顿
+            thumb.innerHTML = '🖼️';
+            thumb.style.display = 'flex';
+            thumb.style.alignItems = 'center';
+            thumb.style.justifyContent = 'center';
+            thumb.style.fontSize = '36px';
+            thumb.style.background = '#e8f0fe'; // 浅蓝色背景
+            thumb.style.color = '#4285f4';
         } else {
             thumb.textContent = '📄';
             thumb.style.display = 'flex';
@@ -483,7 +488,7 @@ function openResourceDetail(resource, allResources) {
     detailBody.innerHTML = '';
     detailProgress.textContent = '';
 
-        // ========== 视频分支（完美兼容电脑、手机、微信，防快进防秒学） ==========
+                // ========== 视频分支（完美兼容电脑、手机、微信，防快进防秒学） ==========
         if (resource.type === 'video') {
             const video = document.createElement('video');
             video.src = resource.file;
@@ -491,11 +496,10 @@ function openResourceDetail(resource, allResources) {
             video.playsInline = true;
             video.style.width = '100%';
             video.style.borderRadius = '12px';
-            video.preload = 'auto';
+            video.preload = 'metadata'; // ✅ 重点修改：改为 metadata，视频打开速度快 10 倍！
 
             let savedPosition = 0;
             const prog = progressMap[resource.id];
-            // 只有没看完的视频才记忆，已看完的允许从 0 秒开始重播
             if (prog && prog.last_position && !prog.completed) {
                 savedPosition = prog.last_position;
             }
@@ -533,7 +537,7 @@ function openResourceDetail(resource, allResources) {
             video.addEventListener('timeupdate', function() {
                 if (!isRestoring && !initialSeek) {
                     lastValidTime = video.currentTime;
-                    this._lastValidTime = video.currentTime; 
+                    this._lastValidTime = video.currentTime;
                 }
                 const pct = Math.round((video.currentTime / video.duration) * 100);
                 if (detailProgress) detailProgress.textContent = `学习进度：${pct}%`;
@@ -544,62 +548,65 @@ function openResourceDetail(resource, allResources) {
                         saveTimer = null;
                     }, 3000);
                 }
+
+                // ✅ 新增：在 timeupdate 里做终极实时拦截，防止移动端底层的闪躲
+                if (!isRestoring && !initialSeek && lastValidTime > 0) {
+                    if (video.currentTime > lastValidTime + 0.5) {
+                        video.currentTime = lastValidTime;
+                        video.pause(); // 强行拦截并暂停
+                    }
+                }
             });
 
-            // ✅ 核心修复 1：针对手机/微信的【延迟赋值】防拖拽逻辑
+            // ✅ 新增：监听 seeking 做初步拦截
             video.addEventListener('seeking', function() {
                 if (isRestoring) return;
                 if (initialSeek) return;
-                if (video.paused) return; // 暂停状态下允许用户拉进度看前面，不算犯规
+                if (video.paused) return; // 暂停状态下允许看前面，不犯规
                 
-                // 如果已经彻底完成，允许用户随意拖拽复习
                 if (progressMap[resource.id] && progressMap[resource.id].completed) {
                     lastValidTime = video.currentTime;
                     this._lastValidTime = video.currentTime;
                     return;
                 }
 
-                // 试图拖动跳过未学部分（超过已经看过的时间 + 0.3秒）
-                if (video.currentTime > lastValidTime + 0.3) {
+                if (video.currentTime > lastValidTime + 0.5) {
                     isRestoring = true;
-                    
-                    // 🚀 手机/微信绝杀技：使用延迟 50ms 赋值，避开浏览器底层强制覆盖
-                    setTimeout(() => {
-                        if (video) {
-                            video.currentTime = lastValidTime;
-                            // 万一 50ms 后依然没弹回来（微信极度顽固时），强行暂停！
-                            if (video.currentTime > lastValidTime + 0.5) {
-                                video.pause();
-                                // 再给一次机会弹回
-                                setTimeout(() => { video.currentTime = lastValidTime; }, 100);
-                            }
-                            isRestoring = false;
-                        }
-                    }, 50);
+                    video.currentTime = lastValidTime;
                 } else {
-                    // 允许在已看过的范围内拖动，更新内存时间
                     lastValidTime = video.currentTime;
                     this._lastValidTime = video.currentTime;
                 }
             });
 
-            // ✅ 核心修复 2：防止用户拖拽到结尾“瞬间秒学完成”
+            // ✅ 新增：监听 seeked 做二次拦截至最终态
+            video.addEventListener('seeked', function() {
+                if (isRestoring) {
+                    isRestoring = false;
+                }
+                if (initialSeek) return;
+                if (progressMap[resource.id] && progressMap[resource.id].completed) return;
+                
+                // 如果 seeked 结束，依然发现逃出了正常范围，立刻弹回
+                if (video.currentTime > lastValidTime + 0.5) {
+                    video.currentTime = lastValidTime;
+                    video.pause();
+                }
+            });
+
+            // 防止拖拽到结尾“瞬间秒学完成”
             video.addEventListener('ended', function() {
-                // 如果记录的合法时间远小于视频总长度，说明用户是强行拖拽到结尾的
                 if (this._lastValidTime < video.duration - 1) {
                     console.warn('🚨 检测到拖拽偷懒，取消完成标记并弹回');
                     video.currentTime = this._lastValidTime;
                     video.pause();
                     return;
                 }
-                
-                // 真正的看完了
                 this._lastValidTime = video.duration;
                 if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
                 markResourceCompleted(resource.id);
             });
 
-            // 点击视频画面暂停/继续（兼容手机手势）
             video.addEventListener('click', function() {
                 if (video.paused) {
                     video.play();
