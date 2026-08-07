@@ -226,12 +226,6 @@ function renderResources(stage, resources) {
             thumb.style.alignItems = 'center';
             thumb.style.justifyContent = 'center';
             thumb.style.fontSize = '32px';
-            generateVideoThumbnail(r.file, function(dataUrl) {
-                if (dataUrl) {
-                    thumb.style.backgroundImage = `url(${dataUrl})`;
-                    thumb.style.backgroundSize = 'cover';
-                    thumb.style.backgroundPosition = 'center';
-                    thumb.textContent = '';
                 }
             });
         } else if (r.type === 'image') {
@@ -421,65 +415,40 @@ function openResourceDetail(resource, allResources) {
     video.playsInline = true;
     video.style.width = '100%';
     video.style.borderRadius = '12px';
-    video.loop = true; // 添加循环播放
-
+    
     let savedPosition = 0;
     const prog = progressMap[resource.id];
-    // 只有未完成才恢复进度，如果已完成则从头开始（但已完成不显示视频？）
-    // 但实际上已完成资源不会重新打开，所以我们假设打开时未完成，除非完成标记为true
-    if (prog && prog.completed) {
-        // 如果已完成，播放进度设为0，但标记已完成，不需要继续学习
-        // 但我们仍然允许观看，进度显示100%
-        savedPosition = 0;
-    } else if (prog && prog.last_position) {
+    if (prog && prog.last_position) {
         savedPosition = prog.last_position;
     }
 
-    // 如果已完成，直接显示完成状态，不允许操作？
-    // 但我们希望即使已完成，仍可观看，进度保持100%，且进度条锁定。
-    // 我们可以特殊处理：如果已完成，设置progress为100，并禁用控制栏？但简单起见，我们照常播放，但进度显示100%
-
-    video._lastValidTime = savedPosition;
-    video._completed = (prog && prog.completed) || false;
+    // 初始化合法位置
+    let lastValidTime = savedPosition;
+    video._lastValidTime = savedPosition; // 挂载到元素便于关闭时读取
 
     video.addEventListener('loadedmetadata', function() {
         if (savedPosition > 0 && savedPosition < video.duration) {
             video.currentTime = savedPosition;
+            lastValidTime = savedPosition;
             this._lastValidTime = savedPosition;
-        } else if (savedPosition >= video.duration) {
-            // 如果保存位置是末尾，从头开始
-            video.currentTime = 0;
-            this._lastValidTime = 0;
         }
         updateDetailProgress(resource.id);
-        // 如果已完成，显示100%
-        if (this._completed) {
-            if (detailProgress) detailProgress.textContent = '学习进度：100% ✅ 已完成';
-        }
     });
 
     let saveTimer = null;
     function updateAndSave() {
         if (!video.duration) return;
-        // 如果已完成，不保存（保持已完成的进度100%）
-        if (video._completed) return;
         const pos = video._lastValidTime;
         const pct = Math.round((pos / video.duration) * 100);
-        // 如果进度达到100，标记完成
-        if (pct >= 100) {
-            markResourceCompleted(resource.id);
-            video._completed = true;
-        } else {
-            updateResourceProgress(resource.id, pct, pos);
-        }
+        updateResourceProgress(resource.id, pct, pos);
         updateDetailProgress(resource.id);
+        if (pct >= 100) markResourceCompleted(resource.id);
     }
 
     video.addEventListener('timeupdate', function() {
-        // 如果已完成，不做任何更新
-        if (this._completed) return;
-        // 只有在非seeking状态下才更新合法位置
+        // 只有不在 seeking 状态时才更新合法位置
         if (!this._seeking) {
+            lastValidTime = video.currentTime;
             this._lastValidTime = video.currentTime;
         }
         const pct = Math.round((video.currentTime / video.duration) * 100);
@@ -492,31 +461,30 @@ function openResourceDetail(resource, allResources) {
         }
     });
 
-    // 锁定进度条
     video.addEventListener('seeking', function() {
-        // 如果已完成，不允许任何操作，直接回退到当前合法位置
-        if (this._completed) {
-            this.currentTime = this._lastValidTime;
-            return;
-        }
+        // 标记正在 seeking
         this._seeking = true;
         // 强制回退到合法位置
         this.currentTime = this._lastValidTime;
+        // 等待 seeking 完成后清除标志
         setTimeout(() => {
             this._seeking = false;
-        }, 50);
+        }, 100);
     });
 
-    // 循环播放时，每次循环结束，我们应标记完成（因为loop会自动重播）
-    // 但循环播放时，ended事件不会触发，所以改用timeupdate检查进度
-    // 不依赖于ended
+    video.addEventListener('ended', function() {
+        markResourceCompleted(resource.id);
+        if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+        this._lastValidTime = video.duration;
+        updateAndSave();
+    });
 
     detailBody.appendChild(video);
     currentVideoElement = video;
     // 尝试播放
     video.play().catch(e => {
         if (e.name !== 'AbortError') {
-            console.error('视频播放错误:', e);
+            console.warn('视频自动播放被阻止:', e);
         }
     });
     activeResourceId = resource.id;
@@ -560,15 +528,10 @@ function closeDetailModal() {
     detailModal.classList.remove('open');
     if (currentVideoElement) {
     currentVideoElement.pause();
-    if (currentVideoElement.duration && !currentVideoElement._completed) {
+    if (currentVideoElement.duration) {
         const pos = currentVideoElement._lastValidTime || 0;
         const pct = Math.round((pos / currentVideoElement.duration) * 100);
-        // 如果已经达到100，标记完成
-        if (pct >= 100) {
-            markResourceCompleted(activeResourceId);
-        } else {
-            updateResourceProgress(activeResourceId, pct, pos);
-        }
+        updateResourceProgress(activeResourceId, pct, pos);
     }
     currentVideoElement = null;
 }
