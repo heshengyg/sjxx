@@ -1,5 +1,5 @@
 // =====================================================
-// app.js - 纯本地存储版（100% 进度记忆）
+// app.js - 修复初始跳转回退问题，实现可靠记忆播放
 // =====================================================
 
 const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
@@ -479,6 +479,7 @@ function openResourceDetail(resource, allResources) {
     detailBody.innerHTML = '';
     detailProgress.textContent = '';
 
+    // ========== 视频分支（修复初始跳转回退） ==========
     if (resource.type === 'video') {
         const video = document.createElement('video');
         video.src = resource.file;
@@ -486,7 +487,6 @@ function openResourceDetail(resource, allResources) {
         video.playsInline = true;
         video.style.width = '100%';
         video.style.borderRadius = '12px';
-        // 兼容性：设置 preload 为 auto
         video.preload = 'auto';
 
         let savedPosition = 0;
@@ -498,12 +498,19 @@ function openResourceDetail(resource, allResources) {
 
         let lastValidTime = savedPosition;
         video._lastValidTime = savedPosition;
-
         let isRestoring = false;
+        let initialSeek = false; // 标记初始跳转
 
         video.addEventListener('loadedmetadata', function() {
             if (savedPosition > 0 && savedPosition < video.duration) {
+                initialSeek = true;
                 video.currentTime = savedPosition;
+                // 在 seeked 中清除标记
+                const onSeeked = function() {
+                    initialSeek = false;
+                    video.removeEventListener('seeked', onSeeked);
+                };
+                video.addEventListener('seeked', onSeeked);
                 lastValidTime = savedPosition;
                 this._lastValidTime = savedPosition;
                 console.log(`✅ 视频 ${resource.id} 跳转到 ${savedPosition}s`);
@@ -522,7 +529,7 @@ function openResourceDetail(resource, allResources) {
         }
 
         video.addEventListener('timeupdate', function() {
-            if (!isRestoring) {
+            if (!isRestoring && !initialSeek) {
                 lastValidTime = video.currentTime;
                 this._lastValidTime = video.currentTime;
             }
@@ -538,6 +545,10 @@ function openResourceDetail(resource, allResources) {
 
         video.addEventListener('seeking', function() {
             if (isRestoring) return;
+            if (initialSeek) {
+                // 初始跳转时，不干预
+                return;
+            }
             if (Math.abs(video.currentTime - lastValidTime) > 0.3) {
                 isRestoring = true;
                 video.currentTime = lastValidTime;
@@ -1101,4 +1112,4 @@ if (phoneInput) phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Ent
 if (passwordInput) passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 if (nameInput) nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 
-console.log('🐿️ 松鼠逛逛商家学堂 (本地存储版)');
+console.log('🐿️ 松鼠逛逛商家学堂 (记忆播放修复版)');
