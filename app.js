@@ -1,5 +1,5 @@
 // =====================================================
-// app.js - 双保险版（Supabase + localStorage 进度记忆）
+// app.js - 纯本地存储版（100% 进度记忆）
 // =====================================================
 
 const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
@@ -36,7 +36,6 @@ let activeResourceId = null;
 let currentImageResources = [];
 let currentImageIdx = 0;
 let questionStates = [];
-const thumbCache = {};
 
 // DOM helpers
 const $ = id => document.getElementById(id);
@@ -114,12 +113,6 @@ function updateAvatar(user) {
     }
 }
 
-// ========== 缩略图 ==========
-function generateVideoThumbnail(videoSrc, callback) {
-    // 直接返回图标，不加载视频
-    callback(null);
-}
-
 // ========== Load JSON ==========
 async function loadStageData(stage) {
     if (stageData[stage]) return stageData[stage];
@@ -127,7 +120,6 @@ async function loadStageData(stage) {
         const resp = await fetch(`data/stage${stage}.json`);
         if (!resp.ok) throw new Error(`加载阶段 ${stage} 失败`);
         const data = await resp.json();
-        
         if (data.resources) {
             data.resources.forEach(r => {
                 r.id = stage + '-' + r.id;
@@ -158,96 +150,77 @@ async function loadStageData(stage) {
     }
 }
 
-// ========== 进度存取（双保险：Supabase + localStorage） ==========
-async function loadUserProgress(userId) {
-    // 1. 从 localStorage 读取
-    let localData = {};
-    try {
-        const local = localStorage.getItem('progress_' + userId);
-        if (local) {
-            localData = JSON.parse(local);
-        }
-    } catch (e) {}
+// ========== 进度管理（纯 localStorage） ==========
+function getProgressKey() {
+    return 'progress_' + (currentUser ? currentUser.id : 'guest');
+}
 
-    // 2. 从 Supabase 读取
-    let supabaseData = {};
+function loadProgressFromLocal() {
+    const key = getProgressKey();
     try {
-        const { data, error } = await supabaseClient
-            .from('user_learning_progress')
-            .select('*')
-            .eq('user_id', userId);
-        if (!error && data) {
-            data.forEach(p => {
-                supabaseData[p.resource_id] = p;
-            });
-        } else {
-            console.warn('Supabase 进度加载失败，使用本地缓存');
+        const data = localStorage.getItem(key);
+        if (data) {
+            const parsed = JSON.parse(data);
+            console.log('📦 从 localStorage 加载进度:', parsed);
+            return parsed;
         }
     } catch (e) {
-        console.warn('Supabase 进度加载异常，使用本地缓存');
+        console.warn('读取 localStorage 失败:', e);
     }
+    return {};
+}
 
-    // 3. 合并：Supabase 优先，localStorage 作为补充
-    const merged = { ...localData, ...supabaseData };
+function saveProgressToLocal(resourceId, progress, position, completed) {
+    const key = getProgressKey();
+    let data = loadProgressFromLocal();
+    data[resourceId] = {
+        progress_percent: Math.min(100, progress),
+        completed: completed || false,
+        last_position: position || 0
+    };
+    localStorage.setItem(key, JSON.stringify(data));
+    console.log(`💾 进度已保存到 localStorage: ${resourceId} -> ${position}s`);
+}
+
+async function loadUserProgress() {
+    const localData = loadProgressFromLocal();
     progressMap = {};
-    Object.keys(merged).forEach(key => {
-        const item = merged[key];
+    Object.keys(localData).forEach(key => {
+        const item = localData[key];
         progressMap[key] = {
             progress: item.progress_percent || 0,
             completed: item.completed || false,
             last_position: item.last_position || 0
         };
     });
-}
-
-async function saveProgressToSupabase(resourceId, progress, position, completed) {
-    if (!currentUser) return false;
+    // 尝试从 Supabase 同步（失败不影响）
     try {
-        const payload = {
-            user_id: currentUser.id,
-            resource_id: resourceId,
-            progress_percent: progress,
-            completed: completed || false,
-            last_position: position || 0,
-            last_updated: new Date().toISOString()
-        };
-        const { error } = await supabaseClient
-            .from('user_learning_progress')
-            .upsert(payload, { onConflict: 'user_id, resource_id' });
-        if (error) {
-            console.warn('Supabase 保存失败:', error);
-            return false;
+        if (currentUser) {
+            const { data, error } = await supabaseClient
+                .from('user_learning_progress')
+                .select('*')
+                .eq('user_id', currentUser.id);
+            if (!error && data) {
+                data.forEach(p => {
+                    if (!progressMap[p.resource_id]) {
+                        progressMap[p.resource_id] = {
+                            progress: p.progress_percent || 0,
+                            completed: p.completed || false,
+                            last_position: p.last_position || 0
+                        };
+                    }
+                });
+            }
         }
-        return true;
-    } catch (e) {
-        console.warn('Supabase 保存异常:', e);
-        return false;
-    }
-}
-
-function saveProgressToLocal(resourceId, progress, position, completed) {
-    if (!currentUser) return;
-    const key = 'progress_' + currentUser.id;
-    let data = {};
-    try {
-        const existing = localStorage.getItem(key);
-        if (existing) data = JSON.parse(existing);
     } catch (e) {}
-    data[resourceId] = {
-        progress_percent: progress,
-        completed: completed || false,
-        last_position: position || 0
-    };
-    localStorage.setItem(key, JSON.stringify(data));
+    console.log('📊 最终 progressMap:', progressMap);
 }
 
-// 统一更新函数
 async function updateResourceProgress(resourceId, progress, position = 0) {
     if (!currentUser) return;
     if (!progressMap[resourceId]) {
         progressMap[resourceId] = { progress: 0, completed: false, last_position: 0 };
     }
-    // 更新本地 progressMap
     if (progress > progressMap[resourceId].progress) {
         progressMap[resourceId].progress = Math.min(100, progress);
     }
@@ -258,20 +231,26 @@ async function updateResourceProgress(resourceId, progress, position = 0) {
         progressMap[resourceId].completed = true;
         progressMap[resourceId].progress = 100;
     }
-    // 同步到 localStorage（总是成功）
+    // 保存到 localStorage
     saveProgressToLocal(
         resourceId,
         progressMap[resourceId].progress,
         progressMap[resourceId].last_position,
         progressMap[resourceId].completed
     );
-    // 尝试保存到 Supabase（失败不影响本地）
-    await saveProgressToSupabase(
-        resourceId,
-        progressMap[resourceId].progress,
-        progressMap[resourceId].last_position,
-        progressMap[resourceId].completed
-    );
+    // 尝试同步到 Supabase（失败忽略）
+    try {
+        await supabaseClient
+            .from('user_learning_progress')
+            .upsert({
+                user_id: currentUser.id,
+                resource_id: resourceId,
+                progress_percent: progressMap[resourceId].progress,
+                completed: progressMap[resourceId].completed,
+                last_position: progressMap[resourceId].last_position,
+                last_updated: new Date().toISOString()
+            }, { onConflict: 'user_id, resource_id' });
+    } catch (e) {}
     renderCurrentStageResources();
     updateDetailProgress(resourceId);
 }
@@ -281,7 +260,18 @@ async function markResourceCompleted(resourceId) {
     if (progressMap[resourceId] && progressMap[resourceId].completed) return;
     progressMap[resourceId] = { progress: 100, completed: true, last_position: 0 };
     saveProgressToLocal(resourceId, 100, 0, true);
-    await saveProgressToSupabase(resourceId, 100, 0, true);
+    try {
+        await supabaseClient
+            .from('user_learning_progress')
+            .upsert({
+                user_id: currentUser.id,
+                resource_id: resourceId,
+                progress_percent: 100,
+                completed: true,
+                last_position: 0,
+                last_updated: new Date().toISOString()
+            }, { onConflict: 'user_id, resource_id' });
+    } catch (e) {}
     const data = stageData[currentViewStage];
     if (data && data.resources) {
         const allCompleted = data.resources.every(r => progressMap[r.id] && progressMap[r.id].completed);
@@ -496,8 +486,9 @@ function openResourceDetail(resource, allResources) {
         video.playsInline = true;
         video.style.width = '100%';
         video.style.borderRadius = '12px';
+        // 兼容性：设置 preload 为 auto
+        video.preload = 'auto';
 
-        // 从 progressMap 获取保存位置
         let savedPosition = 0;
         const prog = progressMap[resource.id];
         if (prog && prog.last_position) {
@@ -505,7 +496,6 @@ function openResourceDetail(resource, allResources) {
         }
         console.log(`🎬 视频 ${resource.id} 恢复位置: ${savedPosition}s`);
 
-        // 合法播放位置
         let lastValidTime = savedPosition;
         video._lastValidTime = savedPosition;
 
@@ -809,7 +799,7 @@ async function updateDashboard(user) {
     const stageStatus = (actualStage > TOTAL_STAGES) ? '已完成全部阶段' : `当前阶段：${actualStage}`;
     if (statusText) statusText.textContent = `📖 ${stageStatus} · 等级 ${level.label}`;
 
-    await loadUserProgress(user.id);
+    await loadUserProgress();
 
     const data = await loadStageData(currentViewStage);
     if (data) {
@@ -1111,4 +1101,4 @@ if (phoneInput) phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Ent
 if (passwordInput) passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 if (nameInput) nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 
-console.log('🐿️ 松鼠逛逛商家学堂 (双保险版)');
+console.log('🐿️ 松鼠逛逛商家学堂 (本地存储版)');
