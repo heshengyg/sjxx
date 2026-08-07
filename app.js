@@ -525,7 +525,6 @@ function openResourceDetail(resource, allResources) {
             const pct = Math.round((pos / video.duration) * 100);
             updateResourceProgress(resource.id, pct, pos);
             updateDetailProgress(resource.id);
-            if (pct >= 100) markResourceCompleted(resource.id);
         }
 
         video.addEventListener('timeupdate', function() {
@@ -544,21 +543,12 @@ function openResourceDetail(resource, allResources) {
         });
 
         video.addEventListener('seeking', function() {
-            if (isRestoring) return;
-            if (initialSeek) {
-                // 初始跳转时，不干预
-                return;
-            }
-            if (Math.abs(video.currentTime - lastValidTime) > 0.3) {
-                isRestoring = true;
-                video.currentTime = lastValidTime;
-                const onSeeked = function() {
-                    isRestoring = false;
-                    video.removeEventListener('seeked', onSeeked);
-                };
-                video.addEventListener('seeked', onSeeked);
-            }
-        });
+    if (isRestoring) return;
+    if (initialSeek) return;
+    // 用户手动拖拽时，更新有效时间即可，不需要强制回弹
+    lastValidTime = video.currentTime;
+    this._lastValidTime = video.currentTime;
+});
 
         video.addEventListener('ended', function() {
             markResourceCompleted(resource.id);
