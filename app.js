@@ -226,8 +226,6 @@ function renderResources(stage, resources) {
             thumb.style.alignItems = 'center';
             thumb.style.justifyContent = 'center';
             thumb.style.fontSize = '32px';
-                }
-            });
         } else if (r.type === 'image') {
             thumb.style.backgroundImage = `url('${r.file}')`;
             thumb.style.backgroundSize = 'cover';
@@ -409,87 +407,81 @@ function openResourceDetail(resource, allResources) {
     detailProgress.textContent = '';
 
     if (resource.type === 'video') {
-    const video = document.createElement('video');
-    video.src = resource.file;
-    video.controls = true;
-    video.playsInline = true;
-    video.style.width = '100%';
-    video.style.borderRadius = '12px';
-    
-    let savedPosition = 0;
-    const prog = progressMap[resource.id];
-    if (prog && prog.last_position) {
-        savedPosition = prog.last_position;
-    }
-
-    // 初始化合法位置
-    let lastValidTime = savedPosition;
-    video._lastValidTime = savedPosition; // 挂载到元素便于关闭时读取
-
-    video.addEventListener('loadedmetadata', function() {
-        if (savedPosition > 0 && savedPosition < video.duration) {
-            video.currentTime = savedPosition;
-            lastValidTime = savedPosition;
-            this._lastValidTime = savedPosition;
+        const video = document.createElement('video');
+        video.src = resource.file;
+        video.controls = true;
+        video.playsInline = true;
+        video.style.width = '100%';
+        video.style.borderRadius = '12px';
+        
+        let savedPosition = 0;
+        const prog = progressMap[resource.id];
+        if (prog && prog.last_position) {
+            savedPosition = prog.last_position;
         }
-        updateDetailProgress(resource.id);
-    });
 
-    let saveTimer = null;
-    function updateAndSave() {
-        if (!video.duration) return;
-        const pos = video._lastValidTime;
-        const pct = Math.round((pos / video.duration) * 100);
-        updateResourceProgress(resource.id, pct, pos);
-        updateDetailProgress(resource.id);
-        if (pct >= 100) markResourceCompleted(resource.id);
-    }
+        // 初始化合法位置
+        let lastValidTime = savedPosition;
+        video._lastValidTime = savedPosition;
 
-    video.addEventListener('timeupdate', function() {
-        // 只有不在 seeking 状态时才更新合法位置
-        if (!this._seeking) {
-            lastValidTime = video.currentTime;
-            this._lastValidTime = video.currentTime;
+        video.addEventListener('loadedmetadata', function() {
+            if (savedPosition > 0 && savedPosition < video.duration) {
+                video.currentTime = savedPosition;
+                lastValidTime = savedPosition;
+                this._lastValidTime = savedPosition;
+            }
+            updateDetailProgress(resource.id);
+        });
+
+        let saveTimer = null;
+        function updateAndSave() {
+            if (!video.duration) return;
+            const pos = video._lastValidTime;
+            const pct = Math.round((pos / video.duration) * 100);
+            updateResourceProgress(resource.id, pct, pos);
+            updateDetailProgress(resource.id);
+            if (pct >= 100) markResourceCompleted(resource.id);
         }
-        const pct = Math.round((video.currentTime / video.duration) * 100);
-        if (detailProgress) detailProgress.textContent = `学习进度：${pct}%`;
-        if (!saveTimer) {
-            saveTimer = setTimeout(() => {
-                updateAndSave();
-                saveTimer = null;
-            }, 5000);
-        }
-    });
 
-    video.addEventListener('seeking', function() {
-        // 标记正在 seeking
-        this._seeking = true;
-        // 强制回退到合法位置
-        this.currentTime = this._lastValidTime;
-        // 等待 seeking 完成后清除标志
-        setTimeout(() => {
-            this._seeking = false;
-        }, 100);
-    });
+        video.addEventListener('timeupdate', function() {
+            if (!this._seeking) {
+                lastValidTime = video.currentTime;
+                this._lastValidTime = video.currentTime;
+            }
+            const pct = Math.round((video.currentTime / video.duration) * 100);
+            if (detailProgress) detailProgress.textContent = `学习进度：${pct}%`;
+            if (!saveTimer) {
+                saveTimer = setTimeout(() => {
+                    updateAndSave();
+                    saveTimer = null;
+                }, 5000);
+            }
+        });
 
-    video.addEventListener('ended', function() {
-        markResourceCompleted(resource.id);
-        if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
-        this._lastValidTime = video.duration;
-        updateAndSave();
-    });
+        video.addEventListener('seeking', function() {
+            this._seeking = true;
+            this.currentTime = this._lastValidTime;
+            setTimeout(() => {
+                this._seeking = false;
+            }, 100);
+        });
 
-    detailBody.appendChild(video);
-    currentVideoElement = video;
-    // 尝试播放
-    video.play().catch(e => {
-        if (e.name !== 'AbortError') {
-            console.warn('视频自动播放被阻止:', e);
-        }
-    });
-    activeResourceId = resource.id;
-}
-else if (resource.type === 'image') {
+        video.addEventListener('ended', function() {
+            markResourceCompleted(resource.id);
+            if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+            this._lastValidTime = video.duration;
+            updateAndSave();
+        });
+
+        detailBody.appendChild(video);
+        currentVideoElement = video;
+        video.play().catch(e => {
+            if (e.name !== 'AbortError') {
+                console.warn('视频自动播放被阻止:', e);
+            }
+        });
+        activeResourceId = resource.id;
+    } else if (resource.type === 'image') {
         const img = document.createElement('img');
         img.src = resource.file;
         img.style.width = '100%';
@@ -522,7 +514,6 @@ else if (resource.type === 'image') {
     detailModal.classList.add('open');
     updateDetailProgress(resource.id);
 }
-
 function closeDetailModal() {
     if (!detailModal) return;
     detailModal.classList.remove('open');
