@@ -1,5 +1,6 @@
 // =====================================================
 // app.js - 完整版（阶段卡片 + 防拖拽 + 进度记忆 + 分组考核）
+// 视频部分已重构：锁定进度条 + 断点记忆 + 关闭停止
 // =====================================================
 
 const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
@@ -51,7 +52,7 @@ const stageTitle = $('stageTitle'), stageDesc = $('stageDesc');
 const resourcesContainer = $('resourcesContainer'), learnMsg = $('learnMsg');
 const quizContainer = $('quizContainer'), submitQuizBtn = $('submitQuizBtn');
 const quizResult = $('quizResult'), refreshBtn = $('refreshBtn');
-const stageList = $('stageList'); // 新增
+const stageList = $('stageList');
 const avatarWrapper = $('avatarWrapper'), avatarCircle = $('avatarCircle');
 const dropdownMenu = $('dropdownMenu'), changeAvatarBtn = $('changeAvatarBtn');
 const changePasswordBtn = $('changePasswordBtn'), logoutBtn = $('logoutBtn');
@@ -145,7 +146,7 @@ function generateVideoThumbnail(videoSrc, callback) {
     video.load();
 }
 
-// ========== Load JSON（增加资源ID前缀 + 动态时长） ==========
+// ========== Load JSON ==========
 async function loadStageData(stage) {
     if (stageData[stage]) return stageData[stage];
     try {
@@ -153,11 +154,9 @@ async function loadStageData(stage) {
         if (!resp.ok) throw new Error(`加载阶段 ${stage} 失败`);
         const data = await resp.json();
         
-        // 为资源ID添加阶段前缀，使其全局唯一
         if (data.resources) {
             data.resources.forEach(r => {
                 r.id = stage + '-' + r.id;
-                // 重新计算时长（视频保留原值，图片固定300秒，文章按字数）
                 if (r.type === 'image') {
                     r.duration = 300;
                 } else if (r.type === 'article') {
@@ -172,7 +171,6 @@ async function loadStageData(stage) {
                 }
             });
         }
-        // 如果 quiz 中也需要 ID（暂未使用），也加前缀
         if (data.quiz) {
             data.quiz.forEach(q => {
                 q.id = stage + '-' + q.id;
@@ -270,7 +268,7 @@ function renderResources(stage, resources) {
     });
 }
 
-// ==================== 修改后的 renderQuiz ====================
+// ========== renderQuiz ==========
 function renderQuiz(quiz) {
     if (!quizContainer) return;
     quizContainer.innerHTML = '';
@@ -281,7 +279,6 @@ function renderQuiz(quiz) {
     }
     if (submitQuizBtn) submitQuizBtn.disabled = false;
 
-    // 按题型分组
     const groups = {
         single: { label: '一、单选题', items: [], totalScore: 0 },
         multiple: { label: '二、多选题', items: [], totalScore: 0 },
@@ -294,36 +291,30 @@ function renderQuiz(quiz) {
             groups[type].items.push(q);
             groups[type].totalScore += (q.score || 0);
         } else {
-            // 未知类型归入单选
             groups.single.items.push(q);
             groups.single.totalScore += (q.score || 0);
         }
     });
 
-    // 存储题目状态（全局）
     questionStates = quiz.map(() => ({ confirmed: false, selected: [] }));
 
-    // 渲染每个分组
     for (const [type, group] of Object.entries(groups)) {
         if (group.items.length === 0) continue;
 
-        // 分组标题
         const titleDiv = document.createElement('div');
         titleDiv.className = 'group-title';
         const perScore = group.items.length > 0 ? (group.totalScore / group.items.length) : 0;
         titleDiv.textContent = `${group.label}（每题${perScore}分，共${group.totalScore}分）`;
         quizContainer.appendChild(titleDiv);
 
-        // 渲染该组所有题目
         group.items.forEach(q => {
             const wrapper = document.createElement('div');
             wrapper.className = 'quiz-item';
-            const idx = quiz.indexOf(q); // 获取全局索引
+            const idx = quiz.indexOf(q);
             wrapper.dataset.idx = idx;
 
             const qText = document.createElement('div');
             qText.className = 'q-text';
-            // 显示该组内的序号
             const localIdx = group.items.indexOf(q) + 1;
             qText.textContent = `${localIdx}. ${q.question}`;
             wrapper.appendChild(qText);
@@ -395,7 +386,6 @@ function renderQuiz(quiz) {
 
 // ========== Resource Detail Modal ==========
 let currentVideoElement = null;
-let isSeekingLock = false;
 
 function openResourceDetail(resource, allResources) {
     if (!detailModal || !detailTitle || !detailBody || !detailProgress) return;
@@ -413,16 +403,20 @@ function openResourceDetail(resource, allResources) {
         video.playsInline = true;
         video.style.width = '100%';
         video.style.borderRadius = '12px';
-        
+
+        // 从进度中获取保存位置
         let savedPosition = 0;
         const prog = progressMap[resource.id];
         if (prog && prog.last_position) {
             savedPosition = prog.last_position;
         }
 
-        // 初始化合法位置
+        // 合法播放位置（仅在此变量更新，用户无法修改）
         let lastValidTime = savedPosition;
         video._lastValidTime = savedPosition;
+
+        // 标记是否正在恢复（防止递归）
+        let isRestoring = false;
 
         video.addEventListener('loadedmetadata', function() {
             if (savedPosition > 0 && savedPosition < video.duration) {
@@ -444,7 +438,8 @@ function openResourceDetail(resource, allResources) {
         }
 
         video.addEventListener('timeupdate', function() {
-            if (!this._seeking) {
+            // 只有非恢复状态下才更新合法位置
+            if (!isRestoring) {
                 lastValidTime = video.currentTime;
                 this._lastValidTime = video.currentTime;
             }
@@ -458,12 +453,20 @@ function openResourceDetail(resource, allResources) {
             }
         });
 
+        // 锁定进度条：任何跳转都回退到 lastValidTime
         video.addEventListener('seeking', function() {
-            this._seeking = true;
-            this.currentTime = this._lastValidTime;
-            setTimeout(() => {
-                this._seeking = false;
-            }, 100);
+            if (isRestoring) return;
+            // 如果当前时间与合法位置偏差大于0.3秒，说明是用户操作
+            if (Math.abs(video.currentTime - lastValidTime) > 0.3) {
+                isRestoring = true;
+                video.currentTime = lastValidTime;
+                // 等待 seek 完成后清除标记
+                const onSeeked = function() {
+                    isRestoring = false;
+                    video.removeEventListener('seeked', onSeeked);
+                };
+                video.addEventListener('seeked', onSeeked);
+            }
         });
 
         video.addEventListener('ended', function() {
@@ -475,6 +478,7 @@ function openResourceDetail(resource, allResources) {
 
         detailBody.appendChild(video);
         currentVideoElement = video;
+        // 播放
         video.play().catch(e => {
             if (e.name !== 'AbortError') {
                 console.warn('视频自动播放被阻止:', e);
@@ -514,18 +518,22 @@ function openResourceDetail(resource, allResources) {
     detailModal.classList.add('open');
     updateDetailProgress(resource.id);
 }
+
 function closeDetailModal() {
     if (!detailModal) return;
     detailModal.classList.remove('open');
     if (currentVideoElement) {
-    currentVideoElement.pause();
-    if (currentVideoElement.duration) {
-        const pos = currentVideoElement._lastValidTime || 0;
-        const pct = Math.round((pos / currentVideoElement.duration) * 100);
-        updateResourceProgress(activeResourceId, pct, pos);
+        // 暂停并清除事件监听（可选）
+        currentVideoElement.pause();
+        // 保存当前合法位置
+        if (currentVideoElement.duration) {
+            const pos = currentVideoElement._lastValidTime || 0;
+            const pct = Math.round((pos / currentVideoElement.duration) * 100);
+            updateResourceProgress(activeResourceId, pct, pos);
+        }
+        // 清除视频元素引用（释放内存）
+        currentVideoElement = null;
     }
-    currentVideoElement = null;
-}
     if (activeResourceId) {
         stopTimer(activeResourceId);
         activeResourceId = null;
@@ -674,7 +682,7 @@ function updateStageProgress(stage, resources) {
     stageDesc.innerHTML = `资源完成：${completedCount}/${total}  |  已学 ${formatTime(elapsed)}  /  总需 ${formatTime(totalDuration)}  |  剩余 ${formatTime(remaining)}`;
 }
 
-// ==================== 修改后的 submitQuiz ====================
+// ========== submitQuiz ==========
 async function submitQuiz() {
     if (!currentUser) return;
     const stages = currentUser.completed_stages || [];
@@ -700,7 +708,6 @@ async function submitQuiz() {
         return;
     }
 
-    // 计算总分和得分
     let totalScore = 0;
     let earnedScore = 0;
     data.quiz.forEach((q, idx) => {
@@ -714,7 +721,6 @@ async function submitQuiz() {
     });
 
     const scorePercent = Math.round((earnedScore / totalScore) * 100);
-    const passThreshold = 80; // 固定80分及格
     const passed = earnedScore >= (totalScore * 0.8);
 
     const results = currentUser.quiz_results || {};
@@ -792,7 +798,6 @@ async function updateDashboard(user) {
         if (quizContainer) quizContainer.innerHTML = '';
     }
 
-    // ========== 渲染阶段卡片（新） ==========
     const maxUnlocked = stages.length > 0 ? Math.max(...stages) : 0;
     if (stageList) {
         stageList.innerHTML = '';
