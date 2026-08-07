@@ -479,7 +479,7 @@ function openResourceDetail(resource, allResources) {
     detailBody.innerHTML = '';
     detailProgress.textContent = '';
 
-       // ========== 视频分支（修复记忆播放与回弹冲突） ==========
+    // ========== 视频分支（修复初始跳转回退） ==========
     if (resource.type === 'video') {
         const video = document.createElement('video');
         video.src = resource.file;
@@ -499,16 +499,13 @@ function openResourceDetail(resource, allResources) {
         let lastValidTime = savedPosition;
         video._lastValidTime = savedPosition;
         let isRestoring = false;
-        let initialSeek = false;
+        let initialSeek = false; // 标记初始跳转
 
         video.addEventListener('loadedmetadata', function() {
-            if (savedPosition > 0) {
-                // 如果正好等于总时长，为了避免触发 ended 鬼畜，我们稍微提前0.1秒
-                if (savedPosition >= video.duration) {
-                    savedPosition = video.duration - 0.1;
-                }
+            if (savedPosition > 0 && savedPosition < video.duration) {
                 initialSeek = true;
                 video.currentTime = savedPosition;
+                // 在 seeked 中清除标记
                 const onSeeked = function() {
                     initialSeek = false;
                     video.removeEventListener('seeked', onSeeked);
@@ -528,7 +525,7 @@ function openResourceDetail(resource, allResources) {
             const pct = Math.round((pos / video.duration) * 100);
             updateResourceProgress(resource.id, pct, pos);
             updateDetailProgress(resource.id);
-            // 【核心修改】：这里绝对不要再调用 markResourceCompleted，避免抢数据！
+            if (pct >= 100) markResourceCompleted(resource.id);
         }
 
         video.addEventListener('timeupdate', function() {
@@ -546,21 +543,12 @@ function openResourceDetail(resource, allResources) {
             }
         });
 
-        // ✅ 【恢复你原来的防拖动逻辑】，并加上对“已完成”的豁免
         video.addEventListener('seeking', function() {
             if (isRestoring) return;
-            if (initialSeek) return;
-            
-            // 如果已经看完了（已完成），用户主动拖回0秒重播是合理的，应该允许，不触发回弹
-            if (progressMap[resource.id] && progressMap[resource.id].completed) {
-                if (video.currentTime === 0) {
-                    lastValidTime = 0;
-                    this._lastValidTime = 0;
-                    return;
-                }
+            if (initialSeek) {
+                // 初始跳转时，不干预
+                return;
             }
-
-            // 如果拖动距离大于 0.3 秒，强制回弹（防拖拽/防乱点）
             if (Math.abs(video.currentTime - lastValidTime) > 0.3) {
                 isRestoring = true;
                 video.currentTime = lastValidTime;
@@ -572,17 +560,11 @@ function openResourceDetail(resource, allResources) {
             }
         });
 
-        // ✅ 【核心修改】：调整结束时的保存逻辑
         video.addEventListener('ended', function() {
             markResourceCompleted(resource.id);
             if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
             this._lastValidTime = video.duration;
-            lastValidTime = video.duration;
-            // 🚨【最关键的一行】：删除了原来的 updateAndSave()！
-            // 因为 markResourceCompleted 已经把 last_position 写成了 0，
-            // 如果这里再 updateAndSave 就会把 last_position 又写回 视频总时长，
-            // 导致下次打开时触发上面的回弹死循环！
-            // 现在我们让 localStorage 保存 `completed: true, last_position: 0` 即可。
+            updateAndSave();
         });
 
         detailBody.appendChild(video);
