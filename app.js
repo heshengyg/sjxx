@@ -990,32 +990,39 @@ async function updateDashboard(user) {
         }
     }
 
-        // ✅ 精准定义哪些阶段是需要考核的“晋级终点站” (2, 4, 5, 6)
+            // ✅ 定义晋级考核阶段
     const examStages = [2, 4, 5, 6]; 
     const isExamStage = examStages.includes(currentViewStage);
 
-    // 只有当是“当前实际阶段”，且“属于考核阶段”时，才能提交
+    // 只有“当前实际阶段”且“属于考核阶段”时，才能提交
     const canSubmit = (currentViewStage === actualStage && actualStage <= TOTAL_STAGES && isExamStage);
 
-    // 🚨 【新增优化】：控制整个“考核区域（包括标题、考题、提交按钮）”的显示与隐藏
-    const quizArea = document.querySelector('.quiz-area');
-    if (quizArea) {
-        if (!isExamStage) {
-            // 第 1、3 阶段：彻底隐藏整个考核区域！
-            quizArea.style.display = 'none';
-        } else {
-            // 第 2、4、5、6 阶段：恢复显示考核区域
-            quizArea.style.display = 'block';
+    // 🚨 【终极绝杀】：直接通过 ID 控制整个考核区域的显示隐藏
+    if (quizContainer) {
+        // 找到包裹着“阶段考核”标题和考题的父级容器
+        const quizAreaParent = quizContainer.parentElement; 
+        if (quizAreaParent) {
+            if (!isExamStage) {
+                // 第 1、3 阶段：直接添加 hidden-area 类，强制隐藏整个区域
+                quizAreaParent.classList.add('hidden-area');
+            } else {
+                // 第 2、4、5、6 阶段：移除隐藏类，确保区域显示
+                quizAreaParent.classList.remove('hidden-area');
+            }
         }
     }
 
+    // ✅ 重置并控制提交按钮
     if (submitQuizBtn) {
+        // 清掉之前可能存在的隐藏样式干扰
+        submitQuizBtn.style.display = '';
+        submitQuizBtn.style.visibility = '';
+
         if (!isExamStage) {
-            // 防万一：如果已经隐藏了区域，这里顺手把按钮也彻底删掉
+            // 非考核阶段：直接删掉元素，永绝后患
             submitQuizBtn.remove(); 
         } else {
-            // 如果是考核阶段，正常显示按钮
-            submitQuizBtn.style.display = 'inline-block';
+            // 考核阶段：正确控制是否可点击
             submitQuizBtn.disabled = !canSubmit;
         }
     }

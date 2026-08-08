@@ -108,3 +108,5 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 .quiz-area { margin-top:20px; border-top:1px solid #e4eaf0; padding-top:18px; }
 .quiz-title { font-weight:600; color:#1a2e3b; margin-bottom:12px; }
 .submit-btn { background:#1f7b4d; }
+/* 用于隐藏考核区域的类 */
+.quiz-area.hidden-area { display: none !important; }
