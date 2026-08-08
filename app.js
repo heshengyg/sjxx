@@ -997,12 +997,24 @@ async function updateDashboard(user) {
     // 只有当是“当前实际阶段”，且“属于考核阶段”时，才能提交
     const canSubmit = (currentViewStage === actualStage && actualStage <= TOTAL_STAGES && isExamStage);
 
+    // 🚨 【新增优化】：控制整个“考核区域（包括标题、考题、提交按钮）”的显示与隐藏
+    const quizArea = document.querySelector('.quiz-area');
+    if (quizArea) {
+        if (!isExamStage) {
+            // 第 1、3 阶段：彻底隐藏整个考核区域！
+            quizArea.style.display = 'none';
+        } else {
+            // 第 2、4、5、6 阶段：恢复显示考核区域
+            quizArea.style.display = 'block';
+        }
+    }
+
     if (submitQuizBtn) {
         if (!isExamStage) {
-            // ✅ 【绝杀修复】：如果是非考核阶段（1、3），直接把这个按钮节点从页面彻底移除以绝后患！
+            // 防万一：如果已经隐藏了区域，这里顺手把按钮也彻底删掉
             submitQuizBtn.remove(); 
         } else {
-            // ✅ 如果是第 2、4、5、6 阶段，正常显示按钮，并根据学习进度控制是否可用
+            // 如果是考核阶段，正常显示按钮
             submitQuizBtn.style.display = 'inline-block';
             submitQuizBtn.disabled = !canSubmit;
         }
