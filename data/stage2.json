@@ -7,7 +7,7 @@
       "id": "r1",
       "type": "video",
       "title": "实体店困境分析",
-      "file": "video/stage2_intro.mp4",
+      "file": "video/stage2_intro.mp4"
 
     },
     {
@@ -21,7 +21,7 @@
       "id": "r3",
       "type": "article",
       "title": "新零售核心定义",
-      "content": "<h3>新零售的核心价值</h3><p>全文内容...</p>",
+      "content": "<h3>新零售的核心价值</h3><p>全文内容...</p>"
 
     }
   ],
