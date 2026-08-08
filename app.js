@@ -972,8 +972,7 @@ async function updateDashboard(user) {
         }
     }
 
-        // ✅ 根据 LEVELS 配置，精准定义哪些阶段是需要考核的“晋级终点站”
-    // 2, 4, 5, 6 是各个等级的最后一关
+        // ✅ 精准定义哪些阶段是需要考核的“晋级终点站” (2, 4, 5, 6)
     const examStages = [2, 4, 5, 6]; 
     const isExamStage = examStages.includes(currentViewStage);
 
@@ -982,9 +981,8 @@ async function updateDashboard(user) {
 
     if (submitQuizBtn) {
         if (!isExamStage) {
-            // ✅ 如果是第 1、3 阶段，直接隐藏按钮
-            submitQuizBtn.style.display = 'none';
-            submitQuizBtn.disabled = true;
+            // ✅ 【绝杀修复】：如果是非考核阶段（1、3），直接把这个按钮节点从页面彻底移除以绝后患！
+            submitQuizBtn.remove(); 
         } else {
             // ✅ 如果是第 2、4、5、6 阶段，正常显示按钮，并根据学习进度控制是否可用
             submitQuizBtn.style.display = 'inline-block';
