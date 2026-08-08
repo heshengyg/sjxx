@@ -972,8 +972,25 @@ async function updateDashboard(user) {
         }
     }
 
-    const isCurrent = (currentViewStage === actualStage && actualStage <= TOTAL_STAGES);
-    if (submitQuizBtn) submitQuizBtn.disabled = !isCurrent;
+        // ✅ 根据 LEVELS 配置，精准定义哪些阶段是需要考核的“晋级终点站”
+    // 2, 4, 5, 6 是各个等级的最后一关
+    const examStages = [2, 4, 5, 6]; 
+    const isExamStage = examStages.includes(currentViewStage);
+
+    // 只有当是“当前实际阶段”，且“属于考核阶段”时，才能提交
+    const canSubmit = (currentViewStage === actualStage && actualStage <= TOTAL_STAGES && isExamStage);
+
+    if (submitQuizBtn) {
+        if (!isExamStage) {
+            // ✅ 如果是第 1、3 阶段，直接隐藏按钮
+            submitQuizBtn.style.display = 'none';
+            submitQuizBtn.disabled = true;
+        } else {
+            // ✅ 如果是第 2、4、5、6 阶段，正常显示按钮，并根据学习进度控制是否可用
+            submitQuizBtn.style.display = 'inline-block';
+            submitQuizBtn.disabled = !canSubmit;
+        }
+    }
 
     updateAvatar(user);
     if (avatarWrapper) avatarWrapper.classList.add('visible');
