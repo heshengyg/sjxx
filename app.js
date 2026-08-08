@@ -123,20 +123,46 @@ async function loadStageData(stage) {
         if (data.resources) {
             data.resources.forEach(r => {
                 r.id = stage + '-' + r.id;
+                
+                // 1. 图片：保留 JSON 里写的 duration。如果没写，默认给 60 秒
                 if (r.type === 'image') {
-                    r.duration = 300;
-                } else if (r.type === 'article') {
-                    let text = r.content || '';
-                    let plainText = text.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ');
-                    const charCount = plainText.replace(/\s/g, '').length;
-                    const minutes = charCount / 300;
-                    const seconds = Math.ceil(minutes * 60);
-                    r.duration = seconds > 0 ? seconds : 10;
-                } else if (r.type === 'video') {
-                    r.duration = r.duration || 0;
+                    r.duration = r.duration || 60; 
+                } 
+                // 2. 视频：自动读取视频真实时长！如果你 JSON 里写了，也会被真实时长覆盖
+                else if (r.type === 'video') {
+                    // 这里暂时赋个初始值，后面通过 getVideoDuration 异步获取真实时长覆盖它
+                    r.duration = 0; 
+                } 
+                // 3. 文章：自动去 HTML 标签和空格，按 300字/分钟 自动计算
+                else if (r.type === 'article') {
+                    if (r.content) {
+                        let text = r.content || '';
+                        let plainText = text.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ');
+                        // 去除所有空格，计算纯文本字符数量
+                        const charCount = plainText.replace(/\s/g, '').length;
+                        // 按照成人平均阅读速度 300 字/分钟计算
+                        const minutes = charCount / 300;
+                        const seconds = Math.ceil(minutes * 60);
+                        r.duration = seconds > 0 ? seconds : 10; // 最少给 10 秒
+                    } else {
+                        r.duration = 60; // 没有内容时默认 60 秒
+                    }
                 }
             });
         }
+        
+        // ✅ 【关键补充】：因为视频获取时长是异步的，我们需要在这里再遍历一次，
+        // 给所有视频自动获取真实时长。这样不会阻塞页面列表的渲染。
+        if (data.resources) {
+            const videoPromises = data.resources
+                .filter(r => r.type === 'video')
+                .map(async (r) => {
+                    r.duration = await getVideoDuration(r.file);
+                });
+            // 等待所有视频时长获取完毕（后台静默进行，不影响用户看列表）
+            await Promise.allSettled(videoPromises);
+        }
+
         if (data.quiz) {
             data.quiz.forEach(q => {
                 q.id = stage + '-' + q.id;
@@ -150,6 +176,26 @@ async function loadStageData(stage) {
     }
 }
 
+// ========== Helper: 自动获取视频真实时长 ==========
+function getVideoDuration(url) {
+    return new Promise((resolve) => {
+        const video = document.createElement('video');
+        video.preload = 'metadata'; // 只下载头部，极快，不消耗流量
+        video.src = url;
+        
+        // 一旦加载到元数据（时长），立刻返回
+        video.onloadedmetadata = function() {
+            resolve(Math.round(video.duration)); // 返回整数秒
+            video.remove();
+        };
+        
+        // 万一加载失败（网络差或地址错误），给一个兜底的 120 秒
+        video.onerror = function() {
+            resolve(120);
+            video.remove();
+        };
+    });
+}
 // ========== 进度管理（纯 localStorage） ==========
 function getProgressKey() {
     return 'progress_' + (currentUser ? currentUser.id : 'guest');
