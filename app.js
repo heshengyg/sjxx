@@ -117,9 +117,14 @@ function updateAvatar(user) {
 async function loadStageData(stage) {
     if (stageData[stage]) return stageData[stage];
     try {
-        const resp = await fetch(`data/stage${stage}.json`);
+                const resp = await fetch(`data/stage${stage}.json`);
         if (!resp.ok) throw new Error(`加载阶段 ${stage} 失败`);
-        const data = await resp.json();
+        
+        // 先读取文本，打印出来检查，然后再解析
+        const text = await resp.text();
+        console.log('📄 出错的 JSON 内容是:', text);
+        
+        const data = JSON.parse(text); // 改成用 parse 直接解析
         if (data.resources) {
             data.resources.forEach(r => {
                 r.id = stage + '-' + r.id;
