@@ -415,6 +415,25 @@ function renderResources(stage, resources) {
 function renderQuiz(quiz) {
     if (!quizContainer) return;
     quizContainer.innerHTML = '';
+    
+    // 🚨 【终极修复】：在渲染之前，先根据当前阶段决定是否显示考核内容
+    // 根据晋级规则，第 1、3 阶段是不需要考核的。
+    const examStages = [2, 4, 5, 6];
+    const isExamStage = examStages.includes(currentViewStage);
+
+    // 如果不是考核阶段（如第一阶段），直接清空考核区并隐藏按钮，不渲染任何考题。
+    if (!isExamStage) {
+        // 如果本来有提交按钮，直接移除并隐藏
+        if (submitQuizBtn) {
+            submitQuizBtn.remove();
+            // 为了防止后续代码重新生成，把变量暂时置空
+            // 但由于我们在最外层确认了不需要考核，直接 return 掉，后续逻辑根本不会跑。
+        }
+        return;
+    }
+
+    // --- 以下逻辑只有 2, 4, 5, 6 阶段才会执行 ---
+
     if (!quiz || quiz.length === 0) {
         quizContainer.innerHTML = '<p style="color:#5e6f7d;">📭 本阶段暂无考核。</p>';
         if (submitQuizBtn) submitQuizBtn.disabled = true;
@@ -526,7 +545,6 @@ function renderQuiz(quiz) {
         });
     }
 }
-
 // ========== Resource Detail Modal ==========
 let currentVideoElement = null;
 
