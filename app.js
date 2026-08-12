@@ -1,5 +1,5 @@
 // =====================================================
-// app.js - 修复阶段切换考核按钮消失问题
+// app.js - 完整修复版
 // =====================================================
 
 const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
@@ -64,7 +64,7 @@ const detailModal = $('detailModal'), detailTitle = $('detailTitle');
 const detailBody = $('detailBody'), detailProgress = $('detailProgress');
 const detailCloseBtn = $('detailCloseBtn');
 
-// 获取提交按钮（每次动态获取，避免引用过期）
+// 获取提交按钮
 function getSubmitBtn() {
     return document.getElementById('submitQuizBtn');
 }
@@ -186,7 +186,7 @@ function getVideoDuration(url) {
     });
 }
 
-// ========== 进度管理（纯 localStorage） ==========
+// ========== 进度管理 ==========
 function getProgressKey() {
     return 'progress_' + (currentUser ? currentUser.id : 'guest');
 }
@@ -393,7 +393,6 @@ function renderResources(stage, resources) {
 function controlQuizAreaVisibility(stageId) {
     const isExamStage = EXAM_STAGES.includes(stageId);
     
-    // 控制考核区域
     const quizArea = document.querySelector('.quiz-area');
     if (quizArea) {
         if (!isExamStage) {
@@ -403,10 +402,8 @@ function controlQuizAreaVisibility(stageId) {
         }
     }
     
-    // 控制提交按钮 - 使用 display 而不是 remove
     let submitBtn = getSubmitBtn();
     
-    // 如果按钮不存在，创建一个
     if (!submitBtn && isExamStage) {
         submitBtn = document.createElement('button');
         submitBtn.id = 'submitQuizBtn';
@@ -424,7 +421,6 @@ function controlQuizAreaVisibility(stageId) {
         submitBtn.addEventListener('click', submitQuiz);
     }
     
-    // 再次获取按钮（可能是刚创建的）
     submitBtn = getSubmitBtn();
     if (!submitBtn) return;
     
@@ -432,7 +428,6 @@ function controlQuizAreaVisibility(stageId) {
         submitBtn.style.display = 'none';
     } else {
         submitBtn.style.display = '';
-        // 更新按钮状态
         updateSubmitButtonState();
     }
 }
@@ -459,14 +454,55 @@ function updateSubmitButtonState() {
     }
 }
 
+// ========== 保存答题状态到 Supabase ==========
+async function saveQuizStateToSupabase() {
+    if (!currentUser) return;
+    try {
+        const quizState = {
+            questionStates: questionStates,
+            stageId: currentViewStage
+        };
+        // 保存到 user_quiz_state 表
+        const { error } = await supabaseClient
+            .from('user_quiz_state')
+            .upsert({
+                user_id: currentUser.id,
+                stage_id: currentViewStage,
+                quiz_state: quizState,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id, stage_id' });
+        if (error) console.warn('保存答题状态失败:', error);
+    } catch (e) {
+        console.warn('保存答题状态异常:', e);
+    }
+}
+
+// ========== 加载答题状态 ==========
+async function loadQuizStateFromSupabase(stageId) {
+    if (!currentUser) return null;
+    try {
+        const { data, error } = await supabaseClient
+            .from('user_quiz_state')
+            .select('quiz_state')
+            .eq('user_id', currentUser.id)
+            .eq('stage_id', stageId)
+            .maybeSingle();
+        if (!error && data) {
+            return data.quiz_state;
+        }
+    } catch (e) {
+        console.warn('加载答题状态异常:', e);
+    }
+    return null;
+}
+
 // ========== renderQuiz ==========
-function renderQuiz(quiz) {
+async function renderQuiz(quiz) {
     if (!quizContainer) return;
     quizContainer.innerHTML = '';
     
     const isExamStage = EXAM_STAGES.includes(currentViewStage);
 
-    // 如果不是考核阶段，清空并重置
     if (!isExamStage) {
         quizContainer.innerHTML = '';
         questionStates = [];
@@ -479,8 +515,14 @@ function renderQuiz(quiz) {
         return;
     }
 
-    // 初始化 questionStates
-    questionStates = quiz.map(() => ({ confirmed: false, selected: [] }));
+    // 尝试从数据库加载已保存的答题状态
+    const savedState = await loadQuizStateFromSupabase(currentViewStage);
+    if (savedState && savedState.questionStates && savedState.questionStates.length === quiz.length) {
+        questionStates = savedState.questionStates;
+        console.log('📥 从数据库加载答题状态:', questionStates);
+    } else {
+        questionStates = quiz.map(() => ({ confirmed: false, selected: [] }));
+    }
 
     const groups = {
         single: { label: '一、单选题', items: [], totalScore: 0 },
@@ -514,6 +556,14 @@ function renderQuiz(quiz) {
             const idx = quiz.indexOf(q);
             wrapper.dataset.idx = idx;
 
+            const state = questionStates[idx] || { confirmed: false, selected: [] };
+            const isConfirmed = state.confirmed || false;
+            const selectedValues = state.selected || [];
+
+            if (isConfirmed) {
+                wrapper.classList.add('confirmed');
+            }
+
             const qText = document.createElement('div');
             qText.className = 'q-text';
             const localIdx = group.items.indexOf(q) + 1;
@@ -530,6 +580,12 @@ function renderQuiz(quiz) {
                 input.type = isMultiple ? 'checkbox' : 'radio';
                 input.name = `q${idx}`;
                 input.value = optIdx;
+                if (selectedValues.includes(optIdx)) {
+                    input.checked = true;
+                }
+                if (isConfirmed) {
+                    input.disabled = true;
+                }
                 const span = document.createElement('span');
                 span.textContent = optText;
                 label.appendChild(input);
@@ -546,6 +602,8 @@ function renderQuiz(quiz) {
                         if (this.checked) { sel.length=0; sel.push(optIdx); }
                         else { const pos = sel.indexOf(optIdx); if (pos!==-1) sel.splice(pos,1); }
                     }
+                    // 自动保存到数据库
+                    saveQuizStateToSupabase();
                     updateSubmitButtonState();
                 });
             });
@@ -554,8 +612,15 @@ function renderQuiz(quiz) {
             const btnDiv = document.createElement('div');
             const confirmBtn = document.createElement('button');
             confirmBtn.className = 'confirm-btn';
-            confirmBtn.textContent = '确认答案';
-            confirmBtn.addEventListener('click', function() {
+            confirmBtn.textContent = isConfirmed ? '修改答案' : '确认答案';
+            if (isConfirmed) {
+                confirmBtn.classList.add('modify');
+                const badge = document.createElement('span');
+                badge.className = 'status-badge';
+                badge.textContent = '✅ 已确认';
+                btnDiv.appendChild(badge);
+            }
+            confirmBtn.addEventListener('click', async function() {
                 const state = questionStates[idx];
                 if (!state.confirmed) {
                     if (state.selected.length === 0) { alert('请选择选项'); return; }
@@ -577,6 +642,8 @@ function renderQuiz(quiz) {
                     const badge = wrapper.querySelector('.status-badge');
                     if (badge) badge.remove();
                 }
+                // 保存到数据库
+                await saveQuizStateToSupabase();
                 updateSubmitButtonState();
             });
             btnDiv.appendChild(confirmBtn);
@@ -586,7 +653,6 @@ function renderQuiz(quiz) {
         });
     }
     
-    // 渲染完成后更新提交按钮状态
     updateSubmitButtonState();
 }
 
@@ -867,24 +933,44 @@ async function submitQuiz() {
     if (!currentUser) return;
     const stages = currentUser.completed_stages || [];
     const actualStage = getCurrentStage(stages);
+    
     if (currentViewStage !== actualStage || actualStage > TOTAL_STAGES) {
-        if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = '⚠️ 只能提交当前阶段的考核。'; }
+        if (quizResult) { 
+            quizResult.classList.remove('hidden'); 
+            quizResult.textContent = '⚠️ 只能提交当前阶段的考核。';
+            quizResult.className = 'msg error';
+        }
         return;
     }
+    
     const data = stageData[actualStage];
     if (!data || !data.quiz || data.quiz.length === 0) {
-        if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = '本阶段无考核，无需提交。'; }
+        if (quizResult) { 
+            quizResult.classList.remove('hidden'); 
+            quizResult.textContent = '本阶段无考核，无需提交。';
+            quizResult.className = 'msg error';
+        }
         return;
     }
+    
     const resources = data.resources || [];
     const allCompleted = resources.every(r => progressMap[r.id] && progressMap[r.id].completed);
     if (!allCompleted) {
-        if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = '⚠️ 请先完成本阶段所有学习资源再提交考核。'; }
+        if (quizResult) { 
+            quizResult.classList.remove('hidden'); 
+            quizResult.textContent = '⚠️ 请先完成本阶段所有学习资源再提交考核。';
+            quizResult.className = 'msg error';
+        }
         return;
     }
+    
     const allConfirmed = questionStates.every(s => s.confirmed);
     if (!allConfirmed) {
-        if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = '⚠️ 请先确认每道题的答案。'; }
+        if (quizResult) { 
+            quizResult.classList.remove('hidden'); 
+            quizResult.textContent = '⚠️ 请先确认每道题的答案。';
+            quizResult.className = 'msg error';
+        }
         return;
     }
 
@@ -901,7 +987,8 @@ async function submitQuiz() {
     });
 
     const scorePercent = Math.round((earnedScore / totalScore) * 100);
-    const passed = earnedScore >= (totalScore * 0.8);
+    const passThreshold = Math.round(totalScore * 0.8);
+    const passed = earnedScore >= passThreshold;
 
     const results = currentUser.quiz_results || {};
     results[`stage_${actualStage}`] = {
@@ -911,9 +998,15 @@ async function submitQuiz() {
         passed: passed,
         date: new Date().toISOString()
     };
+    
     try {
         await supabaseClient.from('merchants').update({ quiz_results: results }).eq('id', currentUser.id);
         currentUser.quiz_results = results;
+        
+        if (quizResult) {
+            quizResult.classList.remove('hidden');
+        }
+        
         if (passed) {
             if (!stages.includes(actualStage)) {
                 const newStages = [...stages, actualStage];
@@ -926,18 +1019,25 @@ async function submitQuiz() {
                 }
                 const nextStage = getCurrentStage(newStages);
                 if (nextStage <= TOTAL_STAGES) currentViewStage = nextStage;
-                if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = `🎉 考核通过 (${earnedScore}/${totalScore}，得分率${scorePercent}%)，已晋级！${nextStage <= TOTAL_STAGES ? '进入下一阶段' : '全部完成！'}`; }
+                quizResult.textContent = `🎉 考核通过！得分 ${earnedScore}/${totalScore}（${scorePercent}%），达标分 ${passThreshold}分，已晋级！${nextStage <= TOTAL_STAGES ? '进入下一阶段' : '全部完成！'}`;
+                quizResult.className = 'msg';
                 await updateDashboard(currentUser);
                 return;
             } else {
-                if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = `✅ 考核通过 (${earnedScore}/${totalScore}，得分率${scorePercent}%)，但阶段已标记完成。`; }
+                quizResult.textContent = `✅ 考核通过！得分 ${earnedScore}/${totalScore}（${scorePercent}%），达标分 ${passThreshold}分，阶段已标记完成。`;
+                quizResult.className = 'msg';
             }
         } else {
-            if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = `❌ 考核未通过 (${earnedScore}/${totalScore}，得分率${scorePercent}%，需≥${Math.round(totalScore*0.8)}分)，请复习后重试。`; }
+            quizResult.textContent = `❌ 考核未通过！得分 ${earnedScore}/${totalScore}（${scorePercent}%），达标分 ${passThreshold}分，需≥${passThreshold}分，请复习后重试。`;
+            quizResult.className = 'msg error';
         }
         await updateDashboard(currentUser);
     } catch (e) {
-        if (quizResult) { quizResult.classList.remove('hidden'); quizResult.textContent = '❌ ' + e.message; }
+        if (quizResult) { 
+            quizResult.classList.remove('hidden'); 
+            quizResult.textContent = '❌ ' + e.message;
+            quizResult.className = 'msg error';
+        }
     }
 }
 
@@ -969,7 +1069,7 @@ async function updateDashboard(user) {
         if (stageTitle) stageTitle.textContent = `📘 ${data.title}`;
         if (stageDesc) stageDesc.textContent = data.description;
         renderResources(currentViewStage, data.resources);
-        renderQuiz(data.quiz);
+        await renderQuiz(data.quiz);
         updateStageProgress(currentViewStage, data.resources);
     } else {
         if (stageTitle) stageTitle.textContent = `📘 第${currentViewStage}阶段`;
@@ -999,11 +1099,10 @@ async function updateDashboard(user) {
                                 if (stageTitle) stageTitle.textContent = `📘 ${d.title}`;
                                 if (stageDesc) stageDesc.textContent = d.description;
                                 renderResources(currentViewStage, d.resources);
-                                renderQuiz(d.quiz);
+                                await renderQuiz(d.quiz);
                                 updateStageProgress(currentViewStage, d.resources);
                                 document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
                                 card.classList.add('active');
-                                // 切换后控制考核区域
                                 controlQuizAreaVisibility(currentViewStage);
                             }
                         })();
@@ -1025,7 +1124,6 @@ async function updateDashboard(user) {
         }
     }
 
-    // 控制考核区域显示
     controlQuizAreaVisibility(currentViewStage);
 
     updateAvatar(user);
@@ -1265,4 +1363,4 @@ if (phoneInput) phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Ent
 if (passwordInput) passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 if (nameInput) nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 
-console.log('🐿️ 松鼠逛逛商家学堂 (阶段切换修复版)');
+console.log('🐿️ 松鼠逛逛商家学堂 (完整修复版)');

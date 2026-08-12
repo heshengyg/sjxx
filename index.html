@@ -62,12 +62,21 @@
             <div id="learnMsg" class="msg hidden"></div>
         </div>
 
-        <!-- 考核 -->
+        <!-- 考核区域 -->
         <div class="quiz-area">
-            <div class="quiz-title">📝 阶段考核</div>
-            <div id="quizContainer"></div>
-            <button id="submitQuizBtn" class="btn submit-btn">✅ 提交考核</button>
-            <div id="quizResult" class="msg hidden"></div>
+            <!-- 标题 - 置顶 -->
+            <div class="quiz-header">
+                <div class="quiz-title">📝 阶段考核</div>
+            </div>
+            <!-- 考题容器 - 可滚动 -->
+            <div class="quiz-body" id="quizBody">
+                <div id="quizContainer"></div>
+            </div>
+            <!-- 底部：提交按钮 + 结果 -->
+            <div class="quiz-footer">
+                <button id="submitQuizBtn" class="btn submit-btn">✅ 提交考核</button>
+                <div id="quizResult" class="msg hidden"></div>
+            </div>
         </div>
 
         <div class="actions">
