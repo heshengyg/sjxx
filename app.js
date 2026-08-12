@@ -1,5 +1,5 @@
 // =====================================================
-// app.js - 完整修复版
+// app.js - 完整修复版（答题状态持久化）
 // =====================================================
 
 const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
@@ -37,6 +37,7 @@ let activeResourceId = null;
 let currentImageResources = [];
 let currentImageIdx = 0;
 let questionStates = [];
+let isRenderingQuiz = false; // 防止重复渲染
 
 // DOM helpers
 const $ = id => document.getElementById(id);
@@ -125,7 +126,6 @@ async function loadStageData(stage) {
         const resp = await fetch(`data/stage${stage}.json`);
         if (!resp.ok) throw new Error(`加载阶段 ${stage} 失败`);
         const text = await resp.text();
-        console.log('📄 加载的 JSON 内容:', text);
         const data = JSON.parse(text);
         if (data.resources) {
             data.resources.forEach(r => {
@@ -197,7 +197,6 @@ function loadProgressFromLocal() {
         const data = localStorage.getItem(key);
         if (data) {
             const parsed = JSON.parse(data);
-            console.log('📦 从 localStorage 加载进度:', parsed);
             return parsed;
         }
     } catch (e) {
@@ -215,7 +214,6 @@ function saveProgressToLocal(resourceId, progress, position, completed) {
         last_position: position || 0
     };
     localStorage.setItem(key, JSON.stringify(data));
-    console.log(`💾 进度已保存到 localStorage: ${resourceId} -> ${position}s`);
 }
 
 async function loadUserProgress() {
@@ -248,7 +246,6 @@ async function loadUserProgress() {
             }
         }
     } catch (e) {}
-    console.log('📊 最终 progressMap:', progressMap);
 }
 
 async function updateResourceProgress(resourceId, progress, position = 0) {
@@ -409,13 +406,13 @@ function controlQuizAreaVisibility(stageId) {
         submitBtn.id = 'submitQuizBtn';
         submitBtn.className = 'btn submit-btn';
         submitBtn.textContent = '✅ 提交考核';
-        const quizAreaEl = document.querySelector('.quiz-area');
-        if (quizAreaEl) {
+        const footer = document.querySelector('.quiz-footer');
+        if (footer) {
             const resultEl = document.getElementById('quizResult');
             if (resultEl) {
-                quizAreaEl.insertBefore(submitBtn, resultEl);
+                footer.insertBefore(submitBtn, resultEl);
             } else {
-                quizAreaEl.appendChild(submitBtn);
+                footer.appendChild(submitBtn);
             }
         }
         submitBtn.addEventListener('click', submitQuiz);
@@ -444,7 +441,7 @@ function updateSubmitButtonState() {
     }
     
     submitBtn.style.display = '';
-    const allConfirmed = questionStates.every(s => s.confirmed);
+    const allConfirmed = questionStates.every(s => s && s.confirmed === true);
     if (allConfirmed) {
         submitBtn.disabled = false;
         submitBtn.textContent = '✅ 提交考核';
@@ -457,18 +454,20 @@ function updateSubmitButtonState() {
 // ========== 保存答题状态到 Supabase ==========
 async function saveQuizStateToSupabase() {
     if (!currentUser) return;
+    if (questionStates.length === 0) return;
     try {
-        const quizState = {
-            questionStates: questionStates,
-            stageId: currentViewStage
-        };
-        // 保存到 user_quiz_state 表
+        // 深拷贝当前状态
+        const stateToSave = questionStates.map(s => ({
+            confirmed: s.confirmed || false,
+            selected: s.selected ? [...s.selected] : []
+        }));
+        
         const { error } = await supabaseClient
             .from('user_quiz_state')
             .upsert({
                 user_id: currentUser.id,
                 stage_id: currentViewStage,
-                quiz_state: quizState,
+                quiz_state: { questionStates: stateToSave },
                 updated_at: new Date().toISOString()
             }, { onConflict: 'user_id, stage_id' });
         if (error) console.warn('保存答题状态失败:', error);
@@ -487,7 +486,7 @@ async function loadQuizStateFromSupabase(stageId) {
             .eq('user_id', currentUser.id)
             .eq('stage_id', stageId)
             .maybeSingle();
-        if (!error && data) {
+        if (!error && data && data.quiz_state) {
             return data.quiz_state;
         }
     } catch (e) {
@@ -499,6 +498,11 @@ async function loadQuizStateFromSupabase(stageId) {
 // ========== renderQuiz ==========
 async function renderQuiz(quiz) {
     if (!quizContainer) return;
+    
+    // 防止重复渲染
+    if (isRenderingQuiz) return;
+    isRenderingQuiz = true;
+    
     quizContainer.innerHTML = '';
     
     const isExamStage = EXAM_STAGES.includes(currentViewStage);
@@ -506,22 +510,38 @@ async function renderQuiz(quiz) {
     if (!isExamStage) {
         quizContainer.innerHTML = '';
         questionStates = [];
+        isRenderingQuiz = false;
+        updateSubmitButtonState();
         return;
     }
 
     if (!quiz || quiz.length === 0) {
         quizContainer.innerHTML = '<p style="color:#5e6f7d;">📭 本阶段暂无考核。</p>';
         questionStates = [];
+        isRenderingQuiz = false;
+        updateSubmitButtonState();
         return;
     }
 
     // 尝试从数据库加载已保存的答题状态
-    const savedState = await loadQuizStateFromSupabase(currentViewStage);
+    let savedState = null;
+    try {
+        savedState = await loadQuizStateFromSupabase(currentViewStage);
+    } catch (e) {
+        console.warn('加载答题状态失败:', e);
+    }
+    
+    // 如果从数据库加载成功，使用数据库状态；否则初始化
     if (savedState && savedState.questionStates && savedState.questionStates.length === quiz.length) {
-        questionStates = savedState.questionStates;
+        questionStates = savedState.questionStates.map(s => ({
+            confirmed: s.confirmed || false,
+            selected: s.selected ? [...s.selected] : []
+        }));
         console.log('📥 从数据库加载答题状态:', questionStates);
     } else {
         questionStates = quiz.map(() => ({ confirmed: false, selected: [] }));
+        // 初始化时保存一次
+        await saveQuizStateToSupabase();
     }
 
     const groups = {
@@ -556,7 +576,12 @@ async function renderQuiz(quiz) {
             const idx = quiz.indexOf(q);
             wrapper.dataset.idx = idx;
 
-            const state = questionStates[idx] || { confirmed: false, selected: [] };
+            // 确保 questionStates[idx] 存在
+            if (!questionStates[idx]) {
+                questionStates[idx] = { confirmed: false, selected: [] };
+            }
+            
+            const state = questionStates[idx];
             const isConfirmed = state.confirmed || false;
             const selectedValues = state.selected || [];
 
@@ -622,9 +647,14 @@ async function renderQuiz(quiz) {
             }
             confirmBtn.addEventListener('click', async function() {
                 const state = questionStates[idx];
-                if (!state.confirmed) {
-                    if (state.selected.length === 0) { alert('请选择选项'); return; }
-                    state.confirmed = true;
+                if (!state) {
+                    questionStates[idx] = { confirmed: false, selected: [] };
+                }
+                const currentState = questionStates[idx];
+                
+                if (!currentState.confirmed) {
+                    if (currentState.selected.length === 0) { alert('请选择选项'); return; }
+                    currentState.confirmed = true;
                     wrapper.querySelectorAll('input').forEach(inp => inp.disabled = true);
                     wrapper.classList.add('confirmed');
                     this.textContent = '修改答案';
@@ -634,7 +664,7 @@ async function renderQuiz(quiz) {
                     badge.textContent = '✅ 已确认';
                     this.parentNode.appendChild(badge);
                 } else {
-                    state.confirmed = false;
+                    currentState.confirmed = false;
                     wrapper.querySelectorAll('input').forEach(inp => inp.disabled = false);
                     wrapper.classList.remove('confirmed');
                     this.textContent = '确认答案';
@@ -653,6 +683,7 @@ async function renderQuiz(quiz) {
         });
     }
     
+    isRenderingQuiz = false;
     updateSubmitButtonState();
 }
 
@@ -682,7 +713,6 @@ function openResourceDetail(resource, allResources) {
         if (prog && prog.last_position && !prog.completed) {
             savedPosition = prog.last_position;
         }
-        console.log(`🎬 视频 ${resource.id} 恢复位置: ${savedPosition}s`);
 
         let lastValidTime = savedPosition;
         let isRestoring = false;
@@ -699,7 +729,6 @@ function openResourceDetail(resource, allResources) {
                 video.addEventListener('seeked', onSeeked);
                 lastValidTime = savedPosition;
                 this._lastValidTime = savedPosition;
-                console.log(`✅ 视频 ${resource.id} 记忆跳转到 ${savedPosition}s`);
             }
             updateDetailProgress(resource.id);
         });
@@ -768,7 +797,6 @@ function openResourceDetail(resource, allResources) {
 
         video.addEventListener('ended', function() {
             if (this._lastValidTime < video.duration - 1) {
-                console.warn('🚨 检测到拖拽偷懒，取消完成标记并弹回');
                 video.currentTime = this._lastValidTime;
                 video.pause();
                 return;
@@ -835,7 +863,6 @@ function closeDetailModal() {
         currentVideoElement.pause();
         if (currentVideoElement.duration) {
             const pct = Math.round((safePos / currentVideoElement.duration) * 100);
-            console.log(`💾 视频 ${activeResourceId} 安全保存位置: ${safePos}s`);
             updateResourceProgress(activeResourceId, pct, safePos);
         }
         currentVideoElement = null;
@@ -964,7 +991,7 @@ async function submitQuiz() {
         return;
     }
     
-    const allConfirmed = questionStates.every(s => s.confirmed);
+    const allConfirmed = questionStates.every(s => s && s.confirmed === true);
     if (!allConfirmed) {
         if (quizResult) { 
             quizResult.classList.remove('hidden'); 
@@ -978,7 +1005,7 @@ async function submitQuiz() {
     let earnedScore = 0;
     data.quiz.forEach((q, idx) => {
         totalScore += (q.score || 0);
-        const selected = questionStates[idx].selected || [];
+        const selected = questionStates[idx] ? questionStates[idx].selected || [] : [];
         const sortedSelected = [...selected].sort();
         const sortedCorrect = (q.correct || []).sort();
         if (JSON.stringify(sortedSelected) === JSON.stringify(sortedCorrect)) {
@@ -1363,4 +1390,4 @@ if (phoneInput) phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Ent
 if (passwordInput) passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 if (nameInput) nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 
-console.log('🐿️ 松鼠逛逛商家学堂 (完整修复版)');
+console.log('🐿️ 松鼠逛逛商家学堂 (答题状态持久化修复版)');
