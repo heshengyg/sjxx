@@ -1,5 +1,5 @@
 // =====================================================
-// app.js - 完整修复版（答题状态持久化）
+// app.js - 优化版（预加载 + 快速切换）
 // =====================================================
 
 const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
@@ -37,7 +37,10 @@ let activeResourceId = null;
 let currentImageResources = [];
 let currentImageIdx = 0;
 let questionStates = [];
-let isRenderingQuiz = false; // 防止重复渲染
+let isRenderingQuiz = false;
+let isDataPreloaded = false;
+let allStageData = {};
+let isSwitching = false; // 防止快速切换
 
 // DOM helpers
 const $ = id => document.getElementById(id);
@@ -119,14 +122,33 @@ function updateAvatar(user) {
     }
 }
 
+// ========== 预加载所有阶段数据 ==========
+async function preloadAllStages() {
+    if (isDataPreloaded) return;
+    console.log('🚀 开始预加载所有阶段数据...');
+    const startTime = Date.now();
+    
+    const promises = [];
+    for (let i = 1; i <= TOTAL_STAGES; i++) {
+        promises.push(loadStageData(i, true));
+    }
+    
+    await Promise.allSettled(promises);
+    isDataPreloaded = true;
+    console.log(`✅ 预加载完成，耗时 ${Date.now() - startTime}ms`);
+}
+
 // ========== Load JSON ==========
-async function loadStageData(stage) {
+async function loadStageData(stage, isPreload = false) {
+    // 如果已经缓存，直接返回
     if (stageData[stage]) return stageData[stage];
+    
     try {
         const resp = await fetch(`data/stage${stage}.json`);
         if (!resp.ok) throw new Error(`加载阶段 ${stage} 失败`);
         const text = await resp.text();
         const data = JSON.parse(text);
+        
         if (data.resources) {
             data.resources.forEach(r => {
                 r.id = stage + '-' + r.id;
@@ -148,20 +170,25 @@ async function loadStageData(stage) {
                 }
             });
         }
+        
+        // 视频时长异步获取，不阻塞
         if (data.resources) {
             const videoPromises = data.resources
                 .filter(r => r.type === 'video')
                 .map(async (r) => {
                     r.duration = await getVideoDuration(r.file);
                 });
-            await Promise.allSettled(videoPromises);
+            Promise.allSettled(videoPromises);
         }
+        
         if (data.quiz) {
             data.quiz.forEach(q => {
                 q.id = stage + '-' + q.id;
             });
         }
+        
         stageData[stage] = data;
+        allStageData[stage] = data;
         return data;
     } catch (e) {
         console.error('加载阶段数据失败:', e);
@@ -456,7 +483,6 @@ async function saveQuizStateToSupabase() {
     if (!currentUser) return;
     if (questionStates.length === 0) return;
     try {
-        // 深拷贝当前状态
         const stateToSave = questionStates.map(s => ({
             confirmed: s.confirmed || false,
             selected: s.selected ? [...s.selected] : []
@@ -499,7 +525,6 @@ async function loadQuizStateFromSupabase(stageId) {
 async function renderQuiz(quiz) {
     if (!quizContainer) return;
     
-    // 防止重复渲染
     if (isRenderingQuiz) return;
     isRenderingQuiz = true;
     
@@ -531,16 +556,14 @@ async function renderQuiz(quiz) {
         console.warn('加载答题状态失败:', e);
     }
     
-    // 如果从数据库加载成功，使用数据库状态；否则初始化
     if (savedState && savedState.questionStates && savedState.questionStates.length === quiz.length) {
         questionStates = savedState.questionStates.map(s => ({
             confirmed: s.confirmed || false,
             selected: s.selected ? [...s.selected] : []
         }));
-        console.log('📥 从数据库加载答题状态:', questionStates);
+        console.log('📥 从数据库加载答题状态');
     } else {
         questionStates = quiz.map(() => ({ confirmed: false, selected: [] }));
-        // 初始化时保存一次
         await saveQuizStateToSupabase();
     }
 
@@ -576,7 +599,6 @@ async function renderQuiz(quiz) {
             const idx = quiz.indexOf(q);
             wrapper.dataset.idx = idx;
 
-            // 确保 questionStates[idx] 存在
             if (!questionStates[idx]) {
                 questionStates[idx] = { confirmed: false, selected: [] };
             }
@@ -627,7 +649,6 @@ async function renderQuiz(quiz) {
                         if (this.checked) { sel.length=0; sel.push(optIdx); }
                         else { const pos = sel.indexOf(optIdx); if (pos!==-1) sel.splice(pos,1); }
                     }
-                    // 自动保存到数据库
                     saveQuizStateToSupabase();
                     updateSubmitButtonState();
                 });
@@ -672,7 +693,6 @@ async function renderQuiz(quiz) {
                     const badge = wrapper.querySelector('.status-badge');
                     if (badge) badge.remove();
                 }
-                // 保存到数据库
                 await saveQuizStateToSupabase();
                 updateSubmitButtonState();
             });
@@ -1068,6 +1088,39 @@ async function submitQuiz() {
     }
 }
 
+// ========== 快速切换阶段（同步） ==========
+function switchStageSync(stageId) {
+    if (isSwitching) return;
+    isSwitching = true;
+    
+    const data = allStageData[stageId] || stageData[stageId];
+    if (!data) {
+        isSwitching = false;
+        return;
+    }
+    
+    currentViewStage = stageId;
+    
+    // 更新标题和描述
+    if (stageTitle) stageTitle.textContent = `📘 ${data.title || STAGE_INFO[stageId].title}`;
+    if (stageDesc) stageDesc.textContent = data.description || '';
+    
+    // 渲染资源（同步）
+    renderResources(stageId, data.resources);
+    updateStageProgress(stageId, data.resources);
+    
+    // 渲染考核（异步，但不阻塞）
+    renderQuiz(data.quiz);
+    
+    // 更新阶段卡片高亮
+    document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
+    const cards = document.querySelectorAll('.stage-card');
+    if (cards[stageId - 1]) cards[stageId - 1].classList.add('active');
+    
+    controlQuizAreaVisibility(stageId);
+    isSwitching = false;
+}
+
 // ========== Dashboard ==========
 async function updateDashboard(user) {
     if (!user) return;
@@ -1091,6 +1144,7 @@ async function updateDashboard(user) {
 
     await loadUserProgress();
 
+    // 加载当前阶段数据
     const data = await loadStageData(currentViewStage);
     if (data) {
         if (stageTitle) stageTitle.textContent = `📘 ${data.title}`;
@@ -1119,20 +1173,26 @@ async function updateDashboard(user) {
             } else {
                 card.addEventListener('click', function() {
                     if (i !== currentViewStage) {
-                        currentViewStage = i;
-                        (async () => {
-                            const d = await loadStageData(currentViewStage);
-                            if (d) {
-                                if (stageTitle) stageTitle.textContent = `📘 ${d.title}`;
-                                if (stageDesc) stageDesc.textContent = d.description;
-                                renderResources(currentViewStage, d.resources);
-                                await renderQuiz(d.quiz);
-                                updateStageProgress(currentViewStage, d.resources);
-                                document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
-                                card.classList.add('active');
-                                controlQuizAreaVisibility(currentViewStage);
-                            }
-                        })();
+                        // 🚀 优先使用同步切换（已预加载的数据）
+                        if (allStageData[i] || stageData[i]) {
+                            switchStageSync(i);
+                        } else {
+                            // 降级方案：异步加载
+                            currentViewStage = i;
+                            (async () => {
+                                const d = await loadStageData(currentViewStage);
+                                if (d) {
+                                    if (stageTitle) stageTitle.textContent = `📘 ${d.title}`;
+                                    if (stageDesc) stageDesc.textContent = d.description;
+                                    renderResources(currentViewStage, d.resources);
+                                    await renderQuiz(d.quiz);
+                                    updateStageProgress(currentViewStage, d.resources);
+                                    document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
+                                    card.classList.add('active');
+                                    controlQuizAreaVisibility(currentViewStage);
+                                }
+                            })();
+                        }
                     }
                 });
             }
@@ -1157,6 +1217,11 @@ async function updateDashboard(user) {
     if (avatarWrapper) avatarWrapper.classList.add('visible');
     if (learnMsg) learnMsg.classList.add('hidden');
     if (quizResult) quizResult.classList.add('hidden');
+    
+    // 🚀 后台预加载所有阶段数据（不阻塞界面）
+    if (!isDataPreloaded) {
+        setTimeout(preloadAllStages, 800);
+    }
 }
 
 // ========== Auth ==========
@@ -1185,6 +1250,9 @@ async function handleAuth() {
             if (currentViewStage > TOTAL_STAGES) currentViewStage = TOTAL_STAGES;
             await updateDashboard(currentUser);
             showAuthMsg(`欢迎回来，${existing.name}`, false);
+            
+            // 登录后预加载
+            setTimeout(preloadAllStages, 500);
         } else {
             if (!name) { showAuthMsg('请填写店铺名称'); return; }
             const newUser = {
@@ -1208,6 +1276,9 @@ async function handleAuth() {
             currentViewStage = 1;
             await updateDashboard(currentUser);
             showAuthMsg(`🎉 注册成功，${name}！`, false);
+            
+            // 注册后预加载
+            setTimeout(preloadAllStages, 500);
         }
     } catch (e) {
         showAuthMsg('❌ ' + e.message);
@@ -1338,6 +1409,8 @@ function logout() {
         progressMap = {};
         timerIntervals = {};
         timerElapsed = {};
+        isDataPreloaded = false;
+        allStageData = {};
     }
 }
 
@@ -1390,4 +1463,4 @@ if (phoneInput) phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Ent
 if (passwordInput) passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 if (nameInput) nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 
-console.log('🐿️ 松鼠逛逛商家学堂 (答题状态持久化修复版)');
+console.log('🐿️ 松鼠逛逛商家学堂 (预加载优化版)');
