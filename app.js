@@ -1,5 +1,5 @@
 // =====================================================
-// app.js - 修复初始跳转回退问题，实现可靠记忆播放
+// app.js - 修复阶段切换考核按钮消失问题
 // =====================================================
 
 const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
@@ -16,6 +16,7 @@ const LEVELS = [
     { id: 'elite', label: '精英商家', stages: [6], quizPass: 90, next: null }
 ];
 const TOTAL_STAGES = 6;
+const EXAM_STAGES = [2, 4, 5, 6];
 
 const STAGE_INFO = {
     1: { title: '第一阶段：认知破局' },
@@ -47,8 +48,7 @@ const statusText = $('statusText'), progressFill = $('progressFill');
 const stepLabel = $('stepLabel'), nextLevelLabel = $('nextLevelLabel');
 const stageTitle = $('stageTitle'), stageDesc = $('stageDesc');
 const resourcesContainer = $('resourcesContainer'), learnMsg = $('learnMsg');
-const quizContainer = $('quizContainer'), submitQuizBtn = $('submitQuizBtn');
-const quizResult = $('quizResult'), refreshBtn = $('refreshBtn');
+const quizContainer = $('quizContainer'), quizResult = $('quizResult'), refreshBtn = $('refreshBtn');
 const stageList = $('stageList');
 const avatarWrapper = $('avatarWrapper'), avatarCircle = $('avatarCircle');
 const dropdownMenu = $('dropdownMenu'), changeAvatarBtn = $('changeAvatarBtn');
@@ -63,6 +63,11 @@ const passwordCancelBtn = $('passwordCancelBtn');
 const detailModal = $('detailModal'), detailTitle = $('detailTitle');
 const detailBody = $('detailBody'), detailProgress = $('detailProgress');
 const detailCloseBtn = $('detailCloseBtn');
+
+// 获取提交按钮（每次动态获取，避免引用过期）
+function getSubmitBtn() {
+    return document.getElementById('submitQuizBtn');
+}
 
 // ========== Helper ==========
 function getLevelFromStages(stages) {
@@ -117,57 +122,40 @@ function updateAvatar(user) {
 async function loadStageData(stage) {
     if (stageData[stage]) return stageData[stage];
     try {
-                const resp = await fetch(`data/stage${stage}.json`);
+        const resp = await fetch(`data/stage${stage}.json`);
         if (!resp.ok) throw new Error(`加载阶段 ${stage} 失败`);
-        
-        // 先读取文本，打印出来检查，然后再解析
         const text = await resp.text();
-        console.log('📄 出错的 JSON 内容是:', text);
-        
-        const data = JSON.parse(text); // 改成用 parse 直接解析
+        console.log('📄 加载的 JSON 内容:', text);
+        const data = JSON.parse(text);
         if (data.resources) {
             data.resources.forEach(r => {
                 r.id = stage + '-' + r.id;
-                
-                // 1. 图片：保留 JSON 里写的 duration。如果没写，默认给 60 秒
                 if (r.type === 'image') {
-                    r.duration = r.duration || 60; 
-                } 
-                // 2. 视频：自动读取视频真实时长！如果你 JSON 里写了，也会被真实时长覆盖
-                else if (r.type === 'video') {
-                    // 这里暂时赋个初始值，后面通过 getVideoDuration 异步获取真实时长覆盖它
-                    r.duration = 0; 
-                } 
-                // 3. 文章：自动去 HTML 标签和空格，按 300字/分钟 自动计算
-                else if (r.type === 'article') {
+                    r.duration = r.duration || 60;
+                } else if (r.type === 'video') {
+                    r.duration = 0;
+                } else if (r.type === 'article') {
                     if (r.content) {
                         let text = r.content || '';
                         let plainText = text.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ');
-                        // 去除所有空格，计算纯文本字符数量
                         const charCount = plainText.replace(/\s/g, '').length;
-                        // 按照成人平均阅读速度 300 字/分钟计算
                         const minutes = charCount / 300;
                         const seconds = Math.ceil(minutes * 60);
-                        r.duration = seconds > 0 ? seconds : 10; // 最少给 10 秒
+                        r.duration = seconds > 0 ? seconds : 10;
                     } else {
-                        r.duration = 60; // 没有内容时默认 60 秒
+                        r.duration = 60;
                     }
                 }
             });
         }
-        
-        // ✅ 【关键补充】：因为视频获取时长是异步的，我们需要在这里再遍历一次，
-        // 给所有视频自动获取真实时长。这样不会阻塞页面列表的渲染。
         if (data.resources) {
             const videoPromises = data.resources
                 .filter(r => r.type === 'video')
                 .map(async (r) => {
                     r.duration = await getVideoDuration(r.file);
                 });
-            // 等待所有视频时长获取完毕（后台静默进行，不影响用户看列表）
             await Promise.allSettled(videoPromises);
         }
-
         if (data.quiz) {
             data.quiz.forEach(q => {
                 q.id = stage + '-' + q.id;
@@ -185,22 +173,19 @@ async function loadStageData(stage) {
 function getVideoDuration(url) {
     return new Promise((resolve) => {
         const video = document.createElement('video');
-        video.preload = 'metadata'; // 只下载头部，极快，不消耗流量
+        video.preload = 'metadata';
         video.src = url;
-        
-        // 一旦加载到元数据（时长），立刻返回
         video.onloadedmetadata = function() {
-            resolve(Math.round(video.duration)); // 返回整数秒
+            resolve(Math.round(video.duration));
             video.remove();
         };
-        
-        // 万一加载失败（网络差或地址错误），给一个兜底的 120 秒
         video.onerror = function() {
             resolve(120);
             video.remove();
         };
     });
 }
+
 // ========== 进度管理（纯 localStorage） ==========
 function getProgressKey() {
     return 'progress_' + (currentUser ? currentUser.id : 'guest');
@@ -244,7 +229,6 @@ async function loadUserProgress() {
             last_position: item.last_position || 0
         };
     });
-    // 尝试从 Supabase 同步（失败不影响）
     try {
         if (currentUser) {
             const { data, error } = await supabaseClient
@@ -282,14 +266,12 @@ async function updateResourceProgress(resourceId, progress, position = 0) {
         progressMap[resourceId].completed = true;
         progressMap[resourceId].progress = 100;
     }
-    // 保存到 localStorage
     saveProgressToLocal(
         resourceId,
         progressMap[resourceId].progress,
         progressMap[resourceId].last_position,
         progressMap[resourceId].completed
     );
-    // 尝试同步到 Supabase（失败忽略）
     try {
         await supabaseClient
             .from('user_learning_progress')
@@ -309,12 +291,8 @@ async function updateResourceProgress(resourceId, progress, position = 0) {
 async function markResourceCompleted(resourceId) {
     if (!currentUser) return;
     if (progressMap[resourceId] && progressMap[resourceId].completed) return;
-    
-    // 读取当前的播放位置（可能是总时长，也可能因为用户提前看完是任意秒数）
     const curLastPos = progressMap[resourceId] ? progressMap[resourceId].last_position : 0;
-    
     progressMap[resourceId] = { progress: 100, completed: true, last_position: curLastPos };
-    
     saveProgressToLocal(resourceId, 100, curLastPos, true);
     try {
         await supabaseClient
@@ -339,6 +317,7 @@ async function markResourceCompleted(resourceId) {
     renderCurrentStageResources();
     updateDetailProgress(resourceId);
 }
+
 // ========== Render resources ==========
 function renderResources(stage, resources) {
     if (!resourcesContainer) return;
@@ -363,13 +342,12 @@ function renderResources(stage, resources) {
             thumb.style.justifyContent = 'center';
             thumb.style.fontSize = '32px';
         } else if (r.type === 'image') {
-            // ✅ 修改：彻底移除缩略图加载，改用图标，解决列表渲染卡顿
             thumb.innerHTML = '🖼️';
             thumb.style.display = 'flex';
             thumb.style.alignItems = 'center';
             thumb.style.justifyContent = 'center';
             thumb.style.fontSize = '36px';
-            thumb.style.background = '#e8f0fe'; // 浅蓝色背景
+            thumb.style.background = '#e8f0fe';
             thumb.style.color = '#4285f4';
         } else {
             thumb.textContent = '📄';
@@ -411,35 +389,98 @@ function renderResources(stage, resources) {
     });
 }
 
+// ========== 控制考核区域显示 ==========
+function controlQuizAreaVisibility(stageId) {
+    const isExamStage = EXAM_STAGES.includes(stageId);
+    
+    // 控制考核区域
+    const quizArea = document.querySelector('.quiz-area');
+    if (quizArea) {
+        if (!isExamStage) {
+            quizArea.classList.add('hidden-area');
+        } else {
+            quizArea.classList.remove('hidden-area');
+        }
+    }
+    
+    // 控制提交按钮 - 使用 display 而不是 remove
+    let submitBtn = getSubmitBtn();
+    
+    // 如果按钮不存在，创建一个
+    if (!submitBtn && isExamStage) {
+        submitBtn = document.createElement('button');
+        submitBtn.id = 'submitQuizBtn';
+        submitBtn.className = 'btn submit-btn';
+        submitBtn.textContent = '✅ 提交考核';
+        const quizAreaEl = document.querySelector('.quiz-area');
+        if (quizAreaEl) {
+            const resultEl = document.getElementById('quizResult');
+            if (resultEl) {
+                quizAreaEl.insertBefore(submitBtn, resultEl);
+            } else {
+                quizAreaEl.appendChild(submitBtn);
+            }
+        }
+        submitBtn.addEventListener('click', submitQuiz);
+    }
+    
+    // 再次获取按钮（可能是刚创建的）
+    submitBtn = getSubmitBtn();
+    if (!submitBtn) return;
+    
+    if (!isExamStage) {
+        submitBtn.style.display = 'none';
+    } else {
+        submitBtn.style.display = '';
+        // 更新按钮状态
+        updateSubmitButtonState();
+    }
+}
+
+// ========== 更新提交按钮状态 ==========
+function updateSubmitButtonState() {
+    const submitBtn = getSubmitBtn();
+    if (!submitBtn) return;
+    
+    const isExamStage = EXAM_STAGES.includes(currentViewStage);
+    if (!isExamStage || questionStates.length === 0) {
+        submitBtn.style.display = 'none';
+        return;
+    }
+    
+    submitBtn.style.display = '';
+    const allConfirmed = questionStates.every(s => s.confirmed);
+    if (allConfirmed) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '✅ 提交考核';
+    } else {
+        submitBtn.disabled = true;
+        submitBtn.textContent = '📝 请先确认所有答案';
+    }
+}
+
 // ========== renderQuiz ==========
 function renderQuiz(quiz) {
     if (!quizContainer) return;
     quizContainer.innerHTML = '';
     
-    // 🚨 【终极修复】：在渲染之前，先根据当前阶段决定是否显示考核内容
-    // 根据晋级规则，第 1、3 阶段是不需要考核的。
-    const examStages = [2, 4, 5, 6];
-    const isExamStage = examStages.includes(currentViewStage);
+    const isExamStage = EXAM_STAGES.includes(currentViewStage);
 
-    // 如果不是考核阶段（如第一阶段），直接清空考核区并隐藏按钮，不渲染任何考题。
+    // 如果不是考核阶段，清空并重置
     if (!isExamStage) {
-        // 如果本来有提交按钮，直接移除并隐藏
-        if (submitQuizBtn) {
-            submitQuizBtn.remove();
-            // 为了防止后续代码重新生成，把变量暂时置空
-            // 但由于我们在最外层确认了不需要考核，直接 return 掉，后续逻辑根本不会跑。
-        }
+        quizContainer.innerHTML = '';
+        questionStates = [];
         return;
     }
-
-    // --- 以下逻辑只有 2, 4, 5, 6 阶段才会执行 ---
 
     if (!quiz || quiz.length === 0) {
         quizContainer.innerHTML = '<p style="color:#5e6f7d;">📭 本阶段暂无考核。</p>';
-        if (submitQuizBtn) submitQuizBtn.disabled = true;
+        questionStates = [];
         return;
     }
-    if (submitQuizBtn) submitQuizBtn.disabled = false;
+
+    // 初始化 questionStates
+    questionStates = quiz.map(() => ({ confirmed: false, selected: [] }));
 
     const groups = {
         single: { label: '一、单选题', items: [], totalScore: 0 },
@@ -457,8 +498,6 @@ function renderQuiz(quiz) {
             groups.single.totalScore += (q.score || 0);
         }
     });
-
-    questionStates = quiz.map(() => ({ confirmed: false, selected: [] }));
 
     for (const [type, group] of Object.entries(groups)) {
         if (group.items.length === 0) continue;
@@ -507,6 +546,7 @@ function renderQuiz(quiz) {
                         if (this.checked) { sel.length=0; sel.push(optIdx); }
                         else { const pos = sel.indexOf(optIdx); if (pos!==-1) sel.splice(pos,1); }
                     }
+                    updateSubmitButtonState();
                 });
             });
             wrapper.appendChild(optionsDiv);
@@ -537,6 +577,7 @@ function renderQuiz(quiz) {
                     const badge = wrapper.querySelector('.status-badge');
                     if (badge) badge.remove();
                 }
+                updateSubmitButtonState();
             });
             btnDiv.appendChild(confirmBtn);
             wrapper.appendChild(btnDiv);
@@ -544,7 +585,11 @@ function renderQuiz(quiz) {
             quizContainer.appendChild(wrapper);
         });
     }
+    
+    // 渲染完成后更新提交按钮状态
+    updateSubmitButtonState();
 }
+
 // ========== Resource Detail Modal ==========
 let currentVideoElement = null;
 
@@ -557,140 +602,131 @@ function openResourceDetail(resource, allResources) {
     detailBody.innerHTML = '';
     detailProgress.textContent = '';
 
-                // ========== 视频分支（完美兼容电脑、手机、微信，防快进防秒学） ==========
-        if (resource.type === 'video') {
-            const video = document.createElement('video');
-            video.src = resource.file;
-            video.controls = true; // ✅ 保留进度条
-            video.playsInline = true;
-            video.style.width = '100%';
-            video.style.borderRadius = '12px';
-            video.preload = 'metadata'; // ✅ 重点修改：改为 metadata，视频打开速度快 10 倍！
+    if (resource.type === 'video') {
+        const video = document.createElement('video');
+        video.src = resource.file;
+        video.controls = true;
+        video.playsInline = true;
+        video.style.width = '100%';
+        video.style.borderRadius = '12px';
+        video.preload = 'metadata';
 
-            let savedPosition = 0;
-            const prog = progressMap[resource.id];
-            if (prog && prog.last_position && !prog.completed) {
-                savedPosition = prog.last_position;
+        let savedPosition = 0;
+        const prog = progressMap[resource.id];
+        if (prog && prog.last_position && !prog.completed) {
+            savedPosition = prog.last_position;
+        }
+        console.log(`🎬 视频 ${resource.id} 恢复位置: ${savedPosition}s`);
+
+        let lastValidTime = savedPosition;
+        let isRestoring = false;
+        let initialSeek = false;
+
+        video.addEventListener('loadedmetadata', function() {
+            if (savedPosition > 0 && savedPosition < video.duration - 0.5) {
+                initialSeek = true;
+                video.currentTime = savedPosition;
+                const onSeeked = function() {
+                    initialSeek = false;
+                    video.removeEventListener('seeked', onSeeked);
+                };
+                video.addEventListener('seeked', onSeeked);
+                lastValidTime = savedPosition;
+                this._lastValidTime = savedPosition;
+                console.log(`✅ 视频 ${resource.id} 记忆跳转到 ${savedPosition}s`);
             }
-            console.log(`🎬 视频 ${resource.id} 恢复位置: ${savedPosition}s`);
+            updateDetailProgress(resource.id);
+        });
 
-            let lastValidTime = savedPosition;
-            let isRestoring = false;
-            let initialSeek = false;
+        let saveTimer = null;
+        function updateAndSave() {
+            if (!video.duration) return;
+            const pos = video._lastValidTime;
+            const pct = Math.round((pos / video.duration) * 100);
+            updateResourceProgress(resource.id, pct, pos);
+            updateDetailProgress(resource.id);
+        }
 
-            video.addEventListener('loadedmetadata', function() {
-                if (savedPosition > 0 && savedPosition < video.duration - 0.5) {
-                    initialSeek = true;
-                    video.currentTime = savedPosition;
-                    const onSeeked = function() {
-                        initialSeek = false;
-                        video.removeEventListener('seeked', onSeeked);
-                    };
-                    video.addEventListener('seeked', onSeeked);
-                    lastValidTime = savedPosition;
-                    this._lastValidTime = savedPosition;
-                    console.log(`✅ 视频 ${resource.id} 记忆跳转到 ${savedPosition}s`);
-                }
-                updateDetailProgress(resource.id);
-            });
-
-            let saveTimer = null;
-            function updateAndSave() {
-                if (!video.duration) return;
-                const pos = video._lastValidTime; 
-                const pct = Math.round((pos / video.duration) * 100);
-                updateResourceProgress(resource.id, pct, pos);
-                updateDetailProgress(resource.id);
+        video.addEventListener('timeupdate', function() {
+            if (!isRestoring && !initialSeek) {
+                lastValidTime = video.currentTime;
+                this._lastValidTime = video.currentTime;
+            }
+            const pct = Math.round((video.currentTime / video.duration) * 100);
+            if (detailProgress) detailProgress.textContent = `学习进度：${pct}%`;
+            
+            if (!saveTimer) {
+                saveTimer = setTimeout(() => {
+                    updateAndSave();
+                    saveTimer = null;
+                }, 3000);
             }
 
-            video.addEventListener('timeupdate', function() {
-                if (!isRestoring && !initialSeek) {
-                    lastValidTime = video.currentTime;
-                    this._lastValidTime = video.currentTime;
-                }
-                const pct = Math.round((video.currentTime / video.duration) * 100);
-                if (detailProgress) detailProgress.textContent = `学习进度：${pct}%`;
-                
-                if (!saveTimer) {
-                    saveTimer = setTimeout(() => {
-                        updateAndSave();
-                        saveTimer = null;
-                    }, 3000);
-                }
-
-                // ✅ 新增：在 timeupdate 里做终极实时拦截，防止移动端底层的闪躲
-                if (!isRestoring && !initialSeek && lastValidTime > 0) {
-                    if (video.currentTime > lastValidTime + 0.5) {
-                        video.currentTime = lastValidTime;
-                        video.pause(); // 强行拦截并暂停
-                    }
-                }
-            });
-
-            // ✅ 新增：监听 seeking 做初步拦截
-            video.addEventListener('seeking', function() {
-                if (isRestoring) return;
-                if (initialSeek) return;
-                if (video.paused) return; // 暂停状态下允许看前面，不犯规
-                
-                if (progressMap[resource.id] && progressMap[resource.id].completed) {
-                    lastValidTime = video.currentTime;
-                    this._lastValidTime = video.currentTime;
-                    return;
-                }
-
-                if (video.currentTime > lastValidTime + 0.5) {
-                    isRestoring = true;
-                    video.currentTime = lastValidTime;
-                } else {
-                    lastValidTime = video.currentTime;
-                    this._lastValidTime = video.currentTime;
-                }
-            });
-
-            // ✅ 新增：监听 seeked 做二次拦截至最终态
-            video.addEventListener('seeked', function() {
-                if (isRestoring) {
-                    isRestoring = false;
-                }
-                if (initialSeek) return;
-                if (progressMap[resource.id] && progressMap[resource.id].completed) return;
-                
-                // 如果 seeked 结束，依然发现逃出了正常范围，立刻弹回
+            if (!isRestoring && !initialSeek && lastValidTime > 0) {
                 if (video.currentTime > lastValidTime + 0.5) {
                     video.currentTime = lastValidTime;
                     video.pause();
                 }
-            });
+            }
+        });
 
-            // 防止拖拽到结尾“瞬间秒学完成”
-            video.addEventListener('ended', function() {
-                if (this._lastValidTime < video.duration - 1) {
-                    console.warn('🚨 检测到拖拽偷懒，取消完成标记并弹回');
-                    video.currentTime = this._lastValidTime;
-                    video.pause();
-                    return;
-                }
-                this._lastValidTime = video.duration;
-                if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
-                markResourceCompleted(resource.id);
-            });
+        video.addEventListener('seeking', function() {
+            if (isRestoring) return;
+            if (initialSeek) return;
+            if (video.paused) return;
+            if (progressMap[resource.id] && progressMap[resource.id].completed) {
+                lastValidTime = video.currentTime;
+                this._lastValidTime = video.currentTime;
+                return;
+            }
+            if (video.currentTime > lastValidTime + 0.5) {
+                isRestoring = true;
+                video.currentTime = lastValidTime;
+            } else {
+                lastValidTime = video.currentTime;
+                this._lastValidTime = video.currentTime;
+            }
+        });
 
-            video.addEventListener('click', function() {
-                if (video.paused) {
-                    video.play();
-                } else {
-                    video.pause();
-                }
-            });
+        video.addEventListener('seeked', function() {
+            if (isRestoring) {
+                isRestoring = false;
+            }
+            if (initialSeek) return;
+            if (progressMap[resource.id] && progressMap[resource.id].completed) return;
+            if (video.currentTime > lastValidTime + 0.5) {
+                video.currentTime = lastValidTime;
+                video.pause();
+            }
+        });
 
-            detailBody.appendChild(video);
-            currentVideoElement = video;
-            video.play().catch(e => {
-                if (e.name !== 'AbortError') console.warn('视频自动播放被阻止:', e);
-            });
-            activeResourceId = resource.id;
-        }  else if (resource.type === 'image') {
+        video.addEventListener('ended', function() {
+            if (this._lastValidTime < video.duration - 1) {
+                console.warn('🚨 检测到拖拽偷懒，取消完成标记并弹回');
+                video.currentTime = this._lastValidTime;
+                video.pause();
+                return;
+            }
+            this._lastValidTime = video.duration;
+            if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+            markResourceCompleted(resource.id);
+        });
+
+        video.addEventListener('click', function() {
+            if (video.paused) {
+                video.play();
+            } else {
+                video.pause();
+            }
+        });
+
+        detailBody.appendChild(video);
+        currentVideoElement = video;
+        video.play().catch(e => {
+            if (e.name !== 'AbortError') console.warn('视频自动播放被阻止:', e);
+        });
+        activeResourceId = resource.id;
+    } else if (resource.type === 'image') {
         const img = document.createElement('img');
         img.src = resource.file;
         img.style.width = '100%';
@@ -729,12 +765,8 @@ function closeDetailModal() {
     detailModal.classList.remove('open');
     
     if (currentVideoElement) {
-        // 🚨【核心修复】：在调用 pause() 之前，立即从内存里截获当前播放时间
-        // 彻底杜绝手机/微信 pause() 瞬间把时间闪回 0 秒的 Bug！
         const safePos = currentVideoElement._lastValidTime || 0;
-        
-        currentVideoElement.pause(); // 这一步在微信里会让 currentTime 变 0，但我们已经提前读完了 safePos
-        
+        currentVideoElement.pause();
         if (currentVideoElement.duration) {
             const pct = Math.round((safePos / currentVideoElement.duration) * 100);
             console.log(`💾 视频 ${activeResourceId} 安全保存位置: ${safePos}s`);
@@ -747,6 +779,7 @@ function closeDetailModal() {
         activeResourceId = null;
     }
 }
+
 function navigateImage(delta) {
     const newIdx = currentImageIdx + delta;
     if (newIdx < 0 || newIdx >= currentImageResources.length) return;
@@ -970,6 +1003,8 @@ async function updateDashboard(user) {
                                 updateStageProgress(currentViewStage, d.resources);
                                 document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
                                 card.classList.add('active');
+                                // 切换后控制考核区域
+                                controlQuizAreaVisibility(currentViewStage);
                             }
                         })();
                     }
@@ -990,42 +1025,8 @@ async function updateDashboard(user) {
         }
     }
 
-            // ✅ 定义晋级考核阶段
-    const examStages = [2, 4, 5, 6]; 
-    const isExamStage = examStages.includes(currentViewStage);
-
-    // 只有“当前实际阶段”且“属于考核阶段”时，才能提交
-    const canSubmit = (currentViewStage === actualStage && actualStage <= TOTAL_STAGES && isExamStage);
-
-    // 🚨 【终极绝杀】：直接通过 ID 控制整个考核区域的显示隐藏
-    if (quizContainer) {
-        // 找到包裹着“阶段考核”标题和考题的父级容器
-        const quizAreaParent = quizContainer.parentElement; 
-        if (quizAreaParent) {
-            if (!isExamStage) {
-                // 第 1、3 阶段：直接添加 hidden-area 类，强制隐藏整个区域
-                quizAreaParent.classList.add('hidden-area');
-            } else {
-                // 第 2、4、5、6 阶段：移除隐藏类，确保区域显示
-                quizAreaParent.classList.remove('hidden-area');
-            }
-        }
-    }
-
-    // ✅ 重置并控制提交按钮
-    if (submitQuizBtn) {
-        // 清掉之前可能存在的隐藏样式干扰
-        submitQuizBtn.style.display = '';
-        submitQuizBtn.style.visibility = '';
-
-        if (!isExamStage) {
-            // 非考核阶段：直接删掉元素，永绝后患
-            submitQuizBtn.remove(); 
-        } else {
-            // 考核阶段：正确控制是否可点击
-            submitQuizBtn.disabled = !canSubmit;
-        }
-    }
+    // 控制考核区域显示
+    controlQuizAreaVisibility(currentViewStage);
 
     updateAvatar(user);
     if (avatarWrapper) avatarWrapper.classList.add('visible');
@@ -1217,7 +1218,6 @@ function logout() {
 
 // ========== Event Bindings ==========
 if (authBtn) authBtn.addEventListener('click', handleAuth);
-if (submitQuizBtn) submitQuizBtn.addEventListener('click', submitQuiz);
 if (refreshBtn) refreshBtn.addEventListener('click', refreshUser);
 if (avatarWrapper) {
     avatarWrapper.addEventListener('click', function(e) {
@@ -1265,4 +1265,4 @@ if (phoneInput) phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Ent
 if (passwordInput) passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 if (nameInput) nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 
-console.log('🐿️ 松鼠逛逛商家学堂 (记忆播放修复版)');
+console.log('🐿️ 松鼠逛逛商家学堂 (阶段切换修复版)');
