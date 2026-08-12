@@ -1,46 +1,325 @@
 {
   "stage": 2,
-  "title": "第二阶段：方向定位",
-  "description": "社区商家专属新零售突破路径",
+  "title": "入门",
+  "description": "加速",
   "resources": [
     {
       "id": "r1",
       "type": "video",
-      "title": "实体店困境分析",
-      "file": "video/stage2_intro.mp4"
-
+      "title": "新视频",
+      "file": "video/stage2_intro1.mp4"
     },
     {
       "id": "r2",
-      "type": "image",
-      "title": "经营数据图表",
-      "file": "image/stage2_chart.webp",
-      "duration": 600
-    },
-    {
-      "id": "r3",
       "type": "article",
-      "title": "新零售核心定义",
-      "content": "<h3>新零售的核心价值</h3><p>全文内容...</p>"
-
+      "title": "转型突破",
+      "content": "<p style=\"text-align: left;\"><br></p><p style=\"text-align: left;\"><strong>2.1 社区新零售核心定义</strong></p><p style=\"text-indent: 2em; text-align: left;\"><span style=\"font-family: Arial;\">针对社区本地场景的轻量化新零售模式，区别于传统电商远距离、高成本的运营模式，核心是</span><span style=\"color: rgb(225, 60, 57);\"><strong>依托本地社区地缘优势，以线下门店为服务支点，以线上平台为流量、交易、锁客载体</strong></span><span style=\"font-family: Arial;\">，实现“线上引流、线下体验、即时服务、长效留存”的全新经营模式。</span></p><p style=\"text-align: left;\"><strong>2.2 商家转型核心突破方向</strong></p><p style=\"text-indent: 2em; text-align: left;\"><span style=\"font-family: Arial;\">从“单一卖货/卖服务”转型为“社区综合生活服务提供者”，不再局限于门店固有业务，依托社区邻里资源，拓展多元化营收场景；从“被动等客”转型为“主动锁客、持续触达”，通过线上工具沉淀客户、精细化运营私域流量，提升复购率；从“时段性经营”转型为“全天候经营”，线上店铺24小时可接单，打破门店营业时间限制；从“单一营收渠道”转型为“多渠道增收”，结合平台供应链、自营业务、邻里信息服务，挖掘多元盈利点。</span></p><p style=\"text-align: left;\"><strong>2.3 转型核心价值</strong></p><p style=\"text-indent: 2em; text-align: left;\"><span style=\"font-family: Arial;\">零门槛拓展线上经营场景，无需高额投入改造门店，依托现有资源即可完成转型；精准深耕本地社区市场，避开全域电商的激烈竞争，主打本地化、高信任、快服务的差异化优势；构建属于商家自己的客户私域资产，彻底摆脱“客流随缘”的经营困境。</span></p>"
     }
   ],
   "quiz": [
     {
       "id": "q1",
-      "question": "传统社区实体门店最核心的经营痛点是？",
-      "options": ["A、客源仅靠自然到店", "B、装修老旧", "C、人工成本低", "D、竞争少"],
-      "correct": [0],
+      "question": "传统社区实体门店最核心的经营痛点是？（ ）",
+      "options": [
+        "A、客源仅靠自然到店，客流固化流失严重",
+        "B、门店装修老旧",
+        "C、人工成本过低",
+        "D、邻里竞争太少"
+      ],
+      "correct": [
+        0
+      ],
       "type": "single",
       "score": 5
     },
     {
       "id": "q2",
-      "question": "社区新零售的核心是？",
-      "options": ["A、线上引流", "B、线下体验", "C、线上线下融合", "D、纯电商"],
-      "correct": [2],
+      "question": "传统实体店闭店后最大的问题是？（ ）",
+      "options": [
+        "A、门店无人看管",
+        "B、彻底失去营收机会，无法全天候经营",
+        "C、设备闲置",
+        "D、无卫生打扫"
+      ],
+      "correct": [
+        1
+      ],
       "type": "single",
       "score": 5
+    },
+    {
+      "id": "q3",
+      "question": "线下发传单、地推促销的最大弊端是？（ ）",
+      "options": [
+        "A、操作简单",
+        "B、投入成本高、转化效率极低",
+        "C、覆盖人群广",
+        "D、无时间限制"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q4",
+      "question": "传统实体门店的经营模式最大缺陷是？（ ）",
+      "options": [
+        "A、营收渠道单一，抗风险能力差",
+        "B、经营过于灵活",
+        "C、客户粘性过高",
+        "D、盈利空间稳定"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q5",
+      "question": "传统交易模式下，商家与客户的关系问题是？（ ）",
+      "options": [
+        "A、长效互动频繁",
+        "B、交易完成即终止，无持续链接渠道",
+        "C、客户自动复购",
+        "D、有专属客户管理体系"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q6",
+      "question": "当下社区居民消费的核心趋势是？（ ）",
+      "options": [
+        "A、只选择线下高价消费",
+        "B、偏好便捷化、本地化、线上线下结合服务",
+        "C、只相信远距离电商",
+        "D、拒绝所有线上消费"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q7",
+      "question": "实体门店必须转型的核心原因是？（ ）",
+      "options": [
+        "A、线下客流越来越多",
+        "B、传统模式无法适配新时代社区消费需求",
+        "C、线上经营投入更高",
+        "D、转型无任何收益"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q8",
+      "question": "线下同质化竞争会直接导致？（ ）",
+      "options": [
+        "A、利润上涨",
+        "B、低价内卷，盈利空间持续压缩",
+        "C、客源增多",
+        "D、经营压力减小"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q9",
+      "question": "传统实体店最大的短板是无法满足居民什么需求？（ ）",
+      "options": [
+        "A、到店消费需求",
+        "B、足不出户的便捷消费需求",
+        "C、线下体验需求",
+        "D、面对面服务需求"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q10",
+      "question": "实体店随缘客流的核心问题是？（ ）",
+      "options": [
+        "A、客流稳定可控",
+        "B、无客户沉淀、无复购维护体系",
+        "C、新客增长过快",
+        "D、经营风险低"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q11",
+      "question": "传统社区纯实体商家的普遍痛点包含？（ ）",
+      "options": [
+        "A、客源范围受限，新客停滞、老客流失",
+        "B、经营时间固定，无法全天候接单",
+        "C、获客成本高、转化低",
+        "D、无客户数据沉淀，复购随缘"
+      ],
+      "correct": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "type": "multiple",
+      "score": 6
+    },
+    {
+      "id": "q12",
+      "question": "传统实体经营的致命问题有？（ ）",
+      "options": [
+        "A、经营模式单一，营收渠道窄",
+        "B、客户链接薄弱，无长效维护渠道",
+        "C、服务场景局限，适配性差",
+        "D、同行内卷严重，利润走低"
+      ],
+      "correct": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "type": "multiple",
+      "score": 6
+    },
+    {
+      "id": "q13",
+      "question": "社区消费升级的表现有？（ ）",
+      "options": [
+        "A、追求消费便捷性",
+        "B、偏好本地就近服务",
+        "C、接受线上下单、线下服务模式",
+        "D、只认可传统线下交易"
+      ],
+      "correct": [
+        0,
+        1,
+        2
+      ],
+      "type": "multiple",
+      "score": 6
+    },
+    {
+      "id": "q14",
+      "question": "实体店转型新零售的核心目的是？（ ）",
+      "options": [
+        "A、盘活门店现有资源",
+        "B、激活存量客源、挖掘增量市场",
+        "C、提升抗风险能力",
+        "D、实现长久稳定经营"
+      ],
+      "correct": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "type": "multiple",
+      "score": 6
+    },
+    {
+      "id": "q15",
+      "question": "传统实体店被动经营的特点包括？（ ）",
+      "options": [
+        "A、坐等客户到店",
+        "B、无主动锁客手段",
+        "C、无线上营收渠道",
+        "D、客源完全依赖自然流量"
+      ],
+      "correct": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "type": "multiple",
+      "score": 6
+    },
+    {
+      "id": "q16",
+      "question": "传统实体门店依靠自然到店客流，客源增长存在天花板。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "judge",
+      "score": 4
+    },
+    {
+      "id": "q17",
+      "question": "门店关门之后，依然可以产生线下到店营收。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "judge",
+      "score": 4
+    },
+    {
+      "id": "q18",
+      "question": "地推发传单属于高成本低转化的获客手段。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "judge",
+      "score": 4
+    },
+    {
+      "id": "q19",
+      "question": "传统实体门店可以自动沉淀客户消费数据。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "judge",
+      "score": 4
+    },
+    {
+      "id": "q20",
+      "question": "社区居民消费习惯正在向便捷、本地化服务转变。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "judge",
+      "score": 4
     }
   ]
 }
