@@ -42,17 +42,87 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 .level-tag { background:#1a2e3b; color:#fff; padding:2px 14px; border-radius:30px; font-size:12px; font-weight:500; }
 .status { font-size:14px; color:#1f2e3a; margin:8px 0 4px; }
 
-/* ========== 阶段导航（卡片） ========== */
-.stage-nav { margin:12px 0 8px; }
-.stage-list { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
-.stage-card { padding:6px 14px; border-radius:20px; background:#eef2f6; color:#1a2e3b; font-size:13px; cursor:pointer; transition:0.2s; border:2px solid transparent; display:flex; align-items:center; gap:6px; }
-.stage-card.active { border-color:#1f7b4d; background:#e3f3ea; }
-.stage-card.locked { background:#e6e9ed; color:#a0aab4; cursor:not-allowed; opacity:0.6; }
-.stage-card .stage-label { font-weight:500; }
-.stage-card .stage-status { font-size:11px; color:#5e6f7d; }
-.stage-card.locked .stage-status { color:#a0aab4; }
-.stage-card.active .stage-status { color:#1f7b4d; }
+/* ========== 阶段导航（卡片式） ========== */
+.stage-nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: #fff;
+    padding: 8px 0 12px 0;
+    margin: 0 -4px;
+    border-bottom: 1px solid #ecf0f3;
+}
 
+.stage-nav label {
+    display: block;
+    font-size: 14px;
+    color: #5e6f7d;
+    margin-bottom: 6px;
+}
+
+/* 🚀 核心修改：横向滚动 */
+.stage-list {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 4px 2px 8px 2px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox 隐藏滚动条 */
+}
+
+/* 隐藏滚动条（Chrome/Safari） */
+.stage-list::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
+.stage-card {
+    flex: 0 0 auto; /* 不伸缩，根据内容定宽 */
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: #eef2f6;
+    color: #1a2e3b;
+    font-size: 13px;
+    cursor: pointer;
+    transition: 0.2s;
+    border: 2px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap; /* 防止文字换行 */
+}
+
+.stage-card.active {
+    border-color: #1f7b4d;
+    background: #e3f3ea;
+}
+
+.stage-card.locked {
+    background: #e6e9ed;
+    color: #a0aab4;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.stage-card .stage-label {
+    font-weight: 500;
+    font-size: 12px;
+}
+
+.stage-card .stage-status {
+    font-size: 11px;
+    color: #5e6f7d;
+}
+
+.stage-card.locked .stage-status {
+    color: #a0aab4;
+}
+
+.stage-card.active .stage-status {
+    color: #1f7b4d;
+}
 /* ========== 资源列表 ========== */
 .resource-item { background:#f2f6fc; border-radius:12px; padding:12px 16px; margin-bottom:10px; display:flex; align-items:center; gap:12px; cursor:pointer; border:1px solid transparent; transition:0.1s; }
 .resource-item:hover { background:#e8eef5; }
@@ -333,12 +403,33 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     .stage-nav {
         padding: 4px 0 8px 0;
     }
+    .stage-nav label {
+        font-size: 12px;
+        margin-bottom: 4px;
+    }
+    .stage-list {
+        gap: 6px;
+        padding: 2px 0 6px 0;
+    }
+    .stage-card {
+        padding: 4px 10px;
+        font-size: 11px;
+    }
+    .stage-card .stage-label {
+        font-size: 11px;
+    }
+    .stage-card .stage-status {
+        font-size: 10px;
+    }
     #studyArea .stage-title {
         font-size: 15px;
         padding: 4px 0 6px 0;
     }
-    .stage-card {
-        font-size: 12px;
-        padding: 4px 10px;
+    /* 考核区域更大 */
+    .quiz-area {
+        max-height: 500px;
+    }
+    .quiz-body {
+        max-height: 320px;
     }
 }
