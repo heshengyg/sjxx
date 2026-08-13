@@ -1,5 +1,5 @@
 // =====================================================
-// app.js - 优化版（预加载 + 快速切换）
+// app.js - 松鼠逛逛商家学堂
 // =====================================================
 
 const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
@@ -51,10 +51,8 @@ const shopNameDisplay = $('shopNameDisplay'), levelDisplay = $('levelDisplay');
 const statusText = $('statusText'), progressFill = $('progressFill');
 const stepLabel = $('stepLabel'), nextLevelLabel = $('nextLevelLabel');
 
-// 旧的 stageTitle/stageDesc 不再使用，但保留定义避免报错
 const stageTitle = $('stageTitle'), stageDesc = $('stageDesc');
 
-// ===== 新增：学习资源帘头和正常流的各元素 =====
 const studyHeaderTitle = $('studyHeaderTitle');
 const studyHeaderDesc = $('studyHeaderDesc');
 const studyHeaderProgress = $('studyHeaderProgress');
@@ -65,6 +63,7 @@ const studyContentProgress = $('studyContentProgress');
 const resourcesContainer = $('resourcesContainer'), learnMsg = $('learnMsg');
 const quizResult = $('quizResult'), refreshBtn = $('refreshBtn');
 const stageList = $('stageList');
+const stageListContent = $('stageListContent');
 const avatarWrapper = $('avatarWrapper'), avatarCircle = $('avatarCircle');
 const dropdownMenu = $('dropdownMenu'), changeAvatarBtn = $('changeAvatarBtn');
 const changePasswordBtn = $('changePasswordBtn'), logoutBtn = $('logoutBtn');
@@ -82,7 +81,6 @@ const loginProgressWrap = $('loginProgressWrap');
 const loginProgressBar = $('loginProgressBar');
 const loginProgressText = $('loginProgressText');
 
-// 获取提交按钮
 function getSubmitBtn() {
     return document.getElementById('submitQuizBtn');
 }
@@ -141,12 +139,10 @@ async function preloadAllStages() {
     if (isDataPreloaded) return;
     console.log('🚀 开始预加载所有阶段数据...');
     const startTime = Date.now();
-
     const promises = [];
     for (let i = 1; i <= TOTAL_STAGES; i++) {
         promises.push(loadStageData(i, true));
     }
-
     await Promise.allSettled(promises);
     isDataPreloaded = true;
     console.log(`✅ 预加载完成，耗时 ${Date.now() - startTime}ms`);
@@ -155,13 +151,11 @@ async function preloadAllStages() {
 // ========== Load JSON ==========
 async function loadStageData(stage, isPreload = false) {
     if (stageData[stage]) return stageData[stage];
-
     try {
         const resp = await fetch(`data/stage${stage}.json`);
         if (!resp.ok) throw new Error(`加载阶段 ${stage} 失败`);
         const text = await resp.text();
         const data = JSON.parse(text);
-
         if (data.resources) {
             data.resources.forEach(r => {
                 r.id = stage + '-' + r.id;
@@ -183,7 +177,6 @@ async function loadStageData(stage, isPreload = false) {
                 }
             });
         }
-
         if (data.resources) {
             const videoPromises = data.resources
                 .filter(r => r.type === 'video')
@@ -192,13 +185,11 @@ async function loadStageData(stage, isPreload = false) {
                 });
             Promise.allSettled(videoPromises);
         }
-
         if (data.quiz) {
             data.quiz.forEach(q => {
                 q.id = stage + '-' + q.id;
             });
         }
-
         stageData[stage] = data;
         allStageData[stage] = data;
         return data;
@@ -208,7 +199,6 @@ async function loadStageData(stage, isPreload = false) {
     }
 }
 
-// ========== Helper: 自动获取视频真实时长 ==========
 function getVideoDuration(url) {
     return new Promise((resolve) => {
         const video = document.createElement('video');
@@ -428,13 +418,10 @@ function renderResources(stage, resources) {
 // ========== 控制考核区域显示 ==========
 function controlQuizAreaVisibility(stageId) {
     const isExamStage = EXAM_STAGES.includes(stageId);
-
-    // 如果是非考核阶段，隐藏所有考核相关元素
     if (!isExamStage) {
         const quizHeaders = ['quizTitleHeader', 'singleHeader', 'multipleHeader', 'judgeHeader'];
         const quizBodies = ['singleContainer', 'multipleContainer', 'judgeContainer'];
         const footer = document.getElementById('quizFooterGlobal');
-
         quizHeaders.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
@@ -445,20 +432,17 @@ function controlQuizAreaVisibility(stageId) {
         });
         if (footer) footer.style.display = 'none';
     }
-    // 考核阶段：不干预显示，由 renderQuiz 完全控制
 }
 
 // ========== 更新提交按钮状态 ==========
 function updateSubmitButtonState() {
     const submitBtn = document.getElementById('submitQuizBtn');
     if (!submitBtn) return;
-
     const isExamStage = EXAM_STAGES.includes(currentViewStage);
     if (!isExamStage || questionStates.length === 0) {
         submitBtn.style.display = 'none';
         return;
     }
-
     submitBtn.style.display = '';
     const allConfirmed = questionStates.every(s => s && s.confirmed === true);
     if (allConfirmed) {
@@ -470,7 +454,7 @@ function updateSubmitButtonState() {
     }
 }
 
-// ========== 保存答题状态到 Supabase ==========
+// ========== 保存答题状态 ==========
 async function saveQuizStateToSupabase() {
     if (!currentUser) return;
     if (questionStates.length === 0) return;
@@ -479,7 +463,6 @@ async function saveQuizStateToSupabase() {
             confirmed: s.confirmed || false,
             selected: s.selected ? [...s.selected] : []
         }));
-
         const { error } = await supabaseClient
             .from('user_quiz_state')
             .upsert({
@@ -494,7 +477,6 @@ async function saveQuizStateToSupabase() {
     }
 }
 
-// ========== 加载答题状态 ==========
 async function loadQuizStateFromSupabase(stageId) {
     if (!currentUser) return null;
     try {
@@ -569,7 +551,6 @@ async function renderQuiz(quiz) {
     for (const [type, group] of Object.entries(groups)) {
         if (group.items.length === 0) continue;
 
-        // 显示题型帘头
         if (group.header) {
             group.header.style.display = 'block';
             const scoreSpan = group.header.querySelector('.quiz-type-score');
@@ -579,12 +560,10 @@ async function renderQuiz(quiz) {
             }
         }
 
-        // 显示题型容器
         const container = group.container;
         if (!container) continue;
         container.style.display = 'block';
 
-        // 渲染题目
         group.items.forEach((q, localIdx) => {
             const globalIdx = quiz.indexOf(q);
             const wrapper = document.createElement('div');
@@ -691,14 +670,13 @@ async function renderQuiz(quiz) {
         });
     }
 
-    // 显示提交按钮区域
     if (quizFooterGlobal) quizFooterGlobal.style.display = 'block';
     if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.textContent = '✅ 提交考核';
     }
 
-    // 🚀 强制显示考核内容（确保不被其他逻辑隐藏）
+    // 强制显示考核内容
     if (quizTitleHeader) quizTitleHeader.style.display = 'block';
     [singleHeader, multipleHeader, judgeHeader].forEach(el => {
         if (el) el.style.display = 'block';
@@ -710,6 +688,7 @@ async function renderQuiz(quiz) {
 
     updateSubmitButtonState();
 }
+
 // ========== Resource Detail Modal ==========
 let currentVideoElement = null;
 
@@ -955,13 +934,11 @@ function renderCurrentStageResources() {
     }
 }
 
-// ===== 修改后的 updateStageProgress =====
 function updateStageProgress(stage, resources) {
-    if (!studyHeaderProgress) return;  // 使用新元素
+    if (!studyHeaderProgress) return;
     if (!resources) {
         if (studyHeaderProgress) studyHeaderProgress.innerHTML = '';
         if (studyContentProgress) studyContentProgress.innerHTML = '';
-        // 同时更新旧的 stageDesc（兼容）
         if (stageDesc) stageDesc.innerHTML = '';
         return;
     }
@@ -984,10 +961,8 @@ function updateStageProgress(stage, resources) {
     const remaining = Math.max(0, totalDuration - elapsed);
     const progressText = `资源完成：${completedCount}/${total}  |  已学 ${formatTime(elapsed)}  /  总需 ${formatTime(totalDuration)}  |  剩余 ${formatTime(remaining)}`;
 
-    // 更新新元素
     if (studyHeaderProgress) studyHeaderProgress.innerHTML = progressText;
     if (studyContentProgress) studyContentProgress.innerHTML = progressText;
-    // 同时更新旧的 stageDesc（以防万一）
     if (stageDesc) stageDesc.innerHTML = progressText;
 }
 
@@ -1104,7 +1079,68 @@ async function submitQuiz() {
     }
 }
 
-// ========== 快速切换阶段（同步） ==========
+// ========== 生成阶段卡片 ==========
+function buildStageCards(container, currentStage, maxUnlocked) {
+    if (!container) return;
+    container.innerHTML = '';
+    for (let i = 1; i <= TOTAL_STAGES; i++) {
+        const card = document.createElement('div');
+        card.className = 'stage-card';
+        if (i === currentStage) card.classList.add('active');
+        const isUnlocked = (i <= maxUnlocked + 1);
+        if (!isUnlocked) {
+            card.classList.add('locked');
+            card.style.cursor = 'not-allowed';
+        } else {
+            card.addEventListener('click', function() {
+                if (i !== currentViewStage) {
+                    if (allStageData[i] || stageData[i]) {
+                        switchStageSync(i);
+                    } else {
+                        currentViewStage = i;
+                        (async () => {
+                            const d = await loadStageData(currentViewStage);
+                            if (d) {
+                                updateStageUI(d);
+                                document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
+                                card.classList.add('active');
+                            }
+                        })();
+                    }
+                }
+            });
+        }
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'stage-label';
+        const info = STAGE_INFO[i] || { title: `第${i}阶段` };
+        labelSpan.textContent = info.title;
+        card.appendChild(labelSpan);
+
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'stage-status';
+        statusSpan.textContent = isUnlocked ? (i <= maxUnlocked ? '✅ 已解锁' : '🔓 可学习') : '🔒 未解锁';
+        card.appendChild(statusSpan);
+
+        container.appendChild(card);
+    }
+}
+
+// ========== 更新阶段 UI ==========
+function updateStageUI(data) {
+    if (!data) return;
+    if (studyHeaderTitle) studyHeaderTitle.textContent = `📘 ${data.title}`;
+    if (studyHeaderDesc) studyHeaderDesc.textContent = data.description || '';
+    if (studyContentTitle) studyContentTitle.textContent = `📘 ${data.title}`;
+    if (studyContentDescription) studyContentDescription.textContent = data.description || '';
+    if (stageTitle) stageTitle.textContent = `📘 ${data.title}`;
+    if (stageDesc) stageDesc.textContent = data.description || '';
+    renderResources(currentViewStage, data.resources);
+    controlQuizAreaVisibility(currentViewStage);
+    renderQuiz(data.quiz);
+    updateStageProgress(currentViewStage, data.resources);
+}
+
+// ========== 快速切换阶段 ==========
 function switchStageSync(stageId) {
     if (isSwitching) return;
     isSwitching = true;
@@ -1116,34 +1152,17 @@ function switchStageSync(stageId) {
     }
 
     currentViewStage = stageId;
-
-    // 更新学习资源帘头和正常流（三行）
-    if (studyHeaderTitle) studyHeaderTitle.textContent = `📘 ${data.title || STAGE_INFO[stageId].title}`;
-    if (studyHeaderDesc) studyHeaderDesc.textContent = data.description || '';
-    // progress 由 updateStageProgress 更新
-
-    if (studyContentTitle) studyContentTitle.textContent = `📘 ${data.title || STAGE_INFO[stageId].title}`;
-    if (studyContentDescription) studyContentDescription.textContent = data.description || '';
-    // progress 由 updateStageProgress 更新
-
-    // 旧的 stageTitle/stageDesc 不再需要，但可以保留以免报错
-    if (stageTitle) stageTitle.textContent = `📘 ${data.title || STAGE_INFO[stageId].title}`;
-    if (stageDesc) stageDesc.textContent = data.description || '';
-
-    renderResources(stageId, data.resources);
-    updateStageProgress(stageId, data.resources);
-
-    // 先控制可见性，再渲染考核
-    controlQuizAreaVisibility(stageId);
-    renderQuiz(data.quiz);
+    updateStageUI(data);
 
     document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
     const cards = document.querySelectorAll('.stage-card');
     if (cards[stageId - 1]) cards[stageId - 1].classList.add('active');
+    // 同步内容区域
+    const contentCards = document.querySelectorAll('#stageListContent .stage-card');
+    if (contentCards[stageId - 1]) contentCards[stageId - 1].classList.add('active');
 
     isSwitching = false;
 
-    // 🚀 切换阶段后重新计算帘头位置
     setTimeout(() => {
         isHeaderInitialized = false;
         initStickyHeaders();
@@ -1175,26 +1194,7 @@ async function updateDashboard(user) {
 
     const data = await loadStageData(currentViewStage);
     if (data) {
-        // 更新学习资源帘头和正常流（三行）
-        if (studyHeaderTitle) studyHeaderTitle.textContent = `📘 ${data.title}`;
-        if (studyHeaderDesc) studyHeaderDesc.textContent = data.description || '';
-        // progress 由 updateStageProgress 更新
-
-        if (studyContentTitle) studyContentTitle.textContent = `📘 ${data.title}`;
-        if (studyContentDescription) studyContentDescription.textContent = data.description || '';
-        // progress 由 updateStageProgress 更新
-
-        // 旧的 stageTitle/stageDesc 保留（可能用于其他地方，但不再显示）
-        if (stageTitle) stageTitle.textContent = `📘 ${data.title}`;
-        if (stageDesc) stageDesc.textContent = data.description || '';
-
-        renderResources(currentViewStage, data.resources);
-
-        // 先控制可见性，再渲染考核
-        controlQuizAreaVisibility(currentViewStage);
-        await renderQuiz(data.quiz);
-
-        updateStageProgress(currentViewStage, data.resources);
+        updateStageUI(data);
     } else {
         if (stageTitle) stageTitle.textContent = `📘 第${currentViewStage}阶段`;
         if (stageDesc) stageDesc.textContent = '数据加载失败，请检查网络或JSON文件。';
@@ -1202,54 +1202,8 @@ async function updateDashboard(user) {
     }
 
     const maxUnlocked = stages.length > 0 ? Math.max(...stages) : 0;
-    if (stageList) {
-        stageList.innerHTML = '';
-        for (let i = 1; i <= TOTAL_STAGES; i++) {
-            const card = document.createElement('div');
-            card.className = 'stage-card';
-            if (i === currentViewStage) card.classList.add('active');
-            const isUnlocked = (i <= maxUnlocked + 1);
-            if (!isUnlocked) {
-                card.classList.add('locked');
-                card.style.cursor = 'not-allowed';
-            } else {
-                card.addEventListener('click', function() {
-                    if (i !== currentViewStage) {
-                        if (allStageData[i] || stageData[i]) {
-                            switchStageSync(i);
-                        } else {
-                            currentViewStage = i;
-                            (async () => {
-                                const d = await loadStageData(currentViewStage);
-                                if (d) {
-                                    if (stageTitle) stageTitle.textContent = `📘 ${d.title}`;
-                                    if (stageDesc) stageDesc.textContent = d.description;
-                                    renderResources(currentViewStage, d.resources);
-                                    controlQuizAreaVisibility(currentViewStage);
-                                    await renderQuiz(d.quiz);
-                                    updateStageProgress(currentViewStage, d.resources);
-                                    document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
-                                    card.classList.add('active');
-                                }
-                            })();
-                        }
-                    }
-                });
-            }
-            const labelSpan = document.createElement('span');
-            labelSpan.className = 'stage-label';
-            const info = STAGE_INFO[i] || { title: `第${i}阶段` };
-            labelSpan.textContent = info.title;
-            card.appendChild(labelSpan);
-
-            const statusSpan = document.createElement('span');
-            statusSpan.className = 'stage-status';
-            statusSpan.textContent = isUnlocked ? (i <= maxUnlocked ? '✅ 已解锁' : '🔓 可学习') : '🔒 未解锁';
-            card.appendChild(statusSpan);
-
-            stageList.appendChild(card);
-        }
-    }
+    buildStageCards(stageList, currentViewStage, maxUnlocked);
+    buildStageCards(stageListContent, currentViewStage, maxUnlocked);
 
     updateAvatar(user);
     if (avatarWrapper) avatarWrapper.classList.add('visible');
@@ -1260,7 +1214,6 @@ async function updateDashboard(user) {
         setTimeout(preloadAllStages, 800);
     }
 
-    // 🚀 初始化帘头滚动控制
     initStickyControl();
 }
 
@@ -1373,7 +1326,6 @@ async function handleAuth() {
     }
 }
 
-// ========== 登录进度辅助函数 ==========
 function updateLoginProgress(value) {
     const val = Math.min(100, Math.round(value));
     if (loginProgressBar) loginProgressBar.style.width = val + '%';
@@ -1393,6 +1345,7 @@ function resetLoginButton() {
     if (loginProgressBar) loginProgressBar.style.width = '0%';
     if (loginProgressText) loginProgressText.textContent = '0%';
 }
+
 function showAuthMsg(text, isError = true) {
     if (!authMsg) return;
     authMsg.classList.remove('hidden');
@@ -1521,7 +1474,7 @@ function logout() {
     }
 }
 
-// ========== 新增：帘头滚动切换 ==========
+// ========== 帘头滚动切换 ==========
 let headerSections = [];
 let isHeaderInitialized = false;
 
@@ -1532,10 +1485,8 @@ function initStickyHeaders() {
     const dashboard = document.getElementById('dashboard');
     if (!dashboard || headers.length === 0) return;
 
-    // 先重置所有隐藏
     headers.forEach(h => h.classList.remove('active'));
 
-    // 临时显示所有帘头以获取位置（display:block 但不 active，不固定）
     headers.forEach(h => h.style.display = 'block');
 
     const headerList = [];
@@ -1553,7 +1504,6 @@ function initStickyHeaders() {
         });
     });
 
-    // 隐藏回去（恢复默认 display:none）
     headers.forEach(h => h.style.display = '');
 
     headerSections = headerList;
@@ -1566,29 +1516,24 @@ function handleScroll() {
 
     const scrollY = window.pageYOffset || document.documentElement.scrollTop;
 
-    // 如果滚动距离小于 30px，不激活任何帘头（一打开页面无帘头）
     if (scrollY < 30) {
         headerSections.forEach(section => section.el.classList.remove('active'));
         return;
     }
 
-    // 查找当前滚动位置所在的区域，提前 25px 激活
     let activeIndex = -1;
     for (let i = 0; i < headerSections.length; i++) {
         const section = headerSections[i];
-        // 提前 25px 触发，让帘头与内容对齐
-        if (scrollY >= section.start - 25 && scrollY < section.end) {
+        if (scrollY >= section.start - 30 && scrollY < section.end) {
             activeIndex = i;
             break;
         }
     }
 
-    // 如果滚动到底部，激活最后一个
     if (activeIndex === -1 && scrollY >= headerSections[headerSections.length - 1].start) {
         activeIndex = headerSections.length - 1;
     }
 
-    // 更新帘头显示（只显示一个）
     headerSections.forEach((section, index) => {
         if (index === activeIndex) {
             section.el.classList.add('active');
@@ -1597,13 +1542,12 @@ function handleScroll() {
         }
     });
 }
+
 function initStickyControl() {
-    // 等待 DOM 渲染完成
     setTimeout(() => {
         initStickyHeaders();
         window.addEventListener('scroll', handleScroll);
         window.addEventListener('resize', () => {
-            // 窗口大小变化时重新计算位置
             isHeaderInitialized = false;
             setTimeout(initStickyHeaders, 100);
         });
@@ -1659,7 +1603,7 @@ if (phoneInput) phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Ent
 if (passwordInput) passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 if (nameInput) nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 
-console.log('🐿️ 松鼠逛逛商家学堂 (预加载优化版)');
+console.log('🐿️ 松鼠逛逛商家学堂');
 
 // ========== 浮动导航按钮控制 ==========
 function initFloatNav() {
