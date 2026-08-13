@@ -415,32 +415,10 @@ function renderResources(stage, resources) {
         div.addEventListener('click', () => openResourceDetail(r, resources));
         resourcesContainer.appendChild(div);
     });
+         // 🚀 【新增】资源渲染完成后初始化收缩按钮
+    initToggleResources();
 }
 
-// ========== 资源收缩/展开功能 ==========
-function initToggleResources() {
-    const toggleBtn = document.getElementById('toggleResourcesBtn');
-    const resourcesWrapper = document.getElementById('resourcesWrapper');
-    
-    if (!toggleBtn || !resourcesWrapper) return;
-    
-    // 默认展开
-    let isExpanded = true;
-    
-    toggleBtn.addEventListener('click', function() {
-        isExpanded = !isExpanded;
-        if (isExpanded) {
-            resourcesWrapper.classList.remove('collapsed');
-            toggleBtn.textContent = '📂 收起资源';
-        } else {
-            resourcesWrapper.classList.add('collapsed');
-            toggleBtn.textContent = '📂 展开资源';
-        }
-    });
-}
-
-// 在 updateDashboard 中调用
-// 在 renderResources 之后调用 initToggleResources
 
 // ========== 控制考核区域显示 ==========
 function controlQuizAreaVisibility(stageId) {
@@ -1516,6 +1494,33 @@ function logout() {
         allStageData = {};
     }
 }
+
+// ========== 【新增】资源收缩/展开功能 ==========
+function initToggleResources() {
+    const toggleBtn = document.getElementById('toggleResourcesBtn');
+    const resourcesWrapper = document.getElementById('resourcesWrapper');
+    
+    if (!toggleBtn || !resourcesWrapper) {
+        return;
+    }
+    
+    let isExpanded = true;
+    const newToggleBtn = toggleBtn.cloneNode(true);
+    toggleBtn.parentNode.replaceChild(newToggleBtn, toggleBtn);
+    
+    newToggleBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        isExpanded = !isExpanded;
+        if (isExpanded) {
+            resourcesWrapper.classList.remove('collapsed');
+            this.textContent = '📂 收起资源';
+        } else {
+            resourcesWrapper.classList.add('collapsed');
+            this.textContent = '📂 展开资源';
+        }
+    });
+
 
 // ========== Event Bindings ==========
 if (authBtn) authBtn.addEventListener('click', handleAuth);
