@@ -697,15 +697,19 @@ async function renderQuiz(quiz) {
         submitBtn.disabled = false;
         submitBtn.textContent = '✅ 提交考核';
     }
-// 强制显示考核相关元素（确保不被其他逻辑隐藏）
-if (quizTitleHeader) quizTitleHeader.style.display = 'block';
-[singleHeader, multipleHeader, judgeHeader].forEach(el => {
-    if (el && el.style.display === 'none') el.style.display = 'block';
-});
-if (quizFooterGlobal) quizFooterGlobal.style.display = 'block';
+
+    // 🚀 强制显示考核内容（确保不被其他逻辑隐藏）
+    if (quizTitleHeader) quizTitleHeader.style.display = 'block';
+    [singleHeader, multipleHeader, judgeHeader].forEach(el => {
+        if (el) el.style.display = 'block';
+    });
+    [singleContainer, multipleContainer, judgeContainer].forEach(el => {
+        if (el) el.style.display = 'block';
+    });
+    if (quizFooterGlobal) quizFooterGlobal.style.display = 'block';
+
     updateSubmitButtonState();
 }
-
 // ========== Resource Detail Modal ==========
 let currentVideoElement = null;
 
@@ -1593,20 +1597,6 @@ function handleScroll() {
         }
     });
 }
-
-    if (activeIndex === -1 && scrollY >= headerSections[headerSections.length - 1].start) {
-        activeIndex = headerSections.length - 1;
-    }
-
-    headerSections.forEach((section, index) => {
-        if (index === activeIndex) {
-            section.el.classList.add('active');
-        } else {
-            section.el.classList.remove('active');
-        }
-    });
-}
-
 function initStickyControl() {
     // 等待 DOM 渲染完成
     setTimeout(() => {
