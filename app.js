@@ -1525,30 +1525,29 @@ function initStickyHeaders() {
     // 先重置所有隐藏
     headers.forEach(h => h.classList.remove('active'));
 
-    // 计算每个帘头对应的内容区域的顶部和底部位置
-    // 使用每个帘头的 offsetTop 和下一个帘头的 offsetTop 作为区域的起止
+    // 临时显示所有帘头以获取位置（display:block 但不 active，不固定）
+    headers.forEach(h => h.style.display = 'block');
+
     const headerList = [];
-    // 获取所有帘头的 offsetTop（相对于 dashboard）
-    let tops = [];
-    headers.forEach(header => {
-        tops.push(header.offsetTop);
-    });
-    // 最后一个结束为 dashboard 高度
-    const dashboardHeight = dashboard.scrollHeight;
+    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
     headers.forEach((header, index) => {
-        const start = tops[index];
-        const end = (index + 1 < tops.length) ? tops[index + 1] : dashboardHeight;
+        const rect = header.getBoundingClientRect();
+        const top = rect.top + scrollY;
+        const next = headers[index + 1];
+        const nextTop = next ? next.getBoundingClientRect().top + scrollY : dashboard.scrollHeight;
         headerList.push({
             el: header,
-            start: start,
-            end: end,
+            start: top,
+            end: nextTop,
             id: header.id
         });
     });
+
+    // 隐藏回去（恢复默认 display:none）
+    headers.forEach(h => h.style.display = '');
+
     headerSections = headerList;
     isHeaderInitialized = true;
-
-    // 初始调用一次
     handleScroll();
 }
 
@@ -1556,27 +1555,30 @@ function handleScroll() {
     if (!isHeaderInitialized || headerSections.length === 0) return;
 
     const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+
     // 🚀 如果滚动距离小于 30px，不激活任何帘头（一打开页面无帘头）
     if (scrollY < 30) {
         headerSections.forEach(section => section.el.classList.remove('active'));
         return;
     }
+
     // 查找当前滚动位置所在的区域
     let activeIndex = -1;
     for (let i = 0; i < headerSections.length; i++) {
         const section = headerSections[i];
-        // 如果当前滚动位置大于等于该帘头的起始位置，且小于下一个帘头的起始位置
-        if (scrollY >= section.start - 5 && scrollY < section.end - 5) {
+        // 使用更宽松的判断条件，确保帘头在滚动到其起始位置时激活
+        if (scrollY >= section.start && scrollY < section.end) {
             activeIndex = i;
             break;
         }
     }
+
     // 如果滚动到底部，激活最后一个
     if (activeIndex === -1 && scrollY >= headerSections[headerSections.length - 1].start) {
         activeIndex = headerSections.length - 1;
     }
 
-    // 更新帘头显示
+    // 更新帘头显示（只显示一个）
     headerSections.forEach((section, index) => {
         if (index === activeIndex) {
             section.el.classList.add('active');
