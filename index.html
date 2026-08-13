@@ -55,7 +55,7 @@
 
         <!-- 阶段导航（卡片式） -->
         <div class="stage-nav">
-            <label>切换阶段：</label>
+            <label>切换阶段（左右滑动）：</label>
             <div id="stageList" class="stage-list"></div>
         </div>
 
@@ -68,27 +68,27 @@
         </div>
 
         <!-- 考核区域 -->
-        <div class="quiz-area">
-            <!-- 标题 - 置顶 -->
-            <div class="quiz-header">
-                <div class="quiz-title">📝 阶段考核</div>
-            </div>
-            <!-- 考题容器 - 可滚动 -->
-            <div class="quiz-body" id="quizBody">
-                <div id="quizContainer"></div>
-            </div>
-            <!-- 底部：提交按钮 + 结果 -->
-            <div class="quiz-footer">
-                <button id="submitQuizBtn" class="btn submit-btn">✅ 提交考核</button>
-                <div id="quizResult" class="msg hidden"></div>
-            </div>
-        </div>
-
-        <div class="actions">
-            <button id="refreshBtn" class="btn btn-outline">🔄 刷新状态</button>
-        </div>
-        <div class="footnote">系统自动考核 · 达标即晋级</div>
+<div class="quiz-area">
+    <!-- 标题 - 置顶 -->
+    <div class="quiz-header">
+        <div class="quiz-title">📝 阶段考核</div>
     </div>
+    <!-- 考题容器 - 可滚动 -->
+    <div class="quiz-body" id="quizBody">
+        <div id="quizContainer"></div>
+    </div>
+    <!-- 底部：提交按钮 + 结果 -->
+    <div class="quiz-footer">
+        <button id="submitQuizBtn" class="btn submit-btn">✅ 提交考核</button>
+        <div id="quizResult" class="msg hidden"></div>
+    </div>
+</div>
+
+<!-- 操作按钮 + 脚注合并为一行 -->
+<div class="bottom-bar">
+    <button id="refreshBtn" class="btn btn-outline refresh-btn">🔄 刷新状态</button>
+    <div class="footnote">系统自动考核 · 达标即晋级</div>
+</div>
 
     <!-- 资源详情模态框 -->
     <div class="modal-overlay" id="detailModal">
