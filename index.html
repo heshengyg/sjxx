@@ -26,14 +26,19 @@
     <div class="sub">分级学习 · 自动晋级 · 免费赋能</div>
 
     <!-- 登录卡片 -->
-    <div id="authCard" class="card">
-        <div class="auth-title">商家身份</div>
-        <input id="phoneInput" class="input-field" type="text" placeholder="手机号 (注册/登录)" />
-        <input id="passwordInput" class="input-field" type="password" placeholder="密码 (6位以上)" />
-        <input id="nameInput" class="input-field" type="text" placeholder="店铺名称 (首次注册时填写)" />
-        <button id="authBtn" class="btn">注册 / 登录</button>
-        <div id="authMsg" class="msg hidden"></div>
+<div id="authCard" class="card">
+    <div class="auth-title">商家身份</div>
+    <input id="phoneInput" class="input-field" type="text" placeholder="手机号 (注册/登录)" />
+    <input id="passwordInput" class="input-field" type="password" placeholder="密码 (6位以上)" />
+    <input id="nameInput" class="input-field" type="text" placeholder="店铺名称 (首次注册时填写)" />
+    <button id="authBtn" class="btn">注册 / 登录</button>
+    <!-- 登录进度条 -->
+    <div id="loginProgressWrap" class="login-progress-wrap hidden">
+        <div class="login-progress-bar" id="loginProgressBar" style="width:0%"></div>
+        <span class="login-progress-text" id="loginProgressText">0%</span>
     </div>
+    <div id="authMsg" class="msg hidden"></div>
+</div>
 
     <!-- 主面板 -->
     <div id="dashboard" class="hidden">

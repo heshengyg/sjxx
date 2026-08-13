@@ -67,6 +67,10 @@ const passwordCancelBtn = $('passwordCancelBtn');
 const detailModal = $('detailModal'), detailTitle = $('detailTitle');
 const detailBody = $('detailBody'), detailProgress = $('detailProgress');
 const detailCloseBtn = $('detailCloseBtn');
+// ========== 新增：登录进度条 DOM 引用 ==========
+const loginProgressWrap = $('loginProgressWrap');
+const loginProgressBar = $('loginProgressBar');
+const loginProgressText = $('loginProgressText');
 
 // 获取提交按钮
 function getSubmitBtn() {
@@ -1232,6 +1236,28 @@ async function handleAuth() {
     const name = nameInput.value.trim();
     if (!phone) { showAuthMsg('请输入手机号'); return; }
     if (!password || password.length < 6) { showAuthMsg('密码至少6位'); return; }
+    
+    // 🚀 显示进度条
+    if (loginProgressWrap) {
+        loginProgressWrap.classList.remove('hidden');
+        loginProgressWrap.style.display = 'block';
+    }
+    if (authBtn) {
+        authBtn.disabled = true;
+        authBtn.textContent = '⏳ 登录中...';
+        authBtn.style.opacity = '0.7';
+    }
+    
+    // 模拟进度更新
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+        if (progress < 90) {
+            progress += Math.random() * 8 + 2;
+            if (progress > 90) progress = 90;
+            updateLoginProgress(progress);
+        }
+    }, 200);
+    
     const hashed = hashPassword(password);
     try {
         let { data: existing, error } = await supabaseClient
@@ -1240,8 +1266,17 @@ async function handleAuth() {
             .eq('phone', phone)
             .maybeSingle();
         if (error && error.code !== 'PGRST116') throw error;
+        
+        // 进度到 95%
+        updateLoginProgress(95);
+        
         if (existing) {
-            if (existing.password !== hashed) { showAuthMsg('❌ 密码错误'); return; }
+            if (existing.password !== hashed) { 
+                showAuthMsg('❌ 密码错误'); 
+                clearInterval(progressInterval);
+                resetLoginButton();
+                return; 
+            }
             currentUser = existing;
             if (authCard) authCard.classList.add('hidden');
             if (dashboard) dashboard.classList.remove('hidden');
@@ -1253,8 +1288,21 @@ async function handleAuth() {
             
             // 登录后预加载
             setTimeout(preloadAllStages, 500);
+            
+            // 完成进度
+            updateLoginProgress(100);
+            setTimeout(() => {
+                resetLoginButton();
+                if (loginProgressWrap) loginProgressWrap.classList.add('hidden');
+            }, 500);
+            
         } else {
-            if (!name) { showAuthMsg('请填写店铺名称'); return; }
+            if (!name) { 
+                showAuthMsg('请填写店铺名称'); 
+                clearInterval(progressInterval);
+                resetLoginButton();
+                return; 
+            }
             const newUser = {
                 phone, name,
                 password: hashed,
@@ -1279,13 +1327,43 @@ async function handleAuth() {
             
             // 注册后预加载
             setTimeout(preloadAllStages, 500);
+            
+            // 完成进度
+            updateLoginProgress(100);
+            setTimeout(() => {
+                resetLoginButton();
+                if (loginProgressWrap) loginProgressWrap.classList.add('hidden');
+            }, 500);
         }
+        clearInterval(progressInterval);
     } catch (e) {
         showAuthMsg('❌ ' + e.message);
         console.error(e);
+        clearInterval(progressInterval);
+        resetLoginButton();
     }
 }
 
+// ========== 登录进度辅助函数 ==========
+function updateLoginProgress(value) {
+    const val = Math.min(100, Math.round(value));
+    if (loginProgressBar) loginProgressBar.style.width = val + '%';
+    if (loginProgressText) loginProgressText.textContent = val + '%';
+}
+
+function resetLoginButton() {
+    if (authBtn) {
+        authBtn.disabled = false;
+        authBtn.textContent = '注册 / 登录';
+        authBtn.style.opacity = '1';
+    }
+    if (loginProgressWrap) {
+        loginProgressWrap.style.display = 'none';
+        loginProgressWrap.classList.add('hidden');
+    }
+    if (loginProgressBar) loginProgressBar.style.width = '0%';
+    if (loginProgressText) loginProgressText.textContent = '0%';
+}
 function showAuthMsg(text, isError = true) {
     if (!authMsg) return;
     authMsg.classList.remove('hidden');
