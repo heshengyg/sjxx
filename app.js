@@ -548,15 +548,19 @@ async function renderQuiz(quiz) {
     const hasAnyQuiz = groups.single.items.length > 0 || groups.multiple.items.length > 0 || groups.judge.items.length > 0;
     if (!hasAnyQuiz) return;
     
-    if (quizTitleHeader) quizTitleHeader.style.display = '';
+    // 显示考核总标题
+    if (quizTitleHeader) quizTitleHeader.style.display = 'block';
     
+    // 初始化 questionStates
     questionStates = quiz.map(() => ({ confirmed: false, selected: [] }));
     
+    // 渲染各题型
     for (const [type, group] of Object.entries(groups)) {
         if (group.items.length === 0) continue;
         
+        // 显示题型帘头
         if (group.header) {
-            group.header.style.display = '';
+            group.header.style.display = 'block';
             const scoreSpan = group.header.querySelector('.quiz-type-score');
             if (scoreSpan) {
                 const perScore = group.totalScore / group.items.length;
@@ -564,10 +568,12 @@ async function renderQuiz(quiz) {
             }
         }
         
+        // 显示题型容器
         const container = group.container;
         if (!container) continue;
-        container.style.display = '';
+        container.style.display = 'block';
         
+        // 渲染题目
         group.items.forEach((q, localIdx) => {
             const globalIdx = quiz.indexOf(q);
             const wrapper = document.createElement('div');
@@ -674,7 +680,8 @@ async function renderQuiz(quiz) {
         });
     }
     
-    if (quizFooterGlobal) quizFooterGlobal.style.display = '';
+    // 显示提交按钮区域
+    if (quizFooterGlobal) quizFooterGlobal.style.display = 'block';
     if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.textContent = '✅ 提交考核';
@@ -1081,13 +1088,15 @@ function switchStageSync(stageId) {
     
     renderResources(stageId, data.resources);
     updateStageProgress(stageId, data.resources);
+    
+    // 先控制可见性，再渲染考核
+    controlQuizAreaVisibility(stageId);
     renderQuiz(data.quiz);
     
     document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
     const cards = document.querySelectorAll('.stage-card');
     if (cards[stageId - 1]) cards[stageId - 1].classList.add('active');
     
-    controlQuizAreaVisibility(stageId);
     isSwitching = false;
 }
 
@@ -1119,7 +1128,11 @@ async function updateDashboard(user) {
         if (stageTitle) stageTitle.textContent = `📘 ${data.title}`;
         if (stageDesc) stageDesc.textContent = data.description;
         renderResources(currentViewStage, data.resources);
+        
+        // 先控制可见性，再渲染考核
+        controlQuizAreaVisibility(currentViewStage);
         await renderQuiz(data.quiz);
+        
         updateStageProgress(currentViewStage, data.resources);
     } else {
         if (stageTitle) stageTitle.textContent = `📘 第${currentViewStage}阶段`;
@@ -1151,11 +1164,11 @@ async function updateDashboard(user) {
                                     if (stageTitle) stageTitle.textContent = `📘 ${d.title}`;
                                     if (stageDesc) stageDesc.textContent = d.description;
                                     renderResources(currentViewStage, d.resources);
+                                    controlQuizAreaVisibility(currentViewStage);
                                     await renderQuiz(d.quiz);
                                     updateStageProgress(currentViewStage, d.resources);
                                     document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
                                     card.classList.add('active');
-                                    controlQuizAreaVisibility(currentViewStage);
                                 }
                             })();
                         }
@@ -1176,8 +1189,6 @@ async function updateDashboard(user) {
             stageList.appendChild(card);
         }
     }
-
-    controlQuizAreaVisibility(currentViewStage);
 
     updateAvatar(user);
     if (avatarWrapper) avatarWrapper.classList.add('visible');
