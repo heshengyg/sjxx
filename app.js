@@ -51,6 +51,8 @@ const shopNameDisplay = $('shopNameDisplay'), levelDisplay = $('levelDisplay');
 const statusText = $('statusText'), progressFill = $('progressFill');
 const stepLabel = $('stepLabel'), nextLevelLabel = $('nextLevelLabel');
 const stageTitle = $('stageTitle'), stageDesc = $('stageDesc');
+const studyContentTitle = $('studyContentTitle');
+const studyContentDesc = $('studyContentDesc');
 const resourcesContainer = $('resourcesContainer'), learnMsg = $('learnMsg');
 const quizResult = $('quizResult'), refreshBtn = $('refreshBtn');
 const stageList = $('stageList');
@@ -1085,6 +1087,9 @@ function switchStageSync(stageId) {
     
     if (stageTitle) stageTitle.textContent = `📘 ${data.title || STAGE_INFO[stageId].title}`;
     if (stageDesc) stageDesc.textContent = data.description || '';
+    // 🚀 同步更新普通流中的标题+进度
+if (studyContentTitle) studyContentTitle.textContent = `📘 ${data.title || STAGE_INFO[stageId].title}`;
+if (studyContentDesc) studyContentDesc.textContent = data.description || '';
     
     renderResources(stageId, data.resources);
     updateStageProgress(stageId, data.resources);
@@ -1133,6 +1138,9 @@ async function updateDashboard(user) {
     if (data) {
         if (stageTitle) stageTitle.textContent = `📘 ${data.title}`;
         if (stageDesc) stageDesc.textContent = data.description;
+        // 🚀 同步更新普通流中的标题+进度
+    if (studyContentTitle) studyContentTitle.textContent = `📘 ${data.title}`;
+    if (studyContentDesc) studyContentDesc.textContent = data.description;
         renderResources(currentViewStage, data.resources);
         
         // 先控制可见性，再渲染考核
@@ -1511,6 +1519,11 @@ function handleScroll() {
     if (!isHeaderInitialized || headerSections.length === 0) return;
     
     const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+    // 🚀 如果滚动距离小于 30px，不激活任何帘头（一打开页面无帘头）
+    if (scrollY < 30) {
+        headerSections.forEach(section => section.el.classList.remove('active'));
+        return;
+    }
     // 查找当前滚动位置所在的区域
     let activeIndex = -1;
     for (let i = 0; i < headerSections.length; i++) {

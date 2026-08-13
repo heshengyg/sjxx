@@ -161,12 +161,29 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     line-height: 1.4;
 }
 
-/* 学习资源内容（正常流） */
+/* ===== 学习资源内容（正常流） ===== */
 #studyContent {
     border-radius: 0 0 16px 16px;
     border-top: none;
-    padding: 8px 16px 12px 16px;
+    padding: 0 16px 12px 16px;
     margin-top: -1px;
+}
+
+/* 资源内容中的标题+进度（正常流显示） */
+.study-content-header {
+    padding: 10px 0 8px 0;
+    border-bottom: 1px solid #eef2f6;
+    margin-bottom: 8px;
+}
+.study-content-header .stage-title {
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 2px;
+}
+.study-content-header .stage-desc {
+    font-size: 14px;
+    color: #2e4a5e;
+    line-height: 1.4;
 }
 
 /* 资源列表 */
@@ -642,8 +659,17 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     .study-title-bar .stage-desc {
         font-size: 13px;
     }
+    .study-content-header {
+        padding: 6px 0 4px 0;
+    }
+    .study-content-header .stage-title {
+        font-size: 15px;
+    }
+    .study-content-header .stage-desc {
+        font-size: 13px;
+    }
     #studyContent {
-        padding: 6px 12px 10px 12px;
+        padding: 0 12px 10px 12px;
     }
 
     .resource-item {
