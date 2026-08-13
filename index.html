@@ -26,19 +26,19 @@
     <div class="sub">分级学习 · 自动晋级 · 免费赋能</div>
 
     <!-- 登录卡片 -->
-<div id="authCard" class="card">
-    <div class="auth-title">商家身份</div>
-    <input id="phoneInput" class="input-field" type="text" placeholder="手机号 (注册/登录)" />
-    <input id="passwordInput" class="input-field" type="password" placeholder="密码 (6位以上)" />
-    <input id="nameInput" class="input-field" type="text" placeholder="店铺名称 (首次注册时填写)" />
-    <button id="authBtn" class="btn">注册 / 登录</button>
-    <!-- 登录进度条 -->
-    <div id="loginProgressWrap" class="login-progress-wrap hidden">
-        <div class="login-progress-bar" id="loginProgressBar" style="width:0%"></div>
-        <span class="login-progress-text" id="loginProgressText">0%</span>
+    <div id="authCard" class="card">
+        <div class="auth-title">商家身份</div>
+        <input id="phoneInput" class="input-field" type="text" placeholder="手机号 (注册/登录)" />
+        <input id="passwordInput" class="input-field" type="password" placeholder="密码 (6位以上)" />
+        <input id="nameInput" class="input-field" type="text" placeholder="店铺名称 (首次注册时填写)" />
+        <button id="authBtn" class="btn">注册 / 登录</button>
+        <!-- 登录进度条 -->
+        <div id="loginProgressWrap" class="login-progress-wrap hidden">
+            <div class="login-progress-bar" id="loginProgressBar" style="width:0%"></div>
+            <span class="login-progress-text" id="loginProgressText">0%</span>
+        </div>
+        <div id="authMsg" class="msg hidden"></div>
     </div>
-    <div id="authMsg" class="msg hidden"></div>
-</div>
 
     <!-- 主面板 -->
     <div id="dashboard" class="hidden">
@@ -53,42 +53,43 @@
             <span id="nextLevelLabel">下一等级：进阶商家</span>
         </div>
 
-        <!-- 阶段导航（卡片式） -->
-        <div class="stage-nav">
-            <label>切换阶段（左右滑动）：</label>
-            <div id="stageList" class="stage-list"></div>
-        </div>
+        <!-- 🚀 置顶区域：阶段导航 + 学习资源 -->
+        <div class="sticky-top-area" id="stickyTopArea">
+            <!-- 阶段导航 -->
+            <div class="stage-nav">
+                <label>切换阶段（左右滑动）：</label>
+                <div id="stageList" class="stage-list"></div>
+            </div>
 
-        <!-- 学习资源 -->
-        <div id="studyArea" class="card">
-            <div id="stageTitle" class="stage-title">📘 第一阶段：认知破局</div>
-            <div id="stageDesc" class="stage-desc"></div>
-            <div id="resourcesContainer"></div>
-            <div id="learnMsg" class="msg hidden"></div>
+            <!-- 学习资源 -->
+            <div id="studyArea" class="card">
+                <div id="stageTitle" class="stage-title">📘 第一阶段：认知破局</div>
+                <div id="stageDesc" class="stage-desc"></div>
+                <div id="resourcesContainer"></div>
+                <div id="learnMsg" class="msg hidden"></div>
+            </div>
         </div>
 
         <!-- 考核区域 -->
-<div class="quiz-area">
-    <!-- 标题 - 置顶 -->
-    <div class="quiz-header">
-        <div class="quiz-title">📝 阶段考核</div>
-    </div>
-    <!-- 考题容器 - 可滚动 -->
-    <div class="quiz-body" id="quizBody">
-        <div id="quizContainer"></div>
-    </div>
-    <!-- 底部：提交按钮 + 结果 -->
-    <div class="quiz-footer">
-        <button id="submitQuizBtn" class="btn submit-btn">✅ 提交考核</button>
-        <div id="quizResult" class="msg hidden"></div>
-    </div>
-</div>
+        <div class="quiz-area">
+            <div class="quiz-header">
+                <div class="quiz-title">📝 阶段考核</div>
+            </div>
+            <div class="quiz-body" id="quizBody">
+                <div id="quizContainer"></div>
+            </div>
+            <div class="quiz-footer">
+                <button id="submitQuizBtn" class="btn submit-btn">✅ 提交考核</button>
+                <div id="quizResult" class="msg hidden"></div>
+            </div>
+        </div>
 
-<!-- 操作按钮 + 脚注合并为一行 -->
-<div class="bottom-bar">
-    <button id="refreshBtn" class="btn btn-outline refresh-btn">🔄 刷新状态</button>
-    <div class="footnote">系统自动考核 · 达标即晋级</div>
-</div>
+        <!-- 底部栏 -->
+        <div class="bottom-bar">
+            <button id="refreshBtn" class="btn btn-outline refresh-btn">🔄 刷新状态</button>
+            <div class="footnote">系统自动考核 · 达标即晋级</div>
+        </div>
+    </div>
 
     <!-- 资源详情模态框 -->
     <div class="modal-overlay" id="detailModal">
