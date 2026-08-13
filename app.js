@@ -697,6 +697,12 @@ async function renderQuiz(quiz) {
         submitBtn.disabled = false;
         submitBtn.textContent = '✅ 提交考核';
     }
+// 强制显示考核相关元素（确保不被其他逻辑隐藏）
+if (quizTitleHeader) quizTitleHeader.style.display = 'block';
+[singleHeader, multipleHeader, judgeHeader].forEach(el => {
+    if (el && el.style.display === 'none') el.style.display = 'block';
+});
+if (quizFooterGlobal) quizFooterGlobal.style.display = 'block';
     updateSubmitButtonState();
 }
 
@@ -1556,29 +1562,25 @@ function handleScroll() {
 
     const scrollY = window.pageYOffset || document.documentElement.scrollTop;
 
-    // 🚀 如果滚动距离小于 30px，不激活任何帘头（一打开页面无帘头）
     if (scrollY < 30) {
         headerSections.forEach(section => section.el.classList.remove('active'));
         return;
     }
 
-    // 查找当前滚动位置所在的区域
     let activeIndex = -1;
     for (let i = 0; i < headerSections.length; i++) {
         const section = headerSections[i];
-        // 使用更宽松的判断条件，确保帘头在滚动到其起始位置时激活
-        if (scrollY >= section.start && scrollY < section.end) {
+        // 提前 20px 激活
+        if (scrollY >= section.start - 20 && scrollY < section.end) {
             activeIndex = i;
             break;
         }
     }
 
-    // 如果滚动到底部，激活最后一个
     if (activeIndex === -1 && scrollY >= headerSections[headerSections.length - 1].start) {
         activeIndex = headerSections.length - 1;
     }
 
-    // 更新帘头显示（只显示一个）
     headerSections.forEach((section, index) => {
         if (index === activeIndex) {
             section.el.classList.add('active');
