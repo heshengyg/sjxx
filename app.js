@@ -1520,7 +1520,7 @@ function initToggleResources() {
             this.textContent = '📂 展开资源';
         }
     });
-
+}
 
 // ========== Event Bindings ==========
 if (authBtn) authBtn.addEventListener('click', handleAuth);
