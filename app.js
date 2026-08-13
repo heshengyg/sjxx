@@ -417,6 +417,31 @@ function renderResources(stage, resources) {
     });
 }
 
+// ========== 资源收缩/展开功能 ==========
+function initToggleResources() {
+    const toggleBtn = document.getElementById('toggleResourcesBtn');
+    const resourcesWrapper = document.getElementById('resourcesWrapper');
+    
+    if (!toggleBtn || !resourcesWrapper) return;
+    
+    // 默认展开
+    let isExpanded = true;
+    
+    toggleBtn.addEventListener('click', function() {
+        isExpanded = !isExpanded;
+        if (isExpanded) {
+            resourcesWrapper.classList.remove('collapsed');
+            toggleBtn.textContent = '📂 收起资源';
+        } else {
+            resourcesWrapper.classList.add('collapsed');
+            toggleBtn.textContent = '📂 展开资源';
+        }
+    });
+}
+
+// 在 updateDashboard 中调用
+// 在 renderResources 之后调用 initToggleResources
+
 // ========== 控制考核区域显示 ==========
 function controlQuizAreaVisibility(stageId) {
     const isExamStage = EXAM_STAGES.includes(stageId);

@@ -32,7 +32,6 @@
         <input id="passwordInput" class="input-field" type="password" placeholder="密码 (6位以上)" />
         <input id="nameInput" class="input-field" type="text" placeholder="店铺名称 (首次注册时填写)" />
         <button id="authBtn" class="btn">注册 / 登录</button>
-        <!-- 登录进度条 -->
         <div id="loginProgressWrap" class="login-progress-wrap hidden">
             <div class="login-progress-bar" id="loginProgressBar" style="width:0%"></div>
             <span class="login-progress-text" id="loginProgressText">0%</span>
@@ -53,21 +52,31 @@
             <span id="nextLevelLabel">下一等级：进阶商家</span>
         </div>
 
-        <!-- 阶段导航 -->
-        <div class="stage-nav" id="stageNav">
-            <label>切换阶段（左右滑动）：</label>
-            <div id="stageList" class="stage-list"></div>
+        <!-- ===== 第一段置顶：阶段导航 ===== -->
+        <div class="sticky-section" id="stageNavSection">
+            <div class="stage-nav">
+                <label>切换阶段（左右滑动）：</label>
+                <div id="stageList" class="stage-list"></div>
+            </div>
         </div>
 
-        <!-- 学习资源 -->
-        <div id="studyArea" class="card">
-            <div id="stageTitle" class="stage-title">📘 第一阶段：认知破局</div>
-            <div id="stageDesc" class="stage-desc"></div>
-            <div id="resourcesContainer"></div>
-            <div id="learnMsg" class="msg hidden"></div>
+        <!-- ===== 第二段置顶：学习资源（含进度） ===== -->
+        <div class="sticky-section" id="studySection">
+            <div id="studyArea" class="card">
+                <div class="study-header" id="studyHeader">
+                    <div id="stageTitle" class="stage-title">📘 第一阶段：认知破局</div>
+                    <div id="stageDesc" class="stage-desc"></div>
+                    <!-- 收缩/展开按钮 -->
+                    <button class="toggle-btn" id="toggleResourcesBtn">📂 收起资源</button>
+                </div>
+                <div id="resourcesWrapper" class="resources-wrapper">
+                    <div id="resourcesContainer"></div>
+                </div>
+                <div id="learnMsg" class="msg hidden"></div>
+            </div>
         </div>
 
-        <!-- 考核区域 -->
+        <!-- ===== 第三段：考核区域（标题置顶） ===== -->
         <div class="quiz-area">
             <div class="quiz-header">
                 <div class="quiz-title">📝 阶段考核</div>
