@@ -43,15 +43,16 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 .status { font-size:15px; color:#1f2e3a; margin:8px 0 4px; }
 
 /* ============================================================
-   ===== 核心：接力式帘头置顶（JS 控制 fixed） =====
+   ===== 核心：接力式帘头置顶（JS 控制 fixed，默认隐藏） =====
    ============================================================ */
 
 .sticky-header {
-    position: relative;
+    display: none; /* 默认隐藏，由 JS 控制显示 */
     background: #fff;
 }
 
 .sticky-header.active {
+    display: block;
     position: fixed;
     top: 0;
     left: 50%;
@@ -66,9 +67,6 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 }
 
 /* ---------- 帘头1：阶段导航 ---------- */
-#stageNavHeader {
-    /* 无额外样式，由 .sticky-header 控制 */
-}
 .stage-nav {
     padding: 4px 0 8px 0;
 }
@@ -132,9 +130,9 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     color: #1f7b4d;
 }
 
-/* ---------- 帘头2：学习资源标题+进度 ---------- */
+/* ---------- 帘头2：学习资源（三行） ---------- */
 #studyHeader {
-    /* 无额外样式 */
+    /* 无额外样式，由 .sticky-header 控制 */
 }
 .study-title-bar {
     background: #f8faff;
@@ -143,15 +141,20 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     border-bottom: 1px solid #e4eaf0;
     border-radius: 16px 16px 0 0;
 }
-.study-title-bar .stage-title {
+.study-title-bar .study-header-title {
     font-weight: 600;
     font-size: 16px;
     margin-bottom: 2px;
 }
-.study-title-bar .stage-desc {
+.study-title-bar .study-header-desc {
     font-size: 14px;
     color: #2e4a5e;
-    line-height: 1.4;
+    margin-bottom: 2px;
+}
+.study-title-bar .study-header-progress {
+    font-size: 14px;
+    color: #1f7b4d;
+    font-weight: 500;
 }
 
 /* 学习资源内容（正常流） */
@@ -162,21 +165,26 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     margin-top: -1px;
 }
 
-/* 资源内容中的标题+进度（正常流显示） */
+/* 正常流三行 */
 .study-content-header {
     padding: 10px 0 8px 0;
     border-bottom: 1px solid #eef2f6;
     margin-bottom: 8px;
 }
-.study-content-header .stage-title {
+.study-content-header .study-content-title {
     font-weight: 600;
     font-size: 16px;
     margin-bottom: 2px;
 }
-.study-content-header .stage-desc {
+.study-content-header .study-content-desc {
     font-size: 14px;
     color: #2e4a5e;
-    line-height: 1.4;
+    margin-bottom: 2px;
+}
+.study-content-header .study-content-progress {
+    font-size: 14px;
+    color: #1f7b4d;
+    font-weight: 500;
 }
 
 /* 资源列表 */
@@ -238,9 +246,6 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 }
 
 /* ---------- 帘头3：考核总标题 ---------- */
-#quizTitleHeader {
-    /* 无额外样式 */
-}
 .quiz-title-bar {
     background: #f8faff;
     padding: 10px 18px 6px 18px;
@@ -253,20 +258,7 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     font-size: 17px;
 }
 
-/* ---------- 帘头4：单选题 ---------- */
-#singleHeader {
-    /* 无额外样式 */
-}
-/* ---------- 帘头5：多选题 ---------- */
-#multipleHeader {
-    /* 无额外样式 */
-}
-/* ---------- 帘头6：判断题 ---------- */
-#judgeHeader {
-    /* 无额外样式 */
-}
-
-/* 题型帘头通用样式 */
+/* ---------- 帘头4/5/6：题型帘头 ---------- */
 .quiz-type-header {
     background: #fff;
 }
@@ -646,19 +638,25 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     .study-title-bar {
         padding: 8px 12px 6px 12px;
     }
-    .study-title-bar .stage-title {
+    .study-title-bar .study-header-title {
         font-size: 15px;
     }
-    .study-title-bar .stage-desc {
+    .study-title-bar .study-header-desc {
+        font-size: 13px;
+    }
+    .study-title-bar .study-header-progress {
         font-size: 13px;
     }
     .study-content-header {
         padding: 6px 0 4px 0;
     }
-    .study-content-header .stage-title {
+    .study-content-header .study-content-title {
         font-size: 15px;
     }
-    .study-content-header .stage-desc {
+    .study-content-header .study-content-desc {
+        font-size: 13px;
+    }
+    .study-content-header .study-content-progress {
         font-size: 13px;
     }
     #studyContent {
