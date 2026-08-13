@@ -956,7 +956,10 @@ function updateStageProgress(stage, resources) {
     });
 
     const remaining = Math.max(0, totalDuration - elapsed);
-    stageDesc.innerHTML = `资源完成：${completedCount}/${total}  |  已学 ${formatTime(elapsed)}  /  总需 ${formatTime(totalDuration)}  |  剩余 ${formatTime(remaining)}`;
+    const progressText = `资源完成：${completedCount}/${total}  |  已学 ${formatTime(elapsed)}  /  总需 ${formatTime(totalDuration)}  |  剩余 ${formatTime(remaining)}`;
+    stageDesc.innerHTML = progressText;
+    // 🚀 同步更新普通流中的进度（第三行）
+    if (studyContentDesc) studyContentDesc.innerHTML = progressText;
 }
 
 // ========== submitQuiz ==========
@@ -1087,9 +1090,9 @@ function switchStageSync(stageId) {
     
     if (stageTitle) stageTitle.textContent = `📘 ${data.title || STAGE_INFO[stageId].title}`;
     if (stageDesc) stageDesc.textContent = data.description || '';
-    // 🚀 同步更新普通流中的标题+进度
-if (studyContentTitle) studyContentTitle.textContent = `📘 ${data.title || STAGE_INFO[stageId].title}`;
-if (studyContentDesc) studyContentDesc.textContent = data.description || '';
+    // 🚀 同步更新普通流中的标题（第一行）
+    if (studyContentTitle) studyContentTitle.textContent = `📘 ${data.title || STAGE_INFO[stageId].title}`;
+    // ⚠️ studyContentDesc 由 updateStageProgress 更新，不在这里设置
     
     renderResources(stageId, data.resources);
     updateStageProgress(stageId, data.resources);
@@ -1138,9 +1141,10 @@ async function updateDashboard(user) {
     if (data) {
         if (stageTitle) stageTitle.textContent = `📘 ${data.title}`;
         if (stageDesc) stageDesc.textContent = data.description;
-        // 🚀 同步更新普通流中的标题+进度
-    if (studyContentTitle) studyContentTitle.textContent = `📘 ${data.title}`;
-    if (studyContentDesc) studyContentDesc.textContent = data.description;
+        // 🚀 同步更新普通流中的标题（第一行）
+        if (studyContentTitle) studyContentTitle.textContent = `📘 ${data.title}`;
+        // ⚠️ studyContentDesc 由 updateStageProgress 更新，不在这里设置
+        
         renderResources(currentViewStage, data.resources);
         
         // 先控制可见性，再渲染考核
