@@ -1562,20 +1562,37 @@ function handleScroll() {
 
     const scrollY = window.pageYOffset || document.documentElement.scrollTop;
 
+    // 如果滚动距离小于 30px，不激活任何帘头（一打开页面无帘头）
     if (scrollY < 30) {
         headerSections.forEach(section => section.el.classList.remove('active'));
         return;
     }
 
+    // 查找当前滚动位置所在的区域，提前 25px 激活
     let activeIndex = -1;
     for (let i = 0; i < headerSections.length; i++) {
         const section = headerSections[i];
-        // 提前 20px 激活
-        if (scrollY >= section.start - 20 && scrollY < section.end) {
+        // 提前 25px 触发，让帘头与内容对齐
+        if (scrollY >= section.start - 25 && scrollY < section.end) {
             activeIndex = i;
             break;
         }
     }
+
+    // 如果滚动到底部，激活最后一个
+    if (activeIndex === -1 && scrollY >= headerSections[headerSections.length - 1].start) {
+        activeIndex = headerSections.length - 1;
+    }
+
+    // 更新帘头显示（只显示一个）
+    headerSections.forEach((section, index) => {
+        if (index === activeIndex) {
+            section.el.classList.add('active');
+        } else {
+            section.el.classList.remove('active');
+        }
+    });
+}
 
     if (activeIndex === -1 && scrollY >= headerSections[headerSections.length - 1].start) {
         activeIndex = headerSections.length - 1;
