@@ -41,6 +41,7 @@
 
     <!-- 主面板 -->
     <div id="dashboard" class="hidden">
+        <!-- 顶部信息 -->
         <div class="user-info">
             <span class="shop-name" id="shopNameDisplay">——</span>
             <span id="levelDisplay" class="level-tag">入门商家</span>
@@ -52,41 +53,68 @@
             <span id="nextLevelLabel">下一等级：进阶商家</span>
         </div>
 
-        <!-- ===== 第一段置顶：阶段导航 ===== -->
-        <div class="sticky-section" id="stageNavSection">
+        <!-- ===== 帘头1：阶段导航 ===== -->
+        <div class="sticky-header" id="stageNavHeader">
             <div class="stage-nav">
                 <label>切换阶段（左右滑动）：</label>
                 <div id="stageList" class="stage-list"></div>
             </div>
         </div>
 
-        <!-- 第二段：学习资源 -->
-<div class="sticky-section" id="studySection">
-    <div id="studyArea" class="card">
-        <div class="study-header">
-            <div id="stageTitle" class="stage-title">📘 第一阶段：认知破局</div>
-            <button class="toggle-btn" id="toggleResourcesBtn">📂 收起资源</button>
+        <!-- ===== 帘头2：学习资源 ===== -->
+        <div class="sticky-header" id="studyHeader">
+            <div id="studyArea" class="card">
+                <div id="stageTitle" class="stage-title">📘 第一阶段：认知破局</div>
+                <div id="stageDesc" class="stage-desc"></div>
+                <div id="resourcesContainer"></div>
+                <div id="learnMsg" class="msg hidden"></div>
+            </div>
         </div>
-        <div id="stageDesc" class="stage-desc"></div>
-        <div id="resourcesWrapper" class="resources-wrapper">
-            <div id="resourcesContainer"></div>
-        </div>
-        <div id="learnMsg" class="msg hidden"></div>
-    </div>
-</div>
 
-        <!-- ===== 第三段：考核区域（标题置顶） ===== -->
-        <div class="quiz-area">
-            <div class="quiz-header">
+        <!-- ===== 帘头3：考核总标题 ===== -->
+        <div class="sticky-header" id="quizTitleHeader">
+            <div class="quiz-title-bar">
                 <div class="quiz-title">📝 阶段考核</div>
             </div>
-            <div class="quiz-body" id="quizBody">
-                <div id="quizContainer"></div>
+        </div>
+
+        <!-- ===== 帘头4：单选题 ===== -->
+        <div class="sticky-header quiz-type-header" id="singleHeader">
+            <div class="quiz-type-bar">
+                <span class="quiz-type-label">一、单选题</span>
+                <span class="quiz-type-score" id="singleScore">每题5分，共50分</span>
             </div>
-            <div class="quiz-footer">
-                <button id="submitQuizBtn" class="btn submit-btn">✅ 提交考核</button>
-                <div id="quizResult" class="msg hidden"></div>
+        </div>
+
+        <!-- 单选题容器 -->
+        <div class="quiz-type-body" id="singleContainer"></div>
+
+        <!-- ===== 帘头5：多选题 ===== -->
+        <div class="sticky-header quiz-type-header" id="multipleHeader">
+            <div class="quiz-type-bar">
+                <span class="quiz-type-label">二、多选题</span>
+                <span class="quiz-type-score" id="multipleScore">每题5分，共20分</span>
             </div>
+        </div>
+
+        <!-- 多选题容器 -->
+        <div class="quiz-type-body" id="multipleContainer"></div>
+
+        <!-- ===== 帘头6：判断题 ===== -->
+        <div class="sticky-header quiz-type-header" id="judgeHeader">
+            <div class="quiz-type-bar">
+                <span class="quiz-type-label">三、判断题</span>
+                <span class="quiz-type-score" id="judgeScore">每题5分，共20分</span>
+            </div>
+        </div>
+
+        <!-- 判断题容器 -->
+        <div class="quiz-type-body" id="judgeContainer"></div>
+
+        <!-- ===== 考核底部：提交按钮 ===== -->
+        <div class="quiz-footer-global" id="quizFooterGlobal">
+            <button id="submitQuizBtn" class="btn submit-btn">✅ 提交考核</button>
+            <div id="quizResult" class="msg hidden"></div>
         </div>
 
         <!-- 底部栏 -->
@@ -94,6 +122,12 @@
             <button id="refreshBtn" class="btn btn-outline refresh-btn">🔄 刷新状态</button>
             <div class="footnote">系统自动考核 · 达标即晋级</div>
         </div>
+    </div>
+
+    <!-- 浮动导航按钮 -->
+    <div class="float-nav" id="floatNav">
+        <button class="float-btn" id="goTopBtn" title="回到顶部">⬆</button>
+        <button class="float-btn" id="goBottomBtn" title="回到底部">⬇</button>
     </div>
 
     <!-- 资源详情模态框 -->

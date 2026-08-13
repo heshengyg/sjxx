@@ -465,7 +465,7 @@ function controlQuizAreaVisibility(stageId) {
 
 // ========== 更新提交按钮状态 ==========
 function updateSubmitButtonState() {
-    const submitBtn = getSubmitBtn();
+    const submitBtn = document.getElementById('submitQuizBtn');
     if (!submitBtn) return;
     
     const isExamStage = EXAM_STAGES.includes(currentViewStage);
@@ -484,7 +484,6 @@ function updateSubmitButtonState() {
         submitBtn.textContent = '📝 请先确认所有答案';
     }
 }
-
 // ========== 保存答题状态到 Supabase ==========
 async function saveQuizStateToSupabase() {
     if (!currentUser) return;
@@ -530,56 +529,39 @@ async function loadQuizStateFromSupabase(stageId) {
 
 // ========== renderQuiz ==========
 async function renderQuiz(quiz) {
-    if (!quizContainer) return;
-    
-    if (isRenderingQuiz) return;
-    isRenderingQuiz = true;
-    
-    quizContainer.innerHTML = '';
-    
     const isExamStage = EXAM_STAGES.includes(currentViewStage);
-
-    if (!isExamStage) {
-        quizContainer.innerHTML = '';
-        questionStates = [];
-        isRenderingQuiz = false;
-        updateSubmitButtonState();
+    
+    // 获取各个容器
+    const singleContainer = document.getElementById('singleContainer');
+    const multipleContainer = document.getElementById('multipleContainer');
+    const judgeContainer = document.getElementById('judgeContainer');
+    const singleHeader = document.getElementById('singleHeader');
+    const multipleHeader = document.getElementById('multipleHeader');
+    const judgeHeader = document.getElementById('judgeHeader');
+    const quizTitleHeader = document.getElementById('quizTitleHeader');
+    const quizFooterGlobal = document.getElementById('quizFooterGlobal');
+    const submitBtn = document.getElementById('submitQuizBtn');
+    
+    // 先全部隐藏
+    [singleHeader, multipleHeader, judgeHeader, quizTitleHeader, quizFooterGlobal].forEach(el => {
+        if (el) el.style.display = 'none';
+    });
+    [singleContainer, multipleContainer, judgeContainer].forEach(el => {
+        if (el) el.innerHTML = '';
+    });
+    
+    if (!isExamStage || !quiz || quiz.length === 0) {
+        // 没有考核时隐藏全部
         return;
-    }
-
-    if (!quiz || quiz.length === 0) {
-        quizContainer.innerHTML = '<p style="color:#5e6f7d;">📭 本阶段暂无考核。</p>';
-        questionStates = [];
-        isRenderingQuiz = false;
-        updateSubmitButtonState();
-        return;
-    }
-
-    // 尝试从数据库加载已保存的答题状态
-    let savedState = null;
-    try {
-        savedState = await loadQuizStateFromSupabase(currentViewStage);
-    } catch (e) {
-        console.warn('加载答题状态失败:', e);
     }
     
-    if (savedState && savedState.questionStates && savedState.questionStates.length === quiz.length) {
-        questionStates = savedState.questionStates.map(s => ({
-            confirmed: s.confirmed || false,
-            selected: s.selected ? [...s.selected] : []
-        }));
-        console.log('📥 从数据库加载答题状态');
-    } else {
-        questionStates = quiz.map(() => ({ confirmed: false, selected: [] }));
-        await saveQuizStateToSupabase();
-    }
-
+    // 分组
     const groups = {
-        single: { label: '一、单选题', items: [], totalScore: 0 },
-        multiple: { label: '二、多选题', items: [], totalScore: 0 },
-        judge: { label: '三、判断题', items: [], totalScore: 0 }
+        single: { label: '一、单选题', items: [], totalScore: 0, container: singleContainer, header: singleHeader },
+        multiple: { label: '二、多选题', items: [], totalScore: 0, container: multipleContainer, header: multipleHeader },
+        judge: { label: '三、判断题', items: [], totalScore: 0, container: judgeContainer, header: judgeHeader }
     };
-
+    
     quiz.forEach(q => {
         const type = q.type || 'single';
         if (groups[type]) {
@@ -590,49 +572,66 @@ async function renderQuiz(quiz) {
             groups.single.totalScore += (q.score || 0);
         }
     });
-
+    
+    // 检查是否有任何考题
+    const hasAnyQuiz = groups.single.items.length > 0 || groups.multiple.items.length > 0 || groups.judge.items.length > 0;
+    if (!hasAnyQuiz) {
+        return;
+    }
+    
+    // 显示考核总标题
+    if (quizTitleHeader) quizTitleHeader.style.display = 'block';
+    
+    // 初始化 questionStates（全局）
+    questionStates = quiz.map(() => ({ confirmed: false, selected: [] }));
+    
+    // 渲染各题型
     for (const [type, group] of Object.entries(groups)) {
         if (group.items.length === 0) continue;
-
-        const titleDiv = document.createElement('div');
-        titleDiv.className = 'group-title';
-        const perScore = group.items.length > 0 ? (group.totalScore / group.items.length) : 0;
-        titleDiv.textContent = `${group.label}（每题${perScore}分，共${group.totalScore}分）`;
-        quizContainer.appendChild(titleDiv);
-
-        group.items.forEach(q => {
+        
+        // 显示题型帘头
+        if (group.header) {
+            group.header.style.display = 'block';
+            const scoreSpan = group.header.querySelector('.quiz-type-score');
+            if (scoreSpan) {
+                const perScore = group.totalScore / group.items.length;
+                scoreSpan.textContent = `每题${perScore}分，共${group.totalScore}分`;
+            }
+        }
+        
+        // 渲染题目
+        const container = group.container;
+        if (!container) continue;
+        
+        group.items.forEach((q, localIdx) => {
+            const globalIdx = quiz.indexOf(q);
             const wrapper = document.createElement('div');
             wrapper.className = 'quiz-item';
-            const idx = quiz.indexOf(q);
-            wrapper.dataset.idx = idx;
-
-            if (!questionStates[idx]) {
-                questionStates[idx] = { confirmed: false, selected: [] };
-            }
+            wrapper.dataset.idx = globalIdx;
             
-            const state = questionStates[idx];
+            const state = questionStates[globalIdx] || { confirmed: false, selected: [] };
             const isConfirmed = state.confirmed || false;
             const selectedValues = state.selected || [];
-
+            
             if (isConfirmed) {
                 wrapper.classList.add('confirmed');
             }
-
+            
             const qText = document.createElement('div');
             qText.className = 'q-text';
-            const localIdx = group.items.indexOf(q) + 1;
-            qText.textContent = `${localIdx}. ${q.question}`;
+            qText.textContent = `${localIdx + 1}. ${q.question}`;
             wrapper.appendChild(qText);
-
+            
             const optionsDiv = document.createElement('div');
             optionsDiv.className = 'options';
             const isMultiple = (q.type === 'multiple');
+            
             q.options.forEach((optText, optIdx) => {
                 const label = document.createElement('label');
                 label.className = 'option-item';
                 const input = document.createElement('input');
                 input.type = isMultiple ? 'checkbox' : 'radio';
-                input.name = `q${idx}`;
+                input.name = `q${globalIdx}`;
                 input.value = optIdx;
                 if (selectedValues.includes(optIdx)) {
                     input.checked = true;
@@ -645,23 +644,23 @@ async function renderQuiz(quiz) {
                 label.appendChild(input);
                 label.appendChild(span);
                 optionsDiv.appendChild(label);
-
+                
                 input.addEventListener('change', function() {
-                    if (questionStates[idx].confirmed) { this.checked = false; return; }
-                    const sel = questionStates[idx].selected;
+                    if (questionStates[globalIdx].confirmed) { this.checked = false; return; }
+                    const sel = questionStates[globalIdx].selected;
                     if (isMultiple) {
                         if (this.checked) { if (!sel.includes(optIdx)) sel.push(optIdx); }
-                        else { const pos = sel.indexOf(optIdx); if (pos!==-1) sel.splice(pos,1); }
+                        else { const pos = sel.indexOf(optIdx); if (pos !== -1) sel.splice(pos, 1); }
                     } else {
-                        if (this.checked) { sel.length=0; sel.push(optIdx); }
-                        else { const pos = sel.indexOf(optIdx); if (pos!==-1) sel.splice(pos,1); }
+                        if (this.checked) { sel.length = 0; sel.push(optIdx); }
+                        else { const pos = sel.indexOf(optIdx); if (pos !== -1) sel.splice(pos, 1); }
                     }
                     saveQuizStateToSupabase();
                     updateSubmitButtonState();
                 });
             });
             wrapper.appendChild(optionsDiv);
-
+            
             const btnDiv = document.createElement('div');
             const confirmBtn = document.createElement('button');
             confirmBtn.className = 'confirm-btn';
@@ -674,11 +673,11 @@ async function renderQuiz(quiz) {
                 btnDiv.appendChild(badge);
             }
             confirmBtn.addEventListener('click', async function() {
-                const state = questionStates[idx];
+                const state = questionStates[globalIdx];
                 if (!state) {
-                    questionStates[idx] = { confirmed: false, selected: [] };
+                    questionStates[globalIdx] = { confirmed: false, selected: [] };
                 }
-                const currentState = questionStates[idx];
+                const currentState = questionStates[globalIdx];
                 
                 if (!currentState.confirmed) {
                     if (currentState.selected.length === 0) { alert('请选择选项'); return; }
@@ -705,15 +704,19 @@ async function renderQuiz(quiz) {
             });
             btnDiv.appendChild(confirmBtn);
             wrapper.appendChild(btnDiv);
-
-            quizContainer.appendChild(wrapper);
+            
+            container.appendChild(wrapper);
         });
     }
     
-    isRenderingQuiz = false;
+    // 显示提交按钮区域
+    if (quizFooterGlobal) quizFooterGlobal.style.display = 'block';
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '✅ 提交考核';
+    }
     updateSubmitButtonState();
 }
-
 // ========== Resource Detail Modal ==========
 let currentVideoElement = null;
 
@@ -1572,3 +1575,57 @@ if (passwordInput) passwordInput.addEventListener('keyup', (e) => { if (e.key ==
 if (nameInput) nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 
 console.log('🐿️ 松鼠逛逛商家学堂 (预加载优化版)');
+// ========== 浮动导航按钮控制 ==========
+function initFloatNav() {
+    const floatNav = document.getElementById('floatNav');
+    const goTopBtn = document.getElementById('goTopBtn');
+    const goBottomBtn = document.getElementById('goBottomBtn');
+    const dashboard = document.getElementById('dashboard');
+    
+    if (!floatNav || !goTopBtn || !goBottomBtn || !dashboard) return;
+    
+    let isVisible = false;
+    let hideTimeout = null;
+    
+    function handleScroll() {
+        if (dashboard.classList.contains('hidden')) {
+            floatNav.classList.remove('visible');
+            return;
+        }
+        
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const windowHeight = window.innerHeight;
+        
+        if (scrollTop > windowHeight * 0.5) {
+            floatNav.classList.add('visible');
+            isVisible = true;
+        } else {
+            floatNav.classList.remove('visible');
+            isVisible = false;
+        }
+        
+        if (hideTimeout) clearTimeout(hideTimeout);
+        hideTimeout = setTimeout(() => {
+            if (isVisible) {
+                floatNav.classList.remove('visible');
+            }
+        }, 4000);
+    }
+    
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    goTopBtn.addEventListener('click', function() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => floatNav.classList.remove('visible'), 600);
+    });
+    
+    goBottomBtn.addEventListener('click', function() {
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+        setTimeout(() => floatNav.classList.remove('visible'), 600);
+    });
+}
+
+// 登录后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    initFloatNav();
+});
