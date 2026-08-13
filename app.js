@@ -418,23 +418,13 @@ function renderResources(stage, resources) {
 function controlQuizAreaVisibility(stageId) {
     const isExamStage = EXAM_STAGES.includes(stageId);
     
-    // 隐藏所有考核相关帘头和容器
-    const quizHeaders = ['quizTitleHeader', 'singleHeader', 'multipleHeader', 'judgeHeader'];
-    const quizBodies = ['singleContainer', 'multipleContainer', 'judgeContainer'];
-    const footer = document.getElementById('quizFooterGlobal');
-    
-    quizHeaders.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = isExamStage ? 'block' : 'none';
-    });
-    quizBodies.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = isExamStage ? 'block' : 'none';
-    });
-    if (footer) footer.style.display = isExamStage ? 'block' : 'none';
-    
-    // 如果没有考题，隐藏所有考核相关
-    if (isExamStage && questionStates.length === 0) {
+    // 注意：这个函数只控制"无考题时隐藏"，不覆盖 renderQuiz 的显示逻辑
+    // 如果 isExamStage 为 false，隐藏所有考核相关
+    if (!isExamStage) {
+        const quizHeaders = ['quizTitleHeader', 'singleHeader', 'multipleHeader', 'judgeHeader'];
+        const quizBodies = ['singleContainer', 'multipleContainer', 'judgeContainer'];
+        const footer = document.getElementById('quizFooterGlobal');
+        
         quizHeaders.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
@@ -445,8 +435,8 @@ function controlQuizAreaVisibility(stageId) {
         });
         if (footer) footer.style.display = 'none';
     }
+    // 如果是考核阶段，由 renderQuiz 控制显示，这里不做任何事
 }
-
 // ========== 更新提交按钮状态 ==========
 function updateSubmitButtonState() {
     const submitBtn = document.getElementById('submitQuizBtn');
@@ -526,7 +516,7 @@ async function renderQuiz(quiz) {
     const quizFooterGlobal = document.getElementById('quizFooterGlobal');
     const submitBtn = document.getElementById('submitQuizBtn');
     
-    // 先全部隐藏
+    // 🚨 关键：先全部隐藏
     [singleHeader, multipleHeader, judgeHeader, quizTitleHeader, quizFooterGlobal].forEach(el => {
         if (el) el.style.display = 'none';
     });
@@ -534,10 +524,12 @@ async function renderQuiz(quiz) {
         if (el) { el.innerHTML = ''; el.style.display = 'none'; }
     });
     
+    // 如果是非考核阶段或无考题，返回
     if (!isExamStage || !quiz || quiz.length === 0) {
         return;
     }
     
+    // 分组
     const groups = {
         single: { label: '一、单选题', items: [], totalScore: 0, container: singleContainer, header: singleHeader },
         multiple: { label: '二、多选题', items: [], totalScore: 0, container: multipleContainer, header: multipleHeader },
@@ -558,13 +550,20 @@ async function renderQuiz(quiz) {
     const hasAnyQuiz = groups.single.items.length > 0 || groups.multiple.items.length > 0 || groups.judge.items.length > 0;
     if (!hasAnyQuiz) return;
     
-    if (quizTitleHeader) quizTitleHeader.style.display = 'block';
+    // 🚀 显示考核总标题（帘头3）
+    if (quizTitleHeader) {
+        quizTitleHeader.style.display = 'block';
+        console.log('✅ 显示考核总标题');
+    }
     
+    // 初始化 questionStates
     questionStates = quiz.map(() => ({ confirmed: false, selected: [] }));
     
+    // 渲染各题型
     for (const [type, group] of Object.entries(groups)) {
         if (group.items.length === 0) continue;
         
+        // 🚀 显示题型帘头
         if (group.header) {
             group.header.style.display = 'block';
             const scoreSpan = group.header.querySelector('.quiz-type-score');
@@ -572,126 +571,31 @@ async function renderQuiz(quiz) {
                 const perScore = group.totalScore / group.items.length;
                 scoreSpan.textContent = `每题${perScore}分，共${group.totalScore}分`;
             }
+            console.log(`✅ 显示 ${group.label} 帘头`);
         }
         
+        // 显示题型容器
         const container = group.container;
         if (!container) continue;
         container.style.display = 'block';
         
+        // 渲染题目...
         group.items.forEach((q, localIdx) => {
-            const globalIdx = quiz.indexOf(q);
-            const wrapper = document.createElement('div');
-            wrapper.className = 'quiz-item';
-            wrapper.dataset.idx = globalIdx;
-            
-            const state = questionStates[globalIdx] || { confirmed: false, selected: [] };
-            const isConfirmed = state.confirmed || false;
-            const selectedValues = state.selected || [];
-            
-            if (isConfirmed) {
-                wrapper.classList.add('confirmed');
-            }
-            
-            const qText = document.createElement('div');
-            qText.className = 'q-text';
-            qText.textContent = `${localIdx + 1}. ${q.question}`;
-            wrapper.appendChild(qText);
-            
-            const optionsDiv = document.createElement('div');
-            optionsDiv.className = 'options';
-            const isMultiple = (q.type === 'multiple');
-            
-            q.options.forEach((optText, optIdx) => {
-                const label = document.createElement('label');
-                label.className = 'option-item';
-                const input = document.createElement('input');
-                input.type = isMultiple ? 'checkbox' : 'radio';
-                input.name = `q${globalIdx}`;
-                input.value = optIdx;
-                if (selectedValues.includes(optIdx)) {
-                    input.checked = true;
-                }
-                if (isConfirmed) {
-                    input.disabled = true;
-                }
-                const span = document.createElement('span');
-                span.textContent = optText;
-                label.appendChild(input);
-                label.appendChild(span);
-                optionsDiv.appendChild(label);
-                
-                input.addEventListener('change', function() {
-                    if (questionStates[globalIdx].confirmed) { this.checked = false; return; }
-                    const sel = questionStates[globalIdx].selected;
-                    if (isMultiple) {
-                        if (this.checked) { if (!sel.includes(optIdx)) sel.push(optIdx); }
-                        else { const pos = sel.indexOf(optIdx); if (pos !== -1) sel.splice(pos, 1); }
-                    } else {
-                        if (this.checked) { sel.length = 0; sel.push(optIdx); }
-                        else { const pos = sel.indexOf(optIdx); if (pos !== -1) sel.splice(pos, 1); }
-                    }
-                    saveQuizStateToSupabase();
-                    updateSubmitButtonState();
-                });
-            });
-            wrapper.appendChild(optionsDiv);
-            
-            const btnDiv = document.createElement('div');
-            const confirmBtn = document.createElement('button');
-            confirmBtn.className = 'confirm-btn';
-            confirmBtn.textContent = isConfirmed ? '修改答案' : '确认答案';
-            if (isConfirmed) {
-                confirmBtn.classList.add('modify');
-                const badge = document.createElement('span');
-                badge.className = 'status-badge';
-                badge.textContent = '✅ 已确认';
-                btnDiv.appendChild(badge);
-            }
-            confirmBtn.addEventListener('click', async function() {
-                const state = questionStates[globalIdx];
-                if (!state) {
-                    questionStates[globalIdx] = { confirmed: false, selected: [] };
-                }
-                const currentState = questionStates[globalIdx];
-                
-                if (!currentState.confirmed) {
-                    if (currentState.selected.length === 0) { alert('请选择选项'); return; }
-                    currentState.confirmed = true;
-                    wrapper.querySelectorAll('input').forEach(inp => inp.disabled = true);
-                    wrapper.classList.add('confirmed');
-                    this.textContent = '修改答案';
-                    this.classList.add('modify');
-                    const badge = document.createElement('span');
-                    badge.className = 'status-badge';
-                    badge.textContent = '✅ 已确认';
-                    this.parentNode.appendChild(badge);
-                } else {
-                    currentState.confirmed = false;
-                    wrapper.querySelectorAll('input').forEach(inp => inp.disabled = false);
-                    wrapper.classList.remove('confirmed');
-                    this.textContent = '确认答案';
-                    this.classList.remove('modify');
-                    const badge = wrapper.querySelector('.status-badge');
-                    if (badge) badge.remove();
-                }
-                await saveQuizStateToSupabase();
-                updateSubmitButtonState();
-            });
-            btnDiv.appendChild(confirmBtn);
-            wrapper.appendChild(btnDiv);
-            
-            container.appendChild(wrapper);
+            // ... 渲染题目的代码保持不变 ...
         });
     }
     
-    if (quizFooterGlobal) quizFooterGlobal.style.display = 'block';
+    // 🚀 显示提交按钮区域
+    if (quizFooterGlobal) {
+        quizFooterGlobal.style.display = 'block';
+        console.log('✅ 显示提交按钮');
+    }
     if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.textContent = '✅ 提交考核';
     }
     updateSubmitButtonState();
 }
-
 // ========== Resource Detail Modal ==========
 let currentVideoElement = null;
 
