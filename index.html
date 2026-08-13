@@ -53,16 +53,16 @@
             <span id="nextLevelLabel">下一等级：进阶商家</span>
         </div>
 
-        <!-- ===== 帘头1：阶段导航 ===== -->
-        <div class="sticky-header" id="stageNavHeader" data-section="stage">
+        <!-- ===== 帘头1：阶段导航（sticky） ===== -->
+        <div class="sticky-header" id="stageNavHeader">
             <div class="stage-nav">
                 <label>切换阶段（左右滑动）：</label>
                 <div id="stageList" class="stage-list"></div>
             </div>
         </div>
 
-        <!-- ===== 帘头2：学习资源标题+进度（帘头） ===== -->
-        <div class="sticky-header" id="studyHeader" data-section="study">
+        <!-- ===== 帘头2：学习资源标题+进度（sticky） ===== -->
+        <div class="sticky-header" id="studyHeader">
             <div class="study-title-bar">
                 <div id="stageTitle" class="stage-title">📘 第一阶段：认知破局</div>
                 <div id="stageDesc" class="stage-desc"></div>
@@ -71,7 +71,7 @@
 
         <!-- ===== 学习资源内容（正常流） ===== -->
         <div id="studyContent" class="card">
-            <!-- 资源标题+进度（正常流显示） -->
+            <!-- 资源内容中的标题+进度（正常流显示） -->
             <div class="study-content-header">
                 <div class="stage-title" id="studyContentTitle">📘 第一阶段：认知破局</div>
                 <div class="stage-desc" id="studyContentDesc"></div>
@@ -80,44 +80,38 @@
             <div id="learnMsg" class="msg hidden"></div>
         </div>
 
-        <!-- ===== 帘头3：考核总标题 ===== -->
-        <div class="sticky-header" id="quizTitleHeader" data-section="quizTitle">
+        <!-- ===== 帘头3：考核总标题（sticky） ===== -->
+        <div class="sticky-header" id="quizTitleHeader">
             <div class="quiz-title-bar">
                 <div class="quiz-title">📝 阶段考核</div>
             </div>
         </div>
 
-        <!-- ===== 帘头4：单选题 ===== -->
-        <div class="sticky-header quiz-type-header" id="singleHeader" data-section="single">
+        <!-- ===== 帘头4：单选题（sticky） ===== -->
+        <div class="sticky-header quiz-type-header" id="singleHeader">
             <div class="quiz-type-bar">
                 <span class="quiz-type-label">一、单选题</span>
                 <span class="quiz-type-score" id="singleScore">每题5分，共50分</span>
             </div>
         </div>
-
-        <!-- 单选题容器 -->
         <div class="quiz-type-body" id="singleContainer"></div>
 
-        <!-- ===== 帘头5：多选题 ===== -->
-        <div class="sticky-header quiz-type-header" id="multipleHeader" data-section="multiple">
+        <!-- ===== 帘头5：多选题（sticky） ===== -->
+        <div class="sticky-header quiz-type-header" id="multipleHeader">
             <div class="quiz-type-bar">
                 <span class="quiz-type-label">二、多选题</span>
                 <span class="quiz-type-score" id="multipleScore">每题5分，共20分</span>
             </div>
         </div>
-
-        <!-- 多选题容器 -->
         <div class="quiz-type-body" id="multipleContainer"></div>
 
-        <!-- ===== 帘头6：判断题 ===== -->
-        <div class="sticky-header quiz-type-header" id="judgeHeader" data-section="judge">
+        <!-- ===== 帘头6：判断题（sticky） ===== -->
+        <div class="sticky-header quiz-type-header" id="judgeHeader">
             <div class="quiz-type-bar">
                 <span class="quiz-type-label">三、判断题</span>
                 <span class="quiz-type-score" id="judgeScore">每题5分，共20分</span>
             </div>
         </div>
-
-        <!-- 判断题容器 -->
         <div class="quiz-type-body" id="judgeContainer"></div>
 
         <!-- ===== 考核底部：提交按钮 ===== -->

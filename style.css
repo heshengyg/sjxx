@@ -43,37 +43,22 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 .status { font-size:15px; color:#1f2e3a; margin:8px 0 4px; }
 
 /* ============================================================
-   ===== 核心：接力式帘头置顶（JS 控制） =====
+   ===== 核心：接力式帘头置顶（纯 CSS sticky） =====
    ============================================================ */
 
-/* 所有帘头默认隐藏，由 JS 控制显示 */
 .sticky-header {
-    display: none;
+    position: sticky;
+    top: 0;
     background: #fff;
-    width: 100%;
     z-index: 10;
 }
 
-/* 当 JS 激活时，固定在顶部 */
-.sticky-header.active {
-    display: block;
-    position: fixed;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    max-width: 480px;
-    width: 100%;
-    z-index: 100;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    background: #fff;
-    padding: 0 20px;
-    box-sizing: border-box;
-}
-
-/* ---------- 各帘头内部样式 ---------- */
-/* 帘头1：阶段导航 */
+/* ---------- 帘头1：阶段导航 ---------- */
 #stageNavHeader {
-    /* 无额外样式，由 .sticky-header 控制 */
+    z-index: 30;
+    padding: 0 0 4px 0;
+    margin: 0 -4px;
+    border-bottom: 1px solid #ecf0f3;
 }
 
 .stage-nav {
@@ -139,10 +124,12 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     color: #1f7b4d;
 }
 
-/* 帘头2：学习资源标题+进度 */
+/* ---------- 帘头2：学习资源标题+进度 ---------- */
 #studyHeader {
-    /* 无额外样式 */
+    z-index: 25;
+    padding: 0;
 }
+
 .study-title-bar {
     background: #f8faff;
     padding: 10px 16px 8px 16px;
@@ -161,7 +148,7 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     line-height: 1.4;
 }
 
-/* ===== 学习资源内容（正常流） ===== */
+/* 学习资源内容（正常流） */
 #studyContent {
     border-radius: 0 0 16px 16px;
     border-top: none;
@@ -244,9 +231,11 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     background: #eefaf4;
 }
 
-/* 帘头3：考核总标题 */
+/* ---------- 帘头3：考核总标题 ---------- */
 #quizTitleHeader {
-    /* 无额外样式 */
+    z-index: 20;
+    padding: 0;
+    border-top: 2px solid #eef2f6;
 }
 .quiz-title-bar {
     background: #f8faff;
@@ -260,17 +249,23 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     font-size: 17px;
 }
 
-/* 帘头4：单选题 */
+/* ---------- 帘头4：单选题 ---------- */
 #singleHeader {
-    /* 无额外样式 */
+    z-index: 18;
+    padding: 0;
+    border-top: 1px solid #eef2f6;
 }
-/* 帘头5：多选题 */
+/* ---------- 帘头5：多选题 ---------- */
 #multipleHeader {
-    /* 无额外样式 */
+    z-index: 16;
+    padding: 0;
+    border-top: 1px solid #eef2f6;
 }
-/* 帘头6：判断题 */
+/* ---------- 帘头6：判断题 ---------- */
 #judgeHeader {
-    /* 无额外样式 */
+    z-index: 14;
+    padding: 0;
+    border-top: 1px solid #eef2f6;
 }
 
 /* 题型帘头通用样式 */
