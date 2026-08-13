@@ -40,7 +40,7 @@ let questionStates = [];
 let isRenderingQuiz = false;
 let isDataPreloaded = false;
 let allStageData = {};
-let isSwitching = false; // 防止快速切换
+let isSwitching = false;
 
 // DOM helpers
 const $ = id => document.getElementById(id);
@@ -52,7 +52,7 @@ const statusText = $('statusText'), progressFill = $('progressFill');
 const stepLabel = $('stepLabel'), nextLevelLabel = $('nextLevelLabel');
 const stageTitle = $('stageTitle'), stageDesc = $('stageDesc');
 const resourcesContainer = $('resourcesContainer'), learnMsg = $('learnMsg');
-const quizContainer = $('quizContainer'), quizResult = $('quizResult'), refreshBtn = $('refreshBtn');
+const quizResult = $('quizResult'), refreshBtn = $('refreshBtn');
 const stageList = $('stageList');
 const avatarWrapper = $('avatarWrapper'), avatarCircle = $('avatarCircle');
 const dropdownMenu = $('dropdownMenu'), changeAvatarBtn = $('changeAvatarBtn');
@@ -67,7 +67,6 @@ const passwordCancelBtn = $('passwordCancelBtn');
 const detailModal = $('detailModal'), detailTitle = $('detailTitle');
 const detailBody = $('detailBody'), detailProgress = $('detailProgress');
 const detailCloseBtn = $('detailCloseBtn');
-// ========== 新增：登录进度条 DOM 引用 ==========
 const loginProgressWrap = $('loginProgressWrap');
 const loginProgressBar = $('loginProgressBar');
 const loginProgressText = $('loginProgressText');
@@ -144,7 +143,6 @@ async function preloadAllStages() {
 
 // ========== Load JSON ==========
 async function loadStageData(stage, isPreload = false) {
-    // 如果已经缓存，直接返回
     if (stageData[stage]) return stageData[stage];
     
     try {
@@ -175,7 +173,6 @@ async function loadStageData(stage, isPreload = false) {
             });
         }
         
-        // 视频时长异步获取，不阻塞
         if (data.resources) {
             const videoPromises = data.resources
                 .filter(r => r.type === 'video')
@@ -415,51 +412,38 @@ function renderResources(stage, resources) {
         div.addEventListener('click', () => openResourceDetail(r, resources));
         resourcesContainer.appendChild(div);
     });
-         // 🚀 【新增】资源渲染完成后初始化收缩按钮
-    initToggleResources();
 }
-
 
 // ========== 控制考核区域显示 ==========
 function controlQuizAreaVisibility(stageId) {
     const isExamStage = EXAM_STAGES.includes(stageId);
     
-    const quizArea = document.querySelector('.quiz-area');
-    if (quizArea) {
-        if (!isExamStage) {
-            quizArea.classList.add('hidden-area');
-        } else {
-            quizArea.classList.remove('hidden-area');
-        }
-    }
+    // 隐藏所有考核相关帘头和容器
+    const quizHeaders = ['quizTitleHeader', 'singleHeader', 'multipleHeader', 'judgeHeader'];
+    const quizBodies = ['singleContainer', 'multipleContainer', 'judgeContainer'];
+    const footer = document.getElementById('quizFooterGlobal');
     
-    let submitBtn = getSubmitBtn();
+    quizHeaders.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = isExamStage ? 'block' : 'none';
+    });
+    quizBodies.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = isExamStage ? 'block' : 'none';
+    });
+    if (footer) footer.style.display = isExamStage ? 'block' : 'none';
     
-    if (!submitBtn && isExamStage) {
-        submitBtn = document.createElement('button');
-        submitBtn.id = 'submitQuizBtn';
-        submitBtn.className = 'btn submit-btn';
-        submitBtn.textContent = '✅ 提交考核';
-        const footer = document.querySelector('.quiz-footer');
-        if (footer) {
-            const resultEl = document.getElementById('quizResult');
-            if (resultEl) {
-                footer.insertBefore(submitBtn, resultEl);
-            } else {
-                footer.appendChild(submitBtn);
-            }
-        }
-        submitBtn.addEventListener('click', submitQuiz);
-    }
-    
-    submitBtn = getSubmitBtn();
-    if (!submitBtn) return;
-    
-    if (!isExamStage) {
-        submitBtn.style.display = 'none';
-    } else {
-        submitBtn.style.display = '';
-        updateSubmitButtonState();
+    // 如果没有考题，隐藏所有考核相关
+    if (isExamStage && questionStates.length === 0) {
+        quizHeaders.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+        quizBodies.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+        if (footer) footer.style.display = 'none';
     }
 }
 
@@ -484,6 +468,7 @@ function updateSubmitButtonState() {
         submitBtn.textContent = '📝 请先确认所有答案';
     }
 }
+
 // ========== 保存答题状态到 Supabase ==========
 async function saveQuizStateToSupabase() {
     if (!currentUser) return;
@@ -531,7 +516,6 @@ async function loadQuizStateFromSupabase(stageId) {
 async function renderQuiz(quiz) {
     const isExamStage = EXAM_STAGES.includes(currentViewStage);
     
-    // 获取各个容器
     const singleContainer = document.getElementById('singleContainer');
     const multipleContainer = document.getElementById('multipleContainer');
     const judgeContainer = document.getElementById('judgeContainer');
@@ -547,15 +531,13 @@ async function renderQuiz(quiz) {
         if (el) el.style.display = 'none';
     });
     [singleContainer, multipleContainer, judgeContainer].forEach(el => {
-        if (el) el.innerHTML = '';
+        if (el) { el.innerHTML = ''; el.style.display = 'none'; }
     });
     
     if (!isExamStage || !quiz || quiz.length === 0) {
-        // 没有考核时隐藏全部
         return;
     }
     
-    // 分组
     const groups = {
         single: { label: '一、单选题', items: [], totalScore: 0, container: singleContainer, header: singleHeader },
         multiple: { label: '二、多选题', items: [], totalScore: 0, container: multipleContainer, header: multipleHeader },
@@ -573,23 +555,16 @@ async function renderQuiz(quiz) {
         }
     });
     
-    // 检查是否有任何考题
     const hasAnyQuiz = groups.single.items.length > 0 || groups.multiple.items.length > 0 || groups.judge.items.length > 0;
-    if (!hasAnyQuiz) {
-        return;
-    }
+    if (!hasAnyQuiz) return;
     
-    // 显示考核总标题
     if (quizTitleHeader) quizTitleHeader.style.display = 'block';
     
-    // 初始化 questionStates（全局）
     questionStates = quiz.map(() => ({ confirmed: false, selected: [] }));
     
-    // 渲染各题型
     for (const [type, group] of Object.entries(groups)) {
         if (group.items.length === 0) continue;
         
-        // 显示题型帘头
         if (group.header) {
             group.header.style.display = 'block';
             const scoreSpan = group.header.querySelector('.quiz-type-score');
@@ -599,9 +574,9 @@ async function renderQuiz(quiz) {
             }
         }
         
-        // 渲染题目
         const container = group.container;
         if (!container) continue;
+        container.style.display = 'block';
         
         group.items.forEach((q, localIdx) => {
             const globalIdx = quiz.indexOf(q);
@@ -709,7 +684,6 @@ async function renderQuiz(quiz) {
         });
     }
     
-    // 显示提交按钮区域
     if (quizFooterGlobal) quizFooterGlobal.style.display = 'block';
     if (submitBtn) {
         submitBtn.disabled = false;
@@ -717,6 +691,7 @@ async function renderQuiz(quiz) {
     }
     updateSubmitButtonState();
 }
+
 // ========== Resource Detail Modal ==========
 let currentVideoElement = null;
 
@@ -1111,18 +1086,13 @@ function switchStageSync(stageId) {
     
     currentViewStage = stageId;
     
-    // 更新标题和描述
     if (stageTitle) stageTitle.textContent = `📘 ${data.title || STAGE_INFO[stageId].title}`;
     if (stageDesc) stageDesc.textContent = data.description || '';
     
-    // 渲染资源（同步）
     renderResources(stageId, data.resources);
     updateStageProgress(stageId, data.resources);
-    
-    // 渲染考核（异步，但不阻塞）
     renderQuiz(data.quiz);
     
-    // 更新阶段卡片高亮
     document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
     const cards = document.querySelectorAll('.stage-card');
     if (cards[stageId - 1]) cards[stageId - 1].classList.add('active');
@@ -1154,7 +1124,6 @@ async function updateDashboard(user) {
 
     await loadUserProgress();
 
-    // 加载当前阶段数据
     const data = await loadStageData(currentViewStage);
     if (data) {
         if (stageTitle) stageTitle.textContent = `📘 ${data.title}`;
@@ -1166,7 +1135,6 @@ async function updateDashboard(user) {
         if (stageTitle) stageTitle.textContent = `📘 第${currentViewStage}阶段`;
         if (stageDesc) stageDesc.textContent = '数据加载失败，请检查网络或JSON文件。';
         if (resourcesContainer) resourcesContainer.innerHTML = '<p>❌ 无法加载阶段数据。</p>';
-        if (quizContainer) quizContainer.innerHTML = '';
     }
 
     const maxUnlocked = stages.length > 0 ? Math.max(...stages) : 0;
@@ -1183,11 +1151,9 @@ async function updateDashboard(user) {
             } else {
                 card.addEventListener('click', function() {
                     if (i !== currentViewStage) {
-                        // 🚀 优先使用同步切换（已预加载的数据）
                         if (allStageData[i] || stageData[i]) {
                             switchStageSync(i);
                         } else {
-                            // 降级方案：异步加载
                             currentViewStage = i;
                             (async () => {
                                 const d = await loadStageData(currentViewStage);
@@ -1228,7 +1194,6 @@ async function updateDashboard(user) {
     if (learnMsg) learnMsg.classList.add('hidden');
     if (quizResult) quizResult.classList.add('hidden');
     
-    // 🚀 后台预加载所有阶段数据（不阻塞界面）
     if (!isDataPreloaded) {
         setTimeout(preloadAllStages, 800);
     }
@@ -1243,7 +1208,6 @@ async function handleAuth() {
     if (!phone) { showAuthMsg('请输入手机号'); return; }
     if (!password || password.length < 6) { showAuthMsg('密码至少6位'); return; }
     
-    // 🚀 显示进度条
     if (loginProgressWrap) {
         loginProgressWrap.classList.remove('hidden');
         loginProgressWrap.style.display = 'block';
@@ -1254,7 +1218,6 @@ async function handleAuth() {
         authBtn.style.opacity = '0.7';
     }
     
-    // 模拟进度更新
     let progress = 0;
     const progressInterval = setInterval(() => {
         if (progress < 90) {
@@ -1273,7 +1236,6 @@ async function handleAuth() {
             .maybeSingle();
         if (error && error.code !== 'PGRST116') throw error;
         
-        // 进度到 95%
         updateLoginProgress(95);
         
         if (existing) {
@@ -1292,10 +1254,8 @@ async function handleAuth() {
             await updateDashboard(currentUser);
             showAuthMsg(`欢迎回来，${existing.name}`, false);
             
-            // 登录后预加载
             setTimeout(preloadAllStages, 500);
             
-            // 完成进度
             updateLoginProgress(100);
             setTimeout(() => {
                 resetLoginButton();
@@ -1331,10 +1291,8 @@ async function handleAuth() {
             await updateDashboard(currentUser);
             showAuthMsg(`🎉 注册成功，${name}！`, false);
             
-            // 注册后预加载
             setTimeout(preloadAllStages, 500);
             
-            // 完成进度
             updateLoginProgress(100);
             setTimeout(() => {
                 resetLoginButton();
@@ -1498,33 +1456,6 @@ function logout() {
     }
 }
 
-// ========== 【新增】资源收缩/展开功能 ==========
-function initToggleResources() {
-    const toggleBtn = document.getElementById('toggleResourcesBtn');
-    const resourcesWrapper = document.getElementById('resourcesWrapper');
-    
-    if (!toggleBtn || !resourcesWrapper) {
-        return;
-    }
-    
-    let isExpanded = true;
-    const newToggleBtn = toggleBtn.cloneNode(true);
-    toggleBtn.parentNode.replaceChild(newToggleBtn, toggleBtn);
-    
-    newToggleBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        isExpanded = !isExpanded;
-        if (isExpanded) {
-            resourcesWrapper.classList.remove('collapsed');
-            this.textContent = '📂 收起资源';
-        } else {
-            resourcesWrapper.classList.add('collapsed');
-            this.textContent = '📂 展开资源';
-        }
-    });
-}
-
 // ========== Event Bindings ==========
 if (authBtn) authBtn.addEventListener('click', handleAuth);
 if (refreshBtn) refreshBtn.addEventListener('click', refreshUser);
@@ -1575,6 +1506,7 @@ if (passwordInput) passwordInput.addEventListener('keyup', (e) => { if (e.key ==
 if (nameInput) nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 
 console.log('🐿️ 松鼠逛逛商家学堂 (预加载优化版)');
+
 // ========== 浮动导航按钮控制 ==========
 function initFloatNav() {
     const floatNav = document.getElementById('floatNav');
@@ -1625,7 +1557,6 @@ function initFloatNav() {
     });
 }
 
-// 登录后初始化
 document.addEventListener('DOMContentLoaded', function() {
     initFloatNav();
 });

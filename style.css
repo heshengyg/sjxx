@@ -50,10 +50,9 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     position: sticky;
     top: 0;
     background: #fff;
-    z-index: 10;
 }
 
-/* ---------- 帘头1：阶段导航 ---------- */
+/* ---------- 帘头1：阶段导航 (z-index最高) ---------- */
 #stageNavHeader {
     z-index: 30;
     padding: 0 0 4px 0;
@@ -136,7 +135,7 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 
 /* ---------- 帘头2：学习资源 ---------- */
 #studyHeader {
-    z-index: 20;
+    z-index: 25;
     padding: 0 0 4px 0;
 }
 
@@ -176,7 +175,7 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 
 /* ---------- 帘头3：考核总标题 ---------- */
 #quizTitleHeader {
-    z-index: 19;
+    z-index: 20;
     padding: 0;
     border-top: 2px solid #eef2f6;
 }
@@ -194,11 +193,30 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     font-size: 17px;
 }
 
-/* ---------- 帘头4/5/6：题型帘头 ---------- */
-.quiz-type-header {
+/* ---------- 帘头4：单选题 ---------- */
+#singleHeader {
     z-index: 18;
     padding: 0;
     border-top: 1px solid #eef2f6;
+}
+
+/* ---------- 帘头5：多选题 ---------- */
+#multipleHeader {
+    z-index: 16;
+    padding: 0;
+    border-top: 1px solid #eef2f6;
+}
+
+/* ---------- 帘头6：判断题 ---------- */
+#judgeHeader {
+    z-index: 14;
+    padding: 0;
+    border-top: 1px solid #eef2f6;
+}
+
+/* ---------- 题型帘头通用样式 ---------- */
+.quiz-type-header {
+    background: #fff;
 }
 
 .quiz-type-bar {
