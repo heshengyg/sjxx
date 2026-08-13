@@ -43,34 +43,48 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 .status { font-size:15px; color:#1f2e3a; margin:8px 0 4px; }
 
 /* ============================================================
-   ===== 核心：接力式帘头置顶 =====
+   ===== 核心：接力式帘头置顶（JS 控制） =====
    ============================================================ */
 
+/* 所有帘头默认隐藏，由 JS 控制显示 */
 .sticky-header {
-    position: sticky;
-    top: 0;
+    display: none;
     background: #fff;
+    width: 100%;
+    z-index: 10;
 }
 
-/* ---------- 帘头1：阶段导航 ---------- */
+/* 当 JS 激活时，固定在顶部 */
+.sticky-header.active {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 480px;
+    width: 100%;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    background: #fff;
+    padding: 0 20px;
+    box-sizing: border-box;
+}
+
+/* ---------- 各帘头内部样式 ---------- */
+/* 帘头1：阶段导航 */
 #stageNavHeader {
-    z-index: 30;
-    padding: 0 0 4px 0;
-    margin: 0 -4px;
-    border-bottom: 1px solid #ecf0f3;
+    /* 无额外样式，由 .sticky-header 控制 */
 }
 
 .stage-nav {
     padding: 4px 0 8px 0;
 }
-
 .stage-nav label {
     display: block;
     font-size: 15px;
     color: #5e6f7d;
     margin-bottom: 4px;
 }
-
 .stage-list {
     display: flex;
     flex-wrap: nowrap;
@@ -80,13 +94,11 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
 }
-
 .stage-list::-webkit-scrollbar {
     display: none;
     width: 0;
     height: 0;
 }
-
 .stage-card {
     flex: 0 0 auto;
     padding: 8px 16px;
@@ -102,43 +114,35 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     gap: 6px;
     white-space: nowrap;
 }
-
 .stage-card.active {
     border-color: #1f7b4d;
     background: #e3f3ea;
 }
-
 .stage-card.locked {
     background: #e6e9ed;
     color: #a0aab4;
     cursor: not-allowed;
     opacity: 0.6;
 }
-
 .stage-card .stage-label {
     font-weight: 500;
     font-size: 13px;
 }
-
 .stage-card .stage-status {
     font-size: 12px;
     color: #5e6f7d;
 }
-
 .stage-card.locked .stage-status {
     color: #a0aab4;
 }
-
 .stage-card.active .stage-status {
     color: #1f7b4d;
 }
 
-/* ---------- 帘头2：学习资源标题+进度 ---------- */
+/* 帘头2：学习资源标题+进度 */
 #studyHeader {
-    z-index: 25;
-    padding: 0;
+    /* 无额外样式 */
 }
-
 .study-title-bar {
     background: #f8faff;
     padding: 10px 16px 8px 16px;
@@ -146,20 +150,18 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     border-bottom: 1px solid #e4eaf0;
     border-radius: 16px 16px 0 0;
 }
-
 .study-title-bar .stage-title {
     font-weight: 600;
     font-size: 16px;
     margin-bottom: 2px;
 }
-
 .study-title-bar .stage-desc {
     font-size: 14px;
     color: #2e4a5e;
     line-height: 1.4;
 }
 
-/* ---------- 学习资源内容（正常流） ---------- */
+/* 学习资源内容（正常流） */
 #studyContent {
     border-radius: 0 0 16px 16px;
     border-top: none;
@@ -167,7 +169,7 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     margin-top: -1px;
 }
 
-/* ---------- 资源列表 ---------- */
+/* 资源列表 */
 .resource-item {
     background: #f2f6fc;
     border-radius: 10px;
@@ -180,11 +182,9 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     border: 1px solid transparent;
     transition: 0.1s;
 }
-
 .resource-item:hover {
     background: #e8eef5;
 }
-
 .resource-item .thumb {
     width: 56px;
     height: 42px;
@@ -196,30 +196,24 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     justify-content: center;
     font-size: 24px;
 }
-
 .resource-item .info {
     flex: 1;
     min-width: 0;
 }
-
 .resource-item .info .title {
     font-weight: 500;
     font-size: 15px;
 }
-
 .resource-item .info .status {
     font-size: 13px;
     color: #5e6f7d;
 }
-
 .resource-item .info .status.completed {
     color: #1f7b4d;
 }
-
 .resource-item .info .status.incomplete {
     color: #b33;
 }
-
 .resource-item .badge-type {
     background: #1a2e3b;
     color: #fff;
@@ -228,25 +222,20 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     font-size: 11px;
     flex-shrink: 0;
 }
-
 .resource-item.completed {
     border-color: #1f7b4d;
     background: #eefaf4;
 }
 
-/* ---------- 帘头3：考核总标题 ---------- */
+/* 帘头3：考核总标题 */
 #quizTitleHeader {
-    z-index: 20;
-    padding: 0;
-    border-top: 2px solid #eef2f6;
+    /* 无额外样式 */
 }
-
 .quiz-title-bar {
     background: #f8faff;
     padding: 10px 18px 6px 18px;
     border-bottom: 1px solid #e4eaf0;
 }
-
 .quiz-title-bar .quiz-title {
     font-weight: 600;
     color: #1a2e3b;
@@ -254,32 +243,23 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     font-size: 17px;
 }
 
-/* ---------- 帘头4：单选题 ---------- */
+/* 帘头4：单选题 */
 #singleHeader {
-    z-index: 18;
-    padding: 0;
-    border-top: 1px solid #eef2f6;
+    /* 无额外样式 */
 }
-
-/* ---------- 帘头5：多选题 ---------- */
+/* 帘头5：多选题 */
 #multipleHeader {
-    z-index: 16;
-    padding: 0;
-    border-top: 1px solid #eef2f6;
+    /* 无额外样式 */
 }
-
-/* ---------- 帘头6：判断题 ---------- */
+/* 帘头6：判断题 */
 #judgeHeader {
-    z-index: 14;
-    padding: 0;
-    border-top: 1px solid #eef2f6;
+    /* 无额外样式 */
 }
 
-/* ---------- 题型帘头通用样式 ---------- */
+/* 题型帘头通用样式 */
 .quiz-type-header {
     background: #fff;
 }
-
 .quiz-type-bar {
     background: #f8faff;
     padding: 8px 18px 4px 18px;
@@ -288,26 +268,24 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     justify-content: space-between;
     align-items: center;
 }
-
 .quiz-type-label {
     font-weight: 600;
     font-size: 15px;
     color: #1a2e3b;
 }
-
 .quiz-type-score {
     font-size: 13px;
     color: #5e6f7d;
 }
 
-/* ---------- 各题型考题容器 ---------- */
+/* 各题型考题容器 */
 .quiz-type-body {
     background: #f8faff;
     padding: 8px 18px 12px 18px;
     border-bottom: 1px solid #eef2f6;
 }
 
-/* ---------- 考核题目样式 ---------- */
+/* 考核题目样式 */
 .quiz-item {
     background: #fff;
     border-radius: 14px;
@@ -315,19 +293,16 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     margin-bottom: 10px;
     border: 1px solid #eef2f6;
 }
-
 .quiz-item .q-text {
     font-weight: 500;
     margin-bottom: 8px;
     font-size: 15px;
 }
-
 .quiz-item .options {
     display: flex;
     flex-direction: column;
     gap: 5px;
 }
-
 .quiz-item .option-item {
     display: flex;
     align-items: center;
@@ -337,11 +312,9 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     padding: 4px 8px;
     border-radius: 8px;
 }
-
 .quiz-item .option-item:hover {
     background: #eef5fa;
 }
-
 .quiz-item .option-item input[type="radio"],
 .quiz-item .option-item input[type="checkbox"] {
     width: 17px;
@@ -349,7 +322,6 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     cursor: pointer;
     flex-shrink: 0;
 }
-
 .quiz-item .confirm-btn {
     margin-top: 8px;
     padding: 4px 14px;
@@ -360,24 +332,21 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     font-size: 13px;
     cursor: pointer;
 }
-
 .quiz-item .confirm-btn.modify {
     background: #d0d9e2;
     color: #1a2e3b;
 }
-
 .quiz-item .status-badge {
     font-size: 12px;
     color: #1f7b4d;
     margin-left: 10px;
 }
-
 .quiz-item.confirmed {
     border-color: #1f7b4d;
     background: #f0f9f4;
 }
 
-/* ---------- 考核底部提交按钮 ---------- */
+/* 考核底部提交按钮 */
 .quiz-footer-global {
     background: #f8faff;
     padding: 12px 18px 16px 18px;
@@ -385,14 +354,12 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     border: 1px solid #eef2f6;
     border-top: 1px solid #e4eaf0;
 }
-
 .quiz-footer-global .submit-btn {
     margin: 0;
     padding: 12px 18px;
     font-size: 16px;
     border-radius: 40px;
 }
-
 .quiz-footer-global .msg {
     margin: 8px 0 0 0;
     padding: 8px 14px;
@@ -409,7 +376,6 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     margin: 12px 0 8px 0;
     overflow: hidden;
 }
-
 .login-progress-bar {
     height: 100%;
     width: 0%;
@@ -417,7 +383,6 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     border-radius: 10px;
     transition: width 0.3s ease;
 }
-
 .login-progress-text {
     position: absolute;
     right: 0;
@@ -430,7 +395,6 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 /* ============================================================
    ===== 浮动导航按钮 =====
    ============================================================ */
-
 .float-nav {
     position: fixed;
     right: 20px;
@@ -444,13 +408,11 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     transition: opacity 0.3s ease, transform 0.3s ease;
     transform: translateY(10px);
 }
-
 .float-nav.visible {
     opacity: 1;
     pointer-events: auto;
     transform: translateY(0);
 }
-
 .float-btn {
     width: 44px;
     height: 44px;
@@ -469,22 +431,18 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     justify-content: center;
     user-select: none;
 }
-
 .float-btn:hover {
     background: rgba(31, 123, 77, 0.9);
     transform: scale(1.06);
 }
-
 .float-btn:active {
     transform: scale(0.92);
 }
-
 .float-btn:first-child {
     background: rgba(31, 123, 77, 0.75);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
 }
-
 .float-btn:first-child:hover {
     background: rgba(26, 107, 66, 0.9);
 }
@@ -503,11 +461,9 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     z-index: 200;
     padding: 20px;
 }
-
 .modal-overlay.open {
     display: flex;
 }
-
 .modal-card {
     background: #fff;
     max-width: 700px;
@@ -516,18 +472,15 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     padding: 24px 22px 30px;
     box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
 }
-
 .modal-large {
     max-width: 700px;
 }
-
 .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 16px;
 }
-
 .modal-close {
     background: none;
     border: none;
@@ -535,13 +488,11 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     cursor: pointer;
     color: #5e6f7d;
 }
-
 #detailBody video,
 #detailBody img {
     width: 100%;
     border-radius: 12px;
 }
-
 #detailBody .article-content {
     max-height: 400px;
     overflow-y: auto;
@@ -551,20 +502,17 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     font-size: 16px;
     line-height: 1.6;
 }
-
 #detailProgress {
     margin-top: 12px;
     font-size: 15px;
     color: #1f7b4d;
 }
-
 .img-nav {
     display: flex;
     justify-content: center;
     gap: 16px;
     margin-top: 12px;
 }
-
 .img-nav button {
     padding: 6px 20px;
     border: 1px solid #dce3eb;
@@ -573,7 +521,6 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     cursor: pointer;
     font-size: 14px;
 }
-
 .img-nav button:hover {
     background: #eef5fa;
 }
@@ -584,24 +531,20 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     margin-bottom: 12px;
     font-size: 17px;
 }
-
 .btn-row {
     display: flex;
     gap: 10px;
     margin-top: 8px;
 }
-
 .btn-row .btn {
     flex: 1;
     margin-top: 0;
 }
-
 .btn-row .btn-outline {
     background: transparent;
     border: 1.5px solid #d0d9e2;
     color: #1a2e3b;
 }
-
 .upload-label {
     display: inline-block;
     background: #eef5f0;
@@ -613,7 +556,6 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     margin-bottom: 12px;
     font-size: 14px;
 }
-
 #avatarFileInput {
     display: none;
 }
@@ -627,7 +569,6 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     padding-top: 10px;
     border-top: 1px solid #ecf0f3;
 }
-
 .bottom-bar .refresh-btn {
     flex: 0 0 auto;
     padding: 6px 16px;
@@ -636,7 +577,6 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     margin: 0;
     width: auto;
 }
-
 .bottom-bar .footnote {
     flex: 1;
     margin: 0;
@@ -673,9 +613,6 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
         font-size: 12px;
     }
 
-    #stageNavHeader {
-        padding: 0;
-    }
     .stage-nav {
         padding: 2px 0 4px 0;
     }
