@@ -565,6 +565,7 @@ const judgeScoreEl = document.getElementById('judgeScore');
     // 初始化 questionStates
     questionStates = quiz.map(() => ({ confirmed: false, selected: [] }));
 
+
     // 渲染各题型
     for (const [type, group] of Object.entries(groups)) {
     if (group.items.length === 0) continue;
