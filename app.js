@@ -1529,7 +1529,7 @@ function initStickyHeaders() {
     headers.forEach((header, index) => {
         const rect = header.getBoundingClientRect();
         // ★ 关键：提前触发，让帘头在内容标题即将滚出时出现（偏移量 -50px）
-        const top = rect.top + scrollY - 50;
+        const top = rect.top + scrollY - 150;
         const next = headers[index + 1];
         const nextTop = next ? next.getBoundingClientRect().top + scrollY : dashboard.scrollHeight;
         headerList.push({
