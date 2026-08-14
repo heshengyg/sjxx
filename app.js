@@ -941,9 +941,17 @@ function navigateImage(delta) {
 
 // ========== Timer ==========
 function startTimer(resourceId, duration) {
+    // 已有计时器或已完成，直接返回
     if (timerIntervals[resourceId]) return;
     if (progressMap[resourceId] && progressMap[resourceId].completed) return;
+
+    // ★ 关键修复：确保 duration 为正数
+    if (duration <= 0 || isNaN(duration)) {
+        duration = 60; // 默认1分钟
+    }
+
     if (!timerElapsed[resourceId]) timerElapsed[resourceId] = 0;
+
     const interval = setInterval(() => {
         timerElapsed[resourceId] += 1;
         const elapsed = timerElapsed[resourceId];
@@ -957,7 +965,6 @@ function startTimer(resourceId, duration) {
     }, 1000);
     timerIntervals[resourceId] = interval;
 }
-
 function stopTimer(resourceId) {
     if (timerIntervals[resourceId]) {
         clearInterval(timerIntervals[resourceId]);
@@ -1574,7 +1581,7 @@ function initStickyHeaders() {
 
         const rect = item.triggerEl.getBoundingClientRect();
         // 提前量：标题高度 + 50px 余量（可根据需要调整）
-        const start = rect.top + scrollY - rect.height - 50;
+        const start = rect.top + scrollY - rect.height ;
 
         // 结束位置：下一个触发元素的顶部，或 dashboard 底部
         let end = dashboard.scrollHeight;
