@@ -1517,26 +1517,82 @@ function initStickyHeaders() {
     const dashboard = document.getElementById('dashboard');
     if (!dashboard || headers.length === 0) return;
 
+    // 先移除所有 active 类
     headers.forEach(h => h.classList.remove('active'));
 
-    headers.forEach(h => h.style.display = 'block');
+    // 定义每个帘头对应的触发元素选择器（内容标题）
+    const triggerMap = {
+        'stageNavHeader': '#stageListContent',          // 内容区的阶段列表容器
+        'studyHeader': '#studyContent .study-content-header', // 学习资源标题区域
+        'quizTitleHeader': '#quizContentTitle',         // 考核总标题
+        'singleHeader': '#quizSingleTitle',             // 单选题标题
+        'multipleHeader': '#quizMultipleTitle',         // 多选题标题
+        'judgeHeader': '#quizJudgeTitle'                // 判断题标题
+    };
 
     const headerList = [];
     const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+
     headers.forEach((header, index) => {
-        const rect = header.getBoundingClientRect();
-        const top = rect.top + scrollY - 10; // 提前 10px 触发
-        const next = headers[index + 1];
-        const nextTop = next ? next.getBoundingClientRect().top + scrollY : dashboard.scrollHeight;
+        // 检查帘头是否可见（未被 display:none 隐藏）
+        const isVisible = header.style.display !== 'none' && getComputedStyle(header).display !== 'none';
+
+        let start, end;
+        if (!isVisible) {
+            // 不可见的帘头永远不触发
+            start = Infinity;
+            end = Infinity;
+        } else {
+            // 获取触发元素
+            const triggerId = header.id;
+            let triggerEl = null;
+            if (triggerMap[triggerId]) {
+                triggerEl = document.querySelector(triggerMap[triggerId]);
+            }
+            if (triggerEl) {
+                const rect = triggerEl.getBoundingClientRect();
+                start = rect.top + scrollY - 5;
+            } else {
+                // 如果没有对应的触发元素，回退到帘头自身（但不会发生）
+                const rect = header.getBoundingClientRect();
+                start = rect.top + scrollY;
+            }
+
+            // 计算 end：下一个帘头的 start，或 dashboard 底部
+            const next = headers[index + 1];
+            if (next) {
+                // 同样计算下一个帘头的 start（考虑其可见性）
+                const nextIsVisible = next.style.display !== 'none' && getComputedStyle(next).display !== 'none';
+                let nextStart;
+                if (!nextIsVisible) {
+                    nextStart = Infinity;
+                } else {
+                    const nextTriggerId = next.id;
+                    let nextTriggerEl = null;
+                    if (triggerMap[nextTriggerId]) {
+                        nextTriggerEl = document.querySelector(triggerMap[nextTriggerId]);
+                    }
+                    if (nextTriggerEl) {
+                        const rect = nextTriggerEl.getBoundingClientRect();
+                        nextStart = rect.top + scrollY;
+                    } else {
+                        const rect = next.getBoundingClientRect();
+                        nextStart = rect.top + scrollY;
+                    }
+                }
+                end = nextStart;
+            } else {
+                end = dashboard.scrollHeight;
+            }
+        }
+
         headerList.push({
             el: header,
-            start: top,
-            end: nextTop,
+            start: start,
+            end: end,
             id: header.id
         });
     });
-
-    headers.forEach(h => h.style.display = '');
 
     headerSections = headerList;
     isHeaderInitialized = true;
