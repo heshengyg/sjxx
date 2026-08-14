@@ -1194,11 +1194,6 @@ function switchStageSync(stageId) {
     if (contentCards[stageId - 1]) contentCards[stageId - 1].classList.add('active');
 
     isSwitching = false;
-
-    setTimeout(() => {
-        isHeaderInitialized = false;
-        initStickyHeaders();
-    }, 100);
 }
 
 // ========== Dashboard ==========
@@ -1245,8 +1240,6 @@ async function updateDashboard(user) {
     if (!isDataPreloaded) {
         setTimeout(preloadAllStages, 800);
     }
-
-    initStickyControl();
 }
 
 // ========== Auth ==========
@@ -1504,86 +1497,6 @@ function logout() {
         isDataPreloaded = false;
         allStageData = {};
     }
-}
-
-// ========== 帘头滚动切换 ==========
-let headerSections = [];
-let isHeaderInitialized = false;
-
-function initStickyHeaders() {
-    if (isHeaderInitialized) return;
-
-    const headers = document.querySelectorAll('.sticky-header');
-    const dashboard = document.getElementById('dashboard');
-    if (!dashboard || headers.length === 0) return;
-
-    headers.forEach(h => h.classList.remove('active'));
-
-    headers.forEach(h => h.style.display = 'block');
-
-    const headerList = [];
-    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
-    headers.forEach((header, index) => {
-        const rect = header.getBoundingClientRect();
-        const top = rect.top + scrollY;
-        const next = headers[index + 1];
-        const nextTop = next ? next.getBoundingClientRect().top + scrollY : dashboard.scrollHeight;
-        headerList.push({
-            el: header,
-            start: top,
-            end: nextTop,
-            id: header.id
-        });
-    });
-
-    headers.forEach(h => h.style.display = '');
-
-    headerSections = headerList;
-    isHeaderInitialized = true;
-    handleScroll();
-}
-
-function handleScroll() {
-    if (!isHeaderInitialized || headerSections.length === 0) return;
-
-    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
-
-    if (scrollY < 30) {
-        headerSections.forEach(section => section.el.classList.remove('active'));
-        return;
-    }
-
-    let activeIndex = -1;
-    for (let i = 0; i < headerSections.length; i++) {
-        const section = headerSections[i];
-        if (scrollY >= section.start - 30 && scrollY < section.end) {
-            activeIndex = i;
-            break;
-        }
-    }
-
-    if (activeIndex === -1 && scrollY >= headerSections[headerSections.length - 1].start) {
-        activeIndex = headerSections.length - 1;
-    }
-
-    headerSections.forEach((section, index) => {
-        if (index === activeIndex) {
-            section.el.classList.add('active');
-        } else {
-            section.el.classList.remove('active');
-        }
-    });
-}
-
-function initStickyControl() {
-    setTimeout(() => {
-        initStickyHeaders();
-        window.addEventListener('scroll', handleScroll);
-        window.addEventListener('resize', () => {
-            isHeaderInitialized = false;
-            setTimeout(initStickyHeaders, 100);
-        });
-    }, 200);
 }
 
 // ========== Event Bindings ==========
