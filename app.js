@@ -1503,14 +1503,15 @@ function initStickyHeaders() {
 
     headers.forEach(h => h.classList.remove('active'));
 
+    // ★ 修正：直接映射选择器字符串
     const triggerMap = {
-    'stageNavHeader': { trigger: '.content-stage-nav .stage-nav label', content: null },
-    'studyHeader': { trigger: '#studyContent .study-content-header', content: null },
-    'quizTitleHeader': { trigger: '#quizContentTitle', content: '#quizContentTitle' },
-    'singleHeader': { trigger: '#quizSingleTitle', content: '#quizSingleTitle' },
-    'multipleHeader': { trigger: '#quizMultipleTitle', content: '#quizMultipleTitle' },
-    'judgeHeader': { trigger: '#quizJudgeTitle', content: '#quizJudgeTitle' }
-};
+        'stageNavHeader': '.content-stage-nav .stage-nav label',
+        'studyHeader': '#studyContent .study-content-header',
+        'quizTitleHeader': '#quizContentTitle',
+        'singleHeader': '#quizSingleTitle',
+        'multipleHeader': '#quizMultipleTitle',
+        'judgeHeader': '#quizJudgeTitle'
+    };
 
     const scrollY = window.pageYOffset || document.documentElement.scrollTop;
     const headerList = [];
@@ -1543,7 +1544,7 @@ function initStickyHeaders() {
         }
 
         const rect = item.triggerEl.getBoundingClientRect();
-        // ★ 强制提前：标题高度 + 200px，保证标题完全滚出
+        // 提前量：标题高度 + 50px 余量（可根据需要调整）
         const start = rect.top + scrollY - rect.height - 50;
 
         let end = dashboard.scrollHeight;
@@ -1568,7 +1569,6 @@ function initStickyHeaders() {
     isHeaderInitialized = true;
     handleScroll();
 }
-
 function handleScroll() {
     if (!isHeaderInitialized || headerSections.length === 0) return;
 
