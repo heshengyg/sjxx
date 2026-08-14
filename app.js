@@ -1517,38 +1517,83 @@ function initStickyHeaders() {
     const dashboard = document.getElementById('dashboard');
     if (!dashboard || headers.length === 0) return;
 
-    // 建立映射：帘头 id -> 对应的内容标题元素选择器
+    // 移除所有 active 类
+    headers.forEach(h => h.classList.remove('active'));
+
+    // 定义映射：帘头 id -> 内容标题选择器
     const triggerMap = {
-        'stageNavHeader': '.content-stage-nav .stage-nav label', // 内容区"切换阶段"标签
-        'studyHeader': '#studyContent .study-content-header',    // 学习资源标题区域
-        'quizTitleHeader': '#quizContentTitle',                 // 考核总标题
-        'singleHeader': '#quizSingleTitle',                     // 单选题标题
-        'multipleHeader': '#quizMultipleTitle',                 // 多选题标题
-        'judgeHeader': '#quizJudgeTitle'                        // 判断题标题
+        'stageNavHeader': '.content-stage-nav .stage-nav label',
+        'studyHeader': '#studyContent .study-content-header',
+        'quizTitleHeader': '#quizContentTitle',
+        'singleHeader': '#quizSingleTitle',
+        'multipleHeader': '#quizMultipleTitle',
+        'judgeHeader': '#quizJudgeTitle'
     };
 
-    // 为每个帘头保存对应的触发元素（如果存在）
-    const headerTriggers = [];
-    headers.forEach(header => {
-        const triggerId = header.id;
+    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+    const headerList = [];
+
+    // 先收集每个帘头及其对应的触发元素（判断可见性）
+    const items = [];
+    headers.forEach((header) => {
+        const selector = triggerMap[header.id];
         let triggerEl = null;
-        if (triggerMap[triggerId]) {
-            triggerEl = document.querySelector(triggerMap[triggerId]);
+        let isVisible = false;
+        if (selector) {
+            triggerEl = document.querySelector(selector);
+            if (triggerEl) {
+                const style = getComputedStyle(triggerEl);
+                isVisible = style.display !== 'none';
+            }
         }
-        // 如果触发元素不存在，则默认使用帘头自身（但实际不会）
-        headerTriggers.push({
-            el: header,
-            triggerEl: triggerEl || header
+        items.push({
+            header,
+            triggerEl,
+            isVisible
         });
     });
 
-    // 存储到全局供 handleScroll 使用
-    window._headerTriggers = headerTriggers;
+    // 计算每个可见帘头的 start 和 end
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        // 如果不可见或没有触发元素，设为永不触发
+        if (!item.isVisible || !item.triggerEl) {
+            headerList.push({
+                el: item.header,
+                start: Infinity,
+                end: Infinity,
+                id: item.header.id
+            });
+            continue;
+        }
+
+        // 触发元素的顶部位置（即内容标题的顶部）
+        const rect = item.triggerEl.getBoundingClientRect();
+        const start = rect.top + scrollY;
+
+        // 找下一个可见的触发元素的顶部作为当前帘头的结束位置
+        let end = dashboard.scrollHeight;
+        for (let j = i + 1; j < items.length; j++) {
+            const next = items[j];
+            if (next.isVisible && next.triggerEl) {
+                const nextRect = next.triggerEl.getBoundingClientRect();
+                end = nextRect.top + scrollY;
+                break;
+            }
+        }
+
+        headerList.push({
+            el: item.header,
+            start: start,
+            end: end,
+            id: item.header.id
+        });
+    }
+
+    headerSections = headerList;
     isHeaderInitialized = true;
-    // 立即执行一次
     handleScroll();
 }
-
 function handleScroll() {
     if (!isHeaderInitialized) return;
 
