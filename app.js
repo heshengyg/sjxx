@@ -1554,8 +1554,8 @@ function initStickyHeaders() {
         }
 
         const rect = item.triggerEl.getBoundingClientRect();
-        // 提前量：标题高度 + 20px 余量
-        const start = rect.top + scrollY - rect.height - 20;
+        // ★ 关键修改：提前量设为标题高度 + 150px，确保标题完全滚出
+        const start = rect.top + scrollY - rect.height - 150;
 
         let end = dashboard.scrollHeight;
         for (let j = i + 1; j < items.length; j++) {
@@ -1579,7 +1579,6 @@ function initStickyHeaders() {
     isHeaderInitialized = true;
     handleScroll();
 }
-
 function handleScroll() {
     if (!isHeaderInitialized || headerSections.length === 0) return;
 
