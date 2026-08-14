@@ -1560,7 +1560,7 @@ function initStickyHeaders() {
 
         const rect = item.triggerEl.getBoundingClientRect();
         // ★ 关键修改：提前标题高度 + 20px，确保标题完全滚出
-        const start = rect.top + scrollY - rect.height - 20;
+        const start = rect.top + scrollY - 120;
 
         let end = dashboard.scrollHeight;
         for (let j = i + 1; j < items.length; j++) {
