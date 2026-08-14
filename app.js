@@ -499,6 +499,7 @@ async function loadQuizStateFromSupabase(stageId) {
 async function renderQuiz(quiz) {
     const isExamStage = EXAM_STAGES.includes(currentViewStage);
 
+    // DOM 元素
     const singleContainer = document.getElementById('singleContainer');
     const multipleContainer = document.getElementById('multipleContainer');
     const judgeContainer = document.getElementById('judgeContainer');
@@ -509,12 +510,25 @@ async function renderQuiz(quiz) {
     const quizFooterGlobal = document.getElementById('quizFooterGlobal');
     const submitBtn = document.getElementById('submitQuizBtn');
 
-    // 先全部隐藏
+    // 内容标题元素
+    const quizContentTitle = document.getElementById('quizContentTitle');
+    const quizSingleTitle = document.getElementById('quizSingleTitle');
+    const quizSingleScoreText = document.getElementById('quizSingleScoreText');
+    const quizMultipleTitle = document.getElementById('quizMultipleTitle');
+    const quizMultipleScoreText = document.getElementById('quizMultipleScoreText');
+    const quizJudgeTitle = document.getElementById('quizJudgeTitle');
+    const quizJudgeScoreText = document.getElementById('quizJudgeScoreText');
+
+    // 先全部隐藏（包括内容标题）
     [singleHeader, multipleHeader, judgeHeader, quizTitleHeader, quizFooterGlobal].forEach(el => {
         if (el) el.style.display = 'none';
     });
     [singleContainer, multipleContainer, judgeContainer].forEach(el => {
         if (el) { el.innerHTML = ''; el.style.display = 'none'; }
+    });
+    // 隐藏内容标题
+    [quizContentTitle, quizSingleTitle, quizMultipleTitle, quizJudgeTitle].forEach(el => {
+        if (el) el.style.display = 'none';
     });
 
     if (!isExamStage || !quiz || quiz.length === 0) {
@@ -522,9 +536,9 @@ async function renderQuiz(quiz) {
     }
 
     const groups = {
-        single: { label: '一、单选题', items: [], totalScore: 0, container: singleContainer, header: singleHeader },
-        multiple: { label: '二、多选题', items: [], totalScore: 0, container: multipleContainer, header: multipleHeader },
-        judge: { label: '三、判断题', items: [], totalScore: 0, container: judgeContainer, header: judgeHeader }
+        single: { label: '一、单选题', items: [], totalScore: 0, container: singleContainer, header: singleHeader, titleEl: quizSingleTitle, scoreTextEl: quizSingleScoreText },
+        multiple: { label: '二、多选题', items: [], totalScore: 0, container: multipleContainer, header: multipleHeader, titleEl: quizMultipleTitle, scoreTextEl: quizMultipleScoreText },
+        judge: { label: '三、判断题', items: [], totalScore: 0, container: judgeContainer, header: judgeHeader, titleEl: quizJudgeTitle, scoreTextEl: quizJudgeScoreText }
     };
 
     quiz.forEach(q => {
@@ -541,8 +555,9 @@ async function renderQuiz(quiz) {
     const hasAnyQuiz = groups.single.items.length > 0 || groups.multiple.items.length > 0 || groups.judge.items.length > 0;
     if (!hasAnyQuiz) return;
 
-    // 显示考核总标题
+    // 显示考核总标题（帘头和内容）
     if (quizTitleHeader) quizTitleHeader.style.display = 'block';
+    if (quizContentTitle) quizContentTitle.style.display = 'block';
 
     // 初始化 questionStates
     questionStates = quiz.map(() => ({ confirmed: false, selected: [] }));
@@ -551,6 +566,7 @@ async function renderQuiz(quiz) {
     for (const [type, group] of Object.entries(groups)) {
         if (group.items.length === 0) continue;
 
+        // 显示题型帘头
         if (group.header) {
             group.header.style.display = 'block';
             const scoreSpan = group.header.querySelector('.quiz-type-score');
@@ -560,10 +576,21 @@ async function renderQuiz(quiz) {
             }
         }
 
+        // 显示内容标题
+        if (group.titleEl) {
+            group.titleEl.style.display = 'block';
+            if (group.scoreTextEl) {
+                const perScore = group.totalScore / group.items.length;
+                group.scoreTextEl.textContent = `每题${perScore}分，共${group.totalScore}分`;
+            }
+        }
+
+        // 显示题型容器
         const container = group.container;
         if (!container) continue;
         container.style.display = 'block';
 
+        // 渲染题目
         group.items.forEach((q, localIdx) => {
             const globalIdx = quiz.indexOf(q);
             const wrapper = document.createElement('div');
@@ -676,7 +703,7 @@ async function renderQuiz(quiz) {
         submitBtn.textContent = '✅ 提交考核';
     }
 
-    // 强制显示考核内容
+    // 强制显示考核内容（帘头）
     if (quizTitleHeader) quizTitleHeader.style.display = 'block';
     [singleHeader, multipleHeader, judgeHeader].forEach(el => {
         if (el) el.style.display = 'block';
@@ -686,9 +713,14 @@ async function renderQuiz(quiz) {
     });
     if (quizFooterGlobal) quizFooterGlobal.style.display = 'block';
 
+    // 强制显示内容标题（如果有对应题型）
+    if (quizContentTitle) quizContentTitle.style.display = 'block';
+    if (groups.single.items.length > 0 && quizSingleTitle) quizSingleTitle.style.display = 'block';
+    if (groups.multiple.items.length > 0 && quizMultipleTitle) quizMultipleTitle.style.display = 'block';
+    if (groups.judge.items.length > 0 && quizJudgeTitle) quizJudgeTitle.style.display = 'block';
+
     updateSubmitButtonState();
 }
-
 // ========== Resource Detail Modal ==========
 let currentVideoElement = null;
 
