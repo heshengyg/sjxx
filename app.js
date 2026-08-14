@@ -893,6 +893,7 @@ function openResourceDetail(resource, allResources) {
         }
         activeResourceId = resource.id;
         startTimer(resource.id, resource.duration);
+        updateDetailProgress(resource.id); // ★ 立即显示当前进度
     } else if (resource.type === 'article') {
         const div = document.createElement('div');
         div.className = 'article-content';
@@ -900,6 +901,7 @@ function openResourceDetail(resource, allResources) {
         detailBody.appendChild(div);
         activeResourceId = resource.id;
         startTimer(resource.id, resource.duration);
+        updateDetailProgress(resource.id); // ★ 立即显示当前进度
     }
 
     detailModal.classList.add('open');
