@@ -1554,8 +1554,8 @@ function initStickyHeaders() {
         }
 
         const rect = item.triggerEl.getBoundingClientRect();
-        // ★ 关键修改：提前量设为标题高度 + 150px，确保标题完全滚出
-        const start = rect.top + scrollY - rect.height - 150;
+        // ★ 强制提前：标题高度 + 200px，保证标题完全滚出
+        const start = rect.top + scrollY - rect.height - 200;
 
         let end = dashboard.scrollHeight;
         for (let j = i + 1; j < items.length; j++) {
@@ -1579,31 +1579,27 @@ function initStickyHeaders() {
     isHeaderInitialized = true;
     handleScroll();
 }
+
 function handleScroll() {
     if (!isHeaderInitialized || headerSections.length === 0) return;
 
     const scrollY = window.pageYOffset || document.documentElement.scrollTop;
 
-    // 滚动距离小于 30px 时，所有帘头隐藏（避免顶部干扰）
     if (scrollY < 30) {
         headerSections.forEach(section => section.el.classList.remove('active'));
         return;
     }
 
     let activeIndex = -1;
-    // 查找第一个满足 scrollY 在其区间内的帘头
     for (let i = 0; i < headerSections.length; i++) {
         const section = headerSections[i];
-        // 只有当 scrollY 在 [start, end) 之间时激活
         if (scrollY >= section.start && scrollY < section.end) {
             activeIndex = i;
             break;
         }
     }
 
-    // 如果未找到，但滚动已超过最后一个可见帘头的 start，则激活最后一个可见帘头
     if (activeIndex === -1) {
-        // 找出所有非 Infinity 的帘头（即可见的），取最后一个
         const visibleSections = headerSections.filter(s => s.start !== Infinity);
         if (visibleSections.length > 0) {
             const last = visibleSections[visibleSections.length - 1];
@@ -1613,7 +1609,6 @@ function handleScroll() {
         }
     }
 
-    // 应用 active 类
     headerSections.forEach((section, index) => {
         if (index === activeIndex) {
             section.el.classList.add('active');
@@ -1622,6 +1617,7 @@ function handleScroll() {
         }
     });
 }
+
 function initStickyControl() {
     setTimeout(() => {
         initStickyHeaders();
