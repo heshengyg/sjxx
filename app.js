@@ -519,7 +519,7 @@ async function renderQuiz(quiz) {
     const quizJudgeTitle = document.getElementById('quizJudgeTitle');
     const quizJudgeScoreText = document.getElementById('quizJudgeScoreText');
 
-    // 先全部隐藏（包括内容标题）
+    // 先全部隐藏（包括内容标题和帘头）
     [singleHeader, multipleHeader, judgeHeader, quizTitleHeader, quizFooterGlobal].forEach(el => {
         if (el) el.style.display = 'none';
     });
@@ -555,8 +555,7 @@ async function renderQuiz(quiz) {
     const hasAnyQuiz = groups.single.items.length > 0 || groups.multiple.items.length > 0 || groups.judge.items.length > 0;
     if (!hasAnyQuiz) return;
 
-    // 显示考核总标题（帘头和内容）
-    if (quizTitleHeader) quizTitleHeader.style.display = 'block';
+    // ★ 只显示考核总标题（内容标题，不是帘头）
     if (quizContentTitle) quizContentTitle.style.display = 'block';
 
     // 初始化 questionStates
@@ -566,17 +565,7 @@ async function renderQuiz(quiz) {
     for (const [type, group] of Object.entries(groups)) {
         if (group.items.length === 0) continue;
 
-        // 显示题型帘头
-        if (group.header) {
-            group.header.style.display = 'block';
-            const scoreSpan = group.header.querySelector('.quiz-type-score');
-            if (scoreSpan) {
-                const perScore = group.totalScore / group.items.length;
-                scoreSpan.textContent = `每题${perScore}分，共${group.totalScore}分`;
-            }
-        }
-
-        // 显示内容标题
+        // ★ 只显示内容标题，不操作帘头 header
         if (group.titleEl) {
             group.titleEl.style.display = 'block';
             if (group.scoreTextEl) {
@@ -590,7 +579,7 @@ async function renderQuiz(quiz) {
         if (!container) continue;
         container.style.display = 'block';
 
-        // 渲染题目
+        // 渲染题目（保持原有逻辑不变）
         group.items.forEach((q, localIdx) => {
             const globalIdx = quiz.indexOf(q);
             const wrapper = document.createElement('div');
@@ -697,18 +686,17 @@ async function renderQuiz(quiz) {
         });
     }
 
+    // 强制显示容器（不操作帘头）
+    [singleContainer, multipleContainer, judgeContainer].forEach(el => {
+        if (el) el.style.display = 'block';
+    });
     if (quizFooterGlobal) quizFooterGlobal.style.display = 'block';
     if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.textContent = '✅ 提交考核';
     }
 
-    [singleContainer, multipleContainer, judgeContainer].forEach(el => {
-        if (el) el.style.display = 'block';
-    });
-    if (quizFooterGlobal) quizFooterGlobal.style.display = 'block';
-
-    // 强制显示内容标题（如果有对应题型）
+    // ★ 确保内容标题重新显示（有可能被其他逻辑影响，但我们已经显式设置了 display:block）
     if (quizContentTitle) quizContentTitle.style.display = 'block';
     if (groups.single.items.length > 0 && quizSingleTitle) quizSingleTitle.style.display = 'block';
     if (groups.multiple.items.length > 0 && quizMultipleTitle) quizMultipleTitle.style.display = 'block';
@@ -716,6 +704,7 @@ async function renderQuiz(quiz) {
 
     updateSubmitButtonState();
 }
+
 // ========== Resource Detail Modal ==========
 let currentVideoElement = null;
 
@@ -1555,7 +1544,7 @@ function initStickyHeaders() {
 
         const rect = item.triggerEl.getBoundingClientRect();
         // ★ 强制提前：标题高度 + 200px，保证标题完全滚出
-        const start = rect.top + scrollY - rect.height - 100;
+        const start = rect.top + scrollY - rect.height - 50;
 
         let end = dashboard.scrollHeight;
         for (let j = i + 1; j < items.length; j++) {
@@ -1586,13 +1575,7 @@ function handleScroll() {
     const scrollY = window.pageYOffset || document.documentElement.scrollTop;
 
     if (scrollY < 30) {
-        headerSections.forEach(section => {
-            section.el.classList.remove('active');
-            // 恢复对应的内容标题显示
-            const contentId = section.el.id.replace('Header', 'Title');
-            const contentEl = document.getElementById(contentId);
-            if (contentEl) contentEl.style.display = '';
-        });
+        headerSections.forEach(section => section.el.classList.remove('active'));
         return;
     }
 
@@ -1615,39 +1598,14 @@ function handleScroll() {
         }
     }
 
-    // 先隐藏所有内容标题
-    const allContentTitles = ['quizContentTitle', 'quizSingleTitle', 'quizMultipleTitle', 'quizJudgeTitle'];
-    allContentTitles.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = '';
-    });
-
-    // 如果激活了某个帘头，隐藏对应的内容标题
-    if (activeIndex !== -1) {
-        const section = headerSections[activeIndex];
-        // 根据帘头 id 决定隐藏哪个内容标题
-        const map = {
-            'quizTitleHeader': 'quizContentTitle',
-            'singleHeader': 'quizSingleTitle',
-            'multipleHeader': 'quizMultipleTitle',
-            'judgeHeader': 'quizJudgeTitle'
-        };
-        const contentId = map[section.id];
-        if (contentId) {
-            const contentEl = document.getElementById(contentId);
-            if (contentEl) contentEl.style.display = 'none';
-        }
-        section.el.classList.add('active');
-    }
-
-    // 移除其他帘头的 active 类（已经由前面的循环处理了）
     headerSections.forEach((section, index) => {
-        if (index !== activeIndex) {
+        if (index === activeIndex) {
+            section.el.classList.add('active');
+        } else {
             section.el.classList.remove('active');
         }
     });
 }
-
 function initStickyControl() {
     setTimeout(() => {
         initStickyHeaders();
