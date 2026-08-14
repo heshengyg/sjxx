@@ -1503,7 +1503,6 @@ function initStickyHeaders() {
 
     headers.forEach(h => h.classList.remove('active'));
 
-    // ★ 修正：直接映射选择器字符串
     const triggerMap = {
         'stageNavHeader': '.content-stage-nav .stage-nav label',
         'studyHeader': '#studyContent .study-content-header',
@@ -1516,24 +1515,21 @@ function initStickyHeaders() {
     const scrollY = window.pageYOffset || document.documentElement.scrollTop;
     const headerList = [];
 
+    // 收集每个帘头及其对应的触发元素（不检查可见性）
     const items = [];
     headers.forEach(header => {
         const selector = triggerMap[header.id];
         let triggerEl = null;
-        let isVisible = false;
         if (selector) {
             triggerEl = document.querySelector(selector);
-            if (triggerEl) {
-                const style = getComputedStyle(triggerEl);
-                isVisible = style.display !== 'none';
-            }
         }
-        items.push({ header, triggerEl, isVisible });
+        items.push({ header, triggerEl });
     });
 
     for (let i = 0; i < items.length; i++) {
         const item = items[i];
-        if (!item.isVisible || !item.triggerEl) {
+        if (!item.triggerEl) {
+            // 没有触发元素，永不触发
             headerList.push({
                 el: item.header,
                 start: Infinity,
@@ -1547,10 +1543,11 @@ function initStickyHeaders() {
         // 提前量：标题高度 + 50px 余量（可根据需要调整）
         const start = rect.top + scrollY - rect.height - 50;
 
+        // 结束位置：下一个触发元素的顶部，或 dashboard 底部
         let end = dashboard.scrollHeight;
         for (let j = i + 1; j < items.length; j++) {
             const next = items[j];
-            if (next.isVisible && next.triggerEl) {
+            if (next.triggerEl) {
                 const nextRect = next.triggerEl.getBoundingClientRect();
                 end = nextRect.top + scrollY;
                 break;
@@ -1569,6 +1566,7 @@ function initStickyHeaders() {
     isHeaderInitialized = true;
     handleScroll();
 }
+
 function handleScroll() {
     if (!isHeaderInitialized || headerSections.length === 0) return;
 
