@@ -1190,7 +1190,7 @@ async function updateStageUI(data) {
     updateStageProgress(currentViewStage, data.resources);
 }
 // ========== 快速切换阶段 ==========
-function switchStageSync(stageId) {
+async function switchStageSync(stageId) {
     if (isSwitching) return;
     isSwitching = true;
 
