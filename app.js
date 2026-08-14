@@ -1517,34 +1517,79 @@ function initStickyHeaders() {
     const dashboard = document.getElementById('dashboard');
     if (!dashboard || headers.length === 0) return;
 
-    // 先移除所有 active 类
+    // 移除所有 active 类
     headers.forEach(h => h.classList.remove('active'));
 
-    // 临时显示所有帘头，以便获取其位置（但不触发 active）
-    headers.forEach(h => h.style.display = 'block');
+    // 定义每个帘头对应的内容标题选择器
+    const triggerMap = {
+        'stageNavHeader': '.content-stage-nav .stage-nav label',   // “切换阶段”行
+        'studyHeader': '#studyContent .study-content-header',      // 学习资源标题区域
+        'quizTitleHeader': '#quizContentTitle',                   // “阶段考核”标题
+        'singleHeader': '#quizSingleTitle',                       // “一、单选题”标题
+        'multipleHeader': '#quizMultipleTitle',                   // “二、多选题”标题
+        'judgeHeader': '#quizJudgeTitle'                          // “三、判断题”标题
+    };
 
-    const headerList = [];
     const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+    const headerList = [];
 
-    headers.forEach((header, index) => {
-        const rect = header.getBoundingClientRect();
-        // ★ 关键：提前触发，让帘头在内容标题即将滚出时出现（偏移量 -300px）
-        const top = rect.top + scrollY -300;
-        const next = headers[index + 1];
-        const nextTop = next ? next.getBoundingClientRect().top + scrollY : dashboard.scrollHeight;
-        headerList.push({
-            el: header,
-            start: top,
-            end: nextTop,
-            id: header.id
-        });
+    // 收集每个帘头及其对应触发元素的状态
+    const items = [];
+    headers.forEach(header => {
+        const selector = triggerMap[header.id];
+        let triggerEl = null;
+        let isVisible = false;
+        if (selector) {
+            triggerEl = document.querySelector(selector);
+            if (triggerEl) {
+                // 检查元素是否可见（display !== 'none'）
+                const style = getComputedStyle(triggerEl);
+                isVisible = style.display !== 'none';
+            }
+        }
+        items.push({ header, triggerEl, isVisible });
     });
 
-    // 恢复显示状态（由后续滚动控制）
-    headers.forEach(h => h.style.display = '');
+    // 计算每个可见帘头的触发区间
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        // 如果不可见或没有触发元素，则该帘头永不触发
+        if (!item.isVisible || !item.triggerEl) {
+            headerList.push({
+                el: item.header,
+                start: Infinity,
+                end: Infinity,
+                id: item.header.id
+            });
+            continue;
+        }
+
+        // 触发元素的顶部绝对位置（即内容标题的顶部）
+        const rect = item.triggerEl.getBoundingClientRect();
+        const start = rect.top + scrollY;
+
+        // 结束位置：下一个可见内容标题的顶部，或 dashboard 底部
+        let end = dashboard.scrollHeight;
+        for (let j = i + 1; j < items.length; j++) {
+            const next = items[j];
+            if (next.isVisible && next.triggerEl) {
+                const nextRect = next.triggerEl.getBoundingClientRect();
+                end = nextRect.top + scrollY;
+                break;
+            }
+        }
+
+        headerList.push({
+            el: item.header,
+            start: start,
+            end: end,
+            id: item.header.id
+        });
+    }
 
     headerSections = headerList;
     isHeaderInitialized = true;
+    // 立即执行一次 handleScroll 以应用当前滚动位置
     handleScroll();
 }
 function handleScroll() {
@@ -1552,24 +1597,36 @@ function handleScroll() {
 
     const scrollY = window.pageYOffset || document.documentElement.scrollTop;
 
+    // 滚动距离小于 30px 时，所有帘头隐藏（避免顶部干扰）
     if (scrollY < 30) {
         headerSections.forEach(section => section.el.classList.remove('active'));
         return;
     }
 
     let activeIndex = -1;
+    // 查找第一个满足 scrollY 在其区间内的帘头
     for (let i = 0; i < headerSections.length; i++) {
         const section = headerSections[i];
-        if (scrollY >= section.start - 30 && scrollY < section.end) {
+        // 只有当 scrollY 在 [start, end) 之间时激活
+        if (scrollY >= section.start && scrollY < section.end) {
             activeIndex = i;
             break;
         }
     }
 
-    if (activeIndex === -1 && scrollY >= headerSections[headerSections.length - 1].start) {
-        activeIndex = headerSections.length - 1;
+    // 如果未找到，但滚动已超过最后一个可见帘头的 start，则激活最后一个可见帘头
+    if (activeIndex === -1) {
+        // 找出所有非 Infinity 的帘头（即可见的），取最后一个
+        const visibleSections = headerSections.filter(s => s.start !== Infinity);
+        if (visibleSections.length > 0) {
+            const last = visibleSections[visibleSections.length - 1];
+            if (scrollY >= last.start) {
+                activeIndex = headerSections.indexOf(last);
+            }
+        }
     }
 
+    // 应用 active 类
     headerSections.forEach((section, index) => {
         if (index === activeIndex) {
             section.el.classList.add('active');
@@ -1578,7 +1635,6 @@ function handleScroll() {
         }
     });
 }
-
 function initStickyControl() {
     setTimeout(() => {
         initStickyHeaders();
