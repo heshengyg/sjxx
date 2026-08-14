@@ -5,203 +5,301 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>松鼠逛逛 · 商家学堂</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* ============================================================
+           新增：内容区域阶段列表 - 垂直显示（上下直显）
+           ============================================================ */
+
+        /* 覆盖 .stage-list 的默认水平滑动，改为垂直列表 */
+        #stageListContent.stage-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-x: visible;
+            overflow-y: visible;
+            flex-wrap: nowrap;
+            padding: 2px 0;
+            /* 移除水平滑动的滚动条 */
+            -webkit-overflow-scrolling: auto;
+            scrollbar-width: auto;
+        }
+
+        /* 垂直列表中的每个阶段卡片 */
+        #stageListContent .stage-card {
+            flex: none;
+            width: 100%;
+            white-space: normal;
+            padding: 10px 16px;
+            justify-content: space-between;
+            border-radius: 12px;
+            background: #f5f8fc;
+            border: 1px solid #e4eaf0;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #stageListContent .stage-card:hover {
+            background: #eef5fa;
+        }
+
+        #stageListContent .stage-card.active {
+            border-color: #1f7b4d;
+            background: #e3f3ea;
+        }
+
+        #stageListContent .stage-card.locked {
+            background: #f0f2f5;
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+
+        #stageListContent .stage-card .stage-label {
+            font-size: 14px;
+            font-weight: 500;
+            flex: 1;
+        }
+
+        #stageListContent .stage-card .stage-status {
+            font-size: 13px;
+            color: #5e6f7d;
+            flex-shrink: 0;
+        }
+
+        #stageListContent .stage-card.active .stage-status {
+            color: #1f7b4d;
+        }
+
+        #stageListContent .stage-card.locked .stage-status {
+            color: #a0aab4;
+        }
+
+        /* 内容区域的 stage-nav 微调 */
+        .content-stage-nav .stage-nav label {
+            display: block;
+            font-size: 15px;
+            color: #5e6f7d;
+            margin-bottom: 6px;
+        }
+
+        /* ========== 移动端适配 ========== */
+        @media (max-width: 480px) {
+            #stageListContent .stage-card {
+                padding: 8px 12px;
+                border-radius: 10px;
+            }
+            #stageListContent .stage-card .stage-label {
+                font-size: 13px;
+            }
+            #stageListContent .stage-card .stage-status {
+                font-size: 12px;
+            }
+            .content-stage-nav .stage-nav label {
+                font-size: 13px;
+                margin-bottom: 4px;
+            }
+        }
+
+        /* ========== 确保帘头 .stage-list 不受影响 ========== */
+        /* 帘头中的 #stageList 继续使用 .stage-list 的默认水平滑动样式 */
+        #stageList.stage-list {
+            /* 保持原有水平滑动样式，无需覆盖 */;
+        }
+    </style>
 </head>
 <body>
-<div id="app">
-    <!-- 头部 -->
-    <div class="header">
-        <div class="header-left">
-            <h1>🐿️ 松鼠逛逛</h1>
-            <span class="badge">商家学堂</span>
+    <div id="app">
+        <!-- 头部 -->
+        <div class="header">
+            <div class="header-left">
+                <h1>🐿️ 松鼠逛逛</h1>
+                <span class="badge">商家学堂</span>
+            </div>
+            <div class="avatar-wrapper" id="avatarWrapper">
+                <div class="avatar-circle" id="avatarCircle">商</div>
+                <div class="dropdown-menu" id="dropdownMenu">
+                    <button class="dropdown-item" id="changeAvatarBtn">🖼️ 更改头像</button>
+                    <button class="dropdown-item" id="changePasswordBtn">🔑 更改密码</button>
+                    <button class="dropdown-item danger" id="logoutBtn">🚪 退出登录</button>
+                </div>
+            </div>
         </div>
-        <div class="avatar-wrapper" id="avatarWrapper">
-            <div class="avatar-circle" id="avatarCircle">商</div>
-            <div class="dropdown-menu" id="dropdownMenu">
-                <button class="dropdown-item" id="changeAvatarBtn">🖼️ 更改头像</button>
-                <button class="dropdown-item" id="changePasswordBtn">🔑 更改密码</button>
-                <button class="dropdown-item danger" id="logoutBtn">🚪 退出登录</button>
+        <div class="sub">分级学习 · 自动晋级 · 免费赋能</div>
+
+        <!-- 登录卡片 -->
+        <div id="authCard" class="card">
+            <div class="auth-title">商家身份</div>
+            <input id="phoneInput" class="input-field" type="text" placeholder="手机号 (注册/登录)" />
+            <input id="passwordInput" class="input-field" type="password" placeholder="密码 (6位以上)" />
+            <input id="nameInput" class="input-field" type="text" placeholder="店铺名称 (首次注册时填写)" />
+            <button id="authBtn" class="btn">注册 / 登录</button>
+            <div id="loginProgressWrap" class="login-progress-wrap hidden">
+                <div class="login-progress-bar" id="loginProgressBar" style="width:0%"></div>
+                <span class="login-progress-text" id="loginProgressText">0%</span>
+            </div>
+            <div id="authMsg" class="msg hidden"></div>
+        </div>
+
+        <!-- 主面板 -->
+        <div id="dashboard" class="hidden">
+            <!-- 顶部信息 -->
+            <div class="user-info">
+                <span class="shop-name" id="shopNameDisplay">——</span>
+                <span id="levelDisplay" class="level-tag">入门商家</span>
+            </div>
+            <div class="status" id="statusText">📖 当前阶段：第一阶段</div>
+            <div class="progress-wrap"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-labels">
+                <span id="stepLabel">学习进度 0%</span>
+                <span id="nextLevelLabel">下一等级：进阶商家</span>
+            </div>
+
+            <!-- ===== 内容区域阶段切换（上下直显） ===== -->
+            <div class="content-stage-nav">
+                <div class="stage-nav">
+                    <!-- ✅ 修改 label 文字：去除"左右滑动"字样，因为此处为垂直列表 -->
+                    <label>切换阶段：</label>
+                    <div id="stageListContent" class="stage-list"></div>
+                </div>
+            </div>
+
+            <!-- ===== 帘头1：阶段导航（左右滑动） ===== -->
+            <div class="sticky-header" id="stageNavHeader">
+                <div class="stage-nav">
+                    <label>切换阶段（左右滑动）：</label>
+                    <div id="stageList" class="stage-list"></div>
+                </div>
+            </div>
+
+            <!-- ===== 帘头2：学习资源（三行） ===== -->
+            <div class="sticky-header" id="studyHeader">
+                <div class="study-title-bar">
+                    <div class="study-header-title" id="studyHeaderTitle">📘 第一阶段：认知破局</div>
+                    <div class="study-header-desc" id="studyHeaderDesc">加速实现新零售方案</div>
+                    <div class="study-header-progress" id="studyHeaderProgress">资源完成：0/2 | 已学 1分13秒 / 总需 1分56秒 | 剩余 0分42秒</div>
+                </div>
+            </div>
+
+            <!-- ===== 学习资源内容（正常流） ===== -->
+            <div id="studyContent" class="card">
+                <div class="study-content-header">
+                    <div class="study-content-title" id="studyContentTitle">📘 第一阶段：认知破局</div>
+                    <div class="study-content-desc" id="studyContentDescription">加速实现新零售方案</div>
+                    <div class="study-content-progress" id="studyContentProgress">资源完成：0/2 | 已学 1分13秒 / 总需 1分56秒 | 剩余 0分42秒</div>
+                </div>
+                <div id="resourcesContainer"></div>
+                <div id="learnMsg" class="msg hidden"></div>
+            </div>
+
+            <!-- ===== 帘头3：考核总标题 ===== -->
+            <div class="sticky-header" id="quizTitleHeader">
+                <div class="quiz-title-bar">
+                    <div class="quiz-title">📝 阶段考核</div>
+                </div>
+            </div>
+
+            <!-- ===== 考核内容（普通流） ===== -->
+            <div class="quiz-content-wrapper">
+                <div class="quiz-content-title" id="quizContentTitle">📝 阶段考核</div>
+
+                <div class="quiz-type-title" id="quizSingleTitle">一、单选题 <span id="quizSingleScoreText">每题5分，共50分</span></div>
+                <div class="sticky-header quiz-type-header" id="singleHeader">
+                    <div class="quiz-type-bar">
+                        <span class="quiz-type-label">一、单选题</span>
+                        <span class="quiz-type-score" id="singleScore">每题5分，共50分</span>
+                    </div>
+                </div>
+                <div class="quiz-type-body" id="singleContainer"></div>
+
+                <div class="quiz-type-title" id="quizMultipleTitle">二、多选题 <span id="quizMultipleScoreText">每题5分，共20分</span></div>
+                <div class="sticky-header quiz-type-header" id="multipleHeader">
+                    <div class="quiz-type-bar">
+                        <span class="quiz-type-label">二、多选题</span>
+                        <span class="quiz-type-score" id="multipleScore">每题5分，共20分</span>
+                    </div>
+                </div>
+                <div class="quiz-type-body" id="multipleContainer"></div>
+
+                <div class="quiz-type-title" id="quizJudgeTitle">三、判断题 <span id="quizJudgeScoreText">每题5分，共20分</span></div>
+                <div class="sticky-header quiz-type-header" id="judgeHeader">
+                    <div class="quiz-type-bar">
+                        <span class="quiz-type-label">三、判断题</span>
+                        <span class="quiz-type-score" id="judgeScore">每题5分，共20分</span>
+                    </div>
+                </div>
+                <div class="quiz-type-body" id="judgeContainer"></div>
+
+                <div class="quiz-footer-global" id="quizFooterGlobal">
+                    <button id="submitQuizBtn" class="btn submit-btn">✅ 提交考核</button>
+                    <div id="quizResult" class="msg hidden"></div>
+                </div>
+            </div>
+
+            <!-- 底部栏 -->
+            <div class="bottom-bar">
+                <button id="refreshBtn" class="btn btn-outline refresh-btn">🔄 刷新状态</button>
+                <div class="footnote">系统自动考核 · 达标即晋级</div>
+            </div>
+        </div>
+
+        <!-- 浮动导航按钮 -->
+        <div class="float-nav" id="floatNav">
+            <button class="float-btn" id="goTopBtn" title="回到顶部">⬆</button>
+            <button class="float-btn" id="goBottomBtn" title="回到底部">⬇</button>
+        </div>
+
+        <!-- 资源详情模态框 -->
+        <div class="modal-overlay" id="detailModal">
+            <div class="modal-card modal-large">
+                <div class="modal-header">
+                    <h3 id="detailTitle">标题</h3>
+                    <button class="modal-close" id="detailCloseBtn">&times;</button>
+                </div>
+                <div id="detailBody"></div>
+                <div id="detailProgress" class="progress-info"></div>
+            </div>
+        </div>
+
+        <!-- 头像模态框 -->
+        <div class="modal-overlay" id="avatarModal">
+            <div class="modal-card">
+                <h3>🖼️ 更改头像</h3>
+                <div style="text-align:center; margin-bottom:12px;">
+                    <div class="avatar-circle" id="modalAvatarPreview" style="width:80px; height:80px; font-size:32px; margin:0 auto;">商</div>
+                </div>
+                <label class="upload-label" for="avatarFileInput">📁 选择图片 (≤50KB)</label>
+                <input type="file" id="avatarFileInput" accept="image/*">
+                <div id="avatarModalMsg" class="msg hidden"></div>
+                <div class="btn-row">
+                    <button class="btn" id="avatarSaveBtn">保存头像</button>
+                    <button class="btn btn-outline" id="avatarCancelBtn">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 密码模态框 -->
+        <div class="modal-overlay" id="passwordModal">
+            <div class="modal-card">
+                <h3>🔑 更改密码</h3>
+                <input type="password" id="oldPasswordInput" class="input-field" placeholder="旧密码">
+                <input type="password" id="newPasswordInput" class="input-field" placeholder="新密码 (至少6位)">
+                <input type="password" id="confirmPasswordInput" class="input-field" placeholder="确认新密码">
+                <div id="passwordModalMsg" class="msg hidden"></div>
+                <div class="btn-row">
+                    <button class="btn" id="passwordSaveBtn">保存密码</button>
+                    <button class="btn btn-outline" id="passwordCancelBtn">取消</button>
+                </div>
             </div>
         </div>
     </div>
-    <div class="sub">分级学习 · 自动晋级 · 免费赋能</div>
 
-    <!-- 登录卡片 -->
-    <div id="authCard" class="card">
-        <div class="auth-title">商家身份</div>
-        <input id="phoneInput" class="input-field" type="text" placeholder="手机号 (注册/登录)" />
-        <input id="passwordInput" class="input-field" type="password" placeholder="密码 (6位以上)" />
-        <input id="nameInput" class="input-field" type="text" placeholder="店铺名称 (首次注册时填写)" />
-        <button id="authBtn" class="btn">注册 / 登录</button>
-        <div id="loginProgressWrap" class="login-progress-wrap hidden">
-            <div class="login-progress-bar" id="loginProgressBar" style="width:0%"></div>
-            <span class="login-progress-text" id="loginProgressText">0%</span>
-        </div>
-        <div id="authMsg" class="msg hidden"></div>
-    </div>
-
-    <!-- 主面板 -->
-    <div id="dashboard" class="hidden">
-        <!-- 顶部信息 -->
-        <div class="user-info">
-            <span class="shop-name" id="shopNameDisplay">——</span>
-            <span id="levelDisplay" class="level-tag">入门商家</span>
-        </div>
-        <div class="status" id="statusText">📖 当前阶段：第一阶段</div>
-        <div class="progress-wrap"><div class="progress-fill" id="progressFill"></div></div>
-        <div class="progress-labels">
-            <span id="stepLabel">学习进度 0%</span>
-            <span id="nextLevelLabel">下一等级：进阶商家</span>
-        </div>
-
-        <!-- ===== 内容区域阶段切换（普通流） ===== -->
-        <div class="content-stage-nav">
-            <div class="stage-nav">
-                <label>切换阶段（左右滑动）：</label>
-                <div id="stageListContent" class="stage-list"></div>
-            </div>
-        </div>
-
-        <!-- ===== 帘头1：阶段导航 ===== -->
-        <div class="sticky-header" id="stageNavHeader">
-            <div class="stage-nav">
-                <label>切换阶段（左右滑动）：</label>
-                <div id="stageList" class="stage-list"></div>
-            </div>
-        </div>
-
-        <!-- ===== 帘头2：学习资源（三行） ===== -->
-        <div class="sticky-header" id="studyHeader">
-            <div class="study-title-bar">
-                <div class="study-header-title" id="studyHeaderTitle">📘 第一阶段：认知破局</div>
-                <div class="study-header-desc" id="studyHeaderDesc">加速实现新零售方案</div>
-                <div class="study-header-progress" id="studyHeaderProgress">资源完成：0/2 | 已学 1分13秒 / 总需 1分56秒 | 剩余 0分42秒</div>
-            </div>
-        </div>
-
-        <!-- ===== 学习资源内容（正常流） ===== -->
-        <div id="studyContent" class="card">
-            <!-- 正常流三行 -->
-            <div class="study-content-header">
-                <div class="study-content-title" id="studyContentTitle">📘 第一阶段：认知破局</div>
-                <div class="study-content-desc" id="studyContentDescription">加速实现新零售方案</div>
-                <div class="study-content-progress" id="studyContentProgress">资源完成：0/2 | 已学 1分13秒 / 总需 1分56秒 | 剩余 0分42秒</div>
-            </div>
-            <div id="resourcesContainer"></div>
-            <div id="learnMsg" class="msg hidden"></div>
-        </div>
-
-        <!-- ===== 帘头3：考核总标题 ===== -->
-        <div class="sticky-header" id="quizTitleHeader">
-            <div class="quiz-title-bar">
-                <div class="quiz-title">📝 阶段考核</div>
-            </div>
-        </div>
-
-       <!-- ===== 考核内容（普通流） ===== -->
-<div class="quiz-content-wrapper">
-    <!-- ✅ 新增：普通流考核总标题 -->
-    <div class="quiz-content-title" id="quizContentTitle">📝 阶段考核</div>
-
-    <!-- ===== 帘头4：单选题 ===== -->
-    <!-- ✅ 新增：普通流单选题标题 -->
-    <div class="quiz-type-title" id="quizSingleTitle">一、单选题 <span id="quizSingleScoreText">每题5分，共50分</span></div>
-    <div class="sticky-header quiz-type-header" id="singleHeader">
-        <div class="quiz-type-bar">
-            <span class="quiz-type-label">一、单选题</span>
-            <span class="quiz-type-score" id="singleScore">每题5分，共50分</span>
-        </div>
-    </div>
-    <div class="quiz-type-body" id="singleContainer"></div>
-
-    <!-- ===== 帘头5：多选题 ===== -->
-    <!-- ✅ 新增：普通流多选题标题 -->
-    <div class="quiz-type-title" id="quizMultipleTitle">二、多选题 <span id="quizMultipleScoreText">每题5分，共20分</span></div>
-    <div class="sticky-header quiz-type-header" id="multipleHeader">
-        <div class="quiz-type-bar">
-            <span class="quiz-type-label">二、多选题</span>
-            <span class="quiz-type-score" id="multipleScore">每题5分，共20分</span>
-        </div>
-    </div>
-    <div class="quiz-type-body" id="multipleContainer"></div>
-
-    <!-- ===== 帘头6：判断题 ===== -->
-    <!-- ✅ 新增：普通流判断题标题 -->
-    <div class="quiz-type-title" id="quizJudgeTitle">三、判断题 <span id="quizJudgeScoreText">每题5分，共20分</span></div>
-    <div class="sticky-header quiz-type-header" id="judgeHeader">
-        <div class="quiz-type-bar">
-            <span class="quiz-type-label">三、判断题</span>
-            <span class="quiz-type-score" id="judgeScore">每题5分，共20分</span>
-        </div>
-    </div>
-    <div class="quiz-type-body" id="judgeContainer"></div>
-
-    <!-- ===== 考核底部：提交按钮 ===== -->
-    <div class="quiz-footer-global" id="quizFooterGlobal">
-        <button id="submitQuizBtn" class="btn submit-btn">✅ 提交考核</button>
-        <div id="quizResult" class="msg hidden"></div>
-    </div>
-</div>
-
-        <!-- 底部栏 -->
-        <div class="bottom-bar">
-            <button id="refreshBtn" class="btn btn-outline refresh-btn">🔄 刷新状态</button>
-            <div class="footnote">系统自动考核 · 达标即晋级</div>
-        </div>
-    </div>
-
-    <!-- 浮动导航按钮 -->
-    <div class="float-nav" id="floatNav">
-        <button class="float-btn" id="goTopBtn" title="回到顶部">⬆</button>
-        <button class="float-btn" id="goBottomBtn" title="回到底部">⬇</button>
-    </div>
-
-    <!-- 资源详情模态框 -->
-    <div class="modal-overlay" id="detailModal">
-        <div class="modal-card modal-large">
-            <div class="modal-header">
-                <h3 id="detailTitle">标题</h3>
-                <button class="modal-close" id="detailCloseBtn">&times;</button>
-            </div>
-            <div id="detailBody"></div>
-            <div id="detailProgress" class="progress-info"></div>
-        </div>
-    </div>
-
-    <!-- 头像模态框 -->
-    <div class="modal-overlay" id="avatarModal">
-        <div class="modal-card">
-            <h3>🖼️ 更改头像</h3>
-            <div style="text-align:center; margin-bottom:12px;">
-                <div class="avatar-circle" id="modalAvatarPreview" style="width:80px; height:80px; font-size:32px; margin:0 auto;">商</div>
-            </div>
-            <label class="upload-label" for="avatarFileInput">📁 选择图片 (≤50KB)</label>
-            <input type="file" id="avatarFileInput" accept="image/*">
-            <div id="avatarModalMsg" class="msg hidden"></div>
-            <div class="btn-row">
-                <button class="btn" id="avatarSaveBtn">保存头像</button>
-                <button class="btn btn-outline" id="avatarCancelBtn">取消</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 密码模态框 -->
-    <div class="modal-overlay" id="passwordModal">
-        <div class="modal-card">
-            <h3>🔑 更改密码</h3>
-            <input type="password" id="oldPasswordInput" class="input-field" placeholder="旧密码">
-            <input type="password" id="newPasswordInput" class="input-field" placeholder="新密码 (至少6位)">
-            <input type="password" id="confirmPasswordInput" class="input-field" placeholder="确认新密码">
-            <div id="passwordModalMsg" class="msg hidden"></div>
-            <div class="btn-row">
-                <button class="btn" id="passwordSaveBtn">保存密码</button>
-                <button class="btn btn-outline" id="passwordCancelBtn">取消</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-<script src="app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js">
+    </script>
+    <script src="app.js">
+    </script>
 </body>
 </html>
