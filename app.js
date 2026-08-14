@@ -696,11 +696,16 @@ async function renderQuiz(quiz) {
         submitBtn.textContent = '✅ 提交考核';
     }
 
-    // ★ 确保内容标题重新显示（有可能被其他逻辑影响，但我们已经显式设置了 display:block）
+    // ★ 确保内容标题重新显示
     if (quizContentTitle) quizContentTitle.style.display = 'block';
     if (groups.single.items.length > 0 && quizSingleTitle) quizSingleTitle.style.display = 'block';
     if (groups.multiple.items.length > 0 && quizMultipleTitle) quizMultipleTitle.style.display = 'block';
     if (groups.judge.items.length > 0 && quizJudgeTitle) quizJudgeTitle.style.display = 'block';
+
+    // ★ 重置帘头内联样式，让 CSS 控制显示
+    [singleHeader, multipleHeader, judgeHeader, quizTitleHeader].forEach(el => {
+        if (el) el.style.display = '';
+    });
 
     updateSubmitButtonState();
 }
