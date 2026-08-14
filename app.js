@@ -1517,23 +1517,20 @@ function initStickyHeaders() {
     const dashboard = document.getElementById('dashboard');
     if (!dashboard || headers.length === 0) return;
 
-    // 移除所有 active 类
     headers.forEach(h => h.classList.remove('active'));
 
-    // 定义每个帘头对应的内容标题选择器
     const triggerMap = {
-        'stageNavHeader': '.content-stage-nav .stage-nav label',   // “切换阶段”行
-        'studyHeader': '#studyContent .study-content-header',      // 学习资源标题区域
-        'quizTitleHeader': '#quizContentTitle',                   // “阶段考核”标题
-        'singleHeader': '#quizSingleTitle',                       // “一、单选题”标题
-        'multipleHeader': '#quizMultipleTitle',                   // “二、多选题”标题
-        'judgeHeader': '#quizJudgeTitle'                          // “三、判断题”标题
+        'stageNavHeader': '.content-stage-nav .stage-nav label',
+        'studyHeader': '#studyContent .study-content-header',
+        'quizTitleHeader': '#quizContentTitle',
+        'singleHeader': '#quizSingleTitle',
+        'multipleHeader': '#quizMultipleTitle',
+        'judgeHeader': '#quizJudgeTitle'
     };
 
     const scrollY = window.pageYOffset || document.documentElement.scrollTop;
     const headerList = [];
 
-    // 收集每个帘头及其对应触发元素的状态
     const items = [];
     headers.forEach(header => {
         const selector = triggerMap[header.id];
@@ -1542,7 +1539,6 @@ function initStickyHeaders() {
         if (selector) {
             triggerEl = document.querySelector(selector);
             if (triggerEl) {
-                // 检查元素是否可见（display !== 'none'）
                 const style = getComputedStyle(triggerEl);
                 isVisible = style.display !== 'none';
             }
@@ -1550,10 +1546,8 @@ function initStickyHeaders() {
         items.push({ header, triggerEl, isVisible });
     });
 
-    // 计算每个可见帘头的触发区间
     for (let i = 0; i < items.length; i++) {
         const item = items[i];
-        // 如果不可见或没有触发元素，则该帘头永不触发
         if (!item.isVisible || !item.triggerEl) {
             headerList.push({
                 el: item.header,
@@ -1564,11 +1558,10 @@ function initStickyHeaders() {
             continue;
         }
 
-        // 触发元素的顶部绝对位置（即内容标题的顶部）
         const rect = item.triggerEl.getBoundingClientRect();
-        const start = rect.top + scrollY;
+        // ★ 关键修改：提前标题高度 + 20px，确保标题完全滚出
+        const start = rect.top + scrollY - rect.height - 20;
 
-        // 结束位置：下一个可见内容标题的顶部，或 dashboard 底部
         let end = dashboard.scrollHeight;
         for (let j = i + 1; j < items.length; j++) {
             const next = items[j];
@@ -1589,7 +1582,6 @@ function initStickyHeaders() {
 
     headerSections = headerList;
     isHeaderInitialized = true;
-    // 立即执行一次 handleScroll 以应用当前滚动位置
     handleScroll();
 }
 function handleScroll() {
