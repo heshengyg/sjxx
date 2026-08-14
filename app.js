@@ -1515,13 +1515,13 @@ function initStickyHeaders() {
     headers.forEach(h => h.classList.remove('active'));
 
     const triggerMap = {
-        'stageNavHeader': '.content-stage-nav .stage-nav label',
-        'studyHeader': '#studyContent .study-content-header',
-        'quizTitleHeader': '#quizContentTitle',
-        'singleHeader': '#quizSingleTitle',
-        'multipleHeader': '#quizMultipleTitle',
-        'judgeHeader': '#quizJudgeTitle'
-    };
+    'stageNavHeader': { trigger: '.content-stage-nav .stage-nav label', content: null },
+    'studyHeader': { trigger: '#studyContent .study-content-header', content: null },
+    'quizTitleHeader': { trigger: '#quizContentTitle', content: '#quizContentTitle' },
+    'singleHeader': { trigger: '#quizSingleTitle', content: '#quizSingleTitle' },
+    'multipleHeader': { trigger: '#quizMultipleTitle', content: '#quizMultipleTitle' },
+    'judgeHeader': { trigger: '#quizJudgeTitle', content: '#quizJudgeTitle' }
+};
 
     const scrollY = window.pageYOffset || document.documentElement.scrollTop;
     const headerList = [];
@@ -1555,7 +1555,7 @@ function initStickyHeaders() {
 
         const rect = item.triggerEl.getBoundingClientRect();
         // ★ 强制提前：标题高度 + 200px，保证标题完全滚出
-        const start = rect.top + scrollY - rect.height - 200;
+        const start = rect.top + scrollY - rect.height - 100;
 
         let end = dashboard.scrollHeight;
         for (let j = i + 1; j < items.length; j++) {
@@ -1586,7 +1586,13 @@ function handleScroll() {
     const scrollY = window.pageYOffset || document.documentElement.scrollTop;
 
     if (scrollY < 30) {
-        headerSections.forEach(section => section.el.classList.remove('active'));
+        headerSections.forEach(section => {
+            section.el.classList.remove('active');
+            // 恢复对应的内容标题显示
+            const contentId = section.el.id.replace('Header', 'Title');
+            const contentEl = document.getElementById(contentId);
+            if (contentEl) contentEl.style.display = '';
+        });
         return;
     }
 
@@ -1609,10 +1615,34 @@ function handleScroll() {
         }
     }
 
+    // 先隐藏所有内容标题
+    const allContentTitles = ['quizContentTitle', 'quizSingleTitle', 'quizMultipleTitle', 'quizJudgeTitle'];
+    allContentTitles.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = '';
+    });
+
+    // 如果激活了某个帘头，隐藏对应的内容标题
+    if (activeIndex !== -1) {
+        const section = headerSections[activeIndex];
+        // 根据帘头 id 决定隐藏哪个内容标题
+        const map = {
+            'quizTitleHeader': 'quizContentTitle',
+            'singleHeader': 'quizSingleTitle',
+            'multipleHeader': 'quizMultipleTitle',
+            'judgeHeader': 'quizJudgeTitle'
+        };
+        const contentId = map[section.id];
+        if (contentId) {
+            const contentEl = document.getElementById(contentId);
+            if (contentEl) contentEl.style.display = 'none';
+        }
+        section.el.classList.add('active');
+    }
+
+    // 移除其他帘头的 active 类（已经由前面的循环处理了）
     headerSections.forEach((section, index) => {
-        if (index === activeIndex) {
-            section.el.classList.add('active');
-        } else {
+        if (index !== activeIndex) {
             section.el.classList.remove('active');
         }
     });
