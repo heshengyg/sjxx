@@ -1214,24 +1214,31 @@ async function switchStageSync(stageId) {
     if (isSwitching) return;
     isSwitching = true;
 
-    const data = allStageData[stageId] || stageData[stageId];
+    let data = allStageData[stageId] || stageData[stageId];
     if (!data) {
-        isSwitching = false;
-        return;
+        // 尝试重新加载该阶段数据
+        console.warn(`阶段 ${stageId} 数据不存在，尝试重新加载...`);
+        data = await loadStageData(stageId);
+        if (!data) {
+            isSwitching = false;
+            alert(`阶段 ${stageId} 数据加载失败，请检查网络或刷新页面重试。`);
+            return;
+        }
     }
 
-        currentViewStage = stageId;
+    currentViewStage = stageId;
     await updateStageUI(data);
 
+    // 更新所有阶段卡片的激活状态（帘头和内容区）
     document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
     const cards = document.querySelectorAll('.stage-card');
     if (cards[stageId - 1]) cards[stageId - 1].classList.add('active');
-    // 同步内容区域
     const contentCards = document.querySelectorAll('#stageListContent .stage-card');
     if (contentCards[stageId - 1]) contentCards[stageId - 1].classList.add('active');
 
     isSwitching = false;
 
+    // 重置帘头滚动控制
     setTimeout(() => {
         isHeaderInitialized = false;
         initStickyHeaders();
