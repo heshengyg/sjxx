@@ -509,6 +509,10 @@ async function renderQuiz(quiz) {
     const quizTitleHeader = document.getElementById('quizTitleHeader');
     const quizFooterGlobal = document.getElementById('quizFooterGlobal');
     const submitBtn = document.getElementById('submitQuizBtn');
+// 获取帘头中的分数显示元素（用于设置分数）
+const singleScoreEl = document.getElementById('singleScore');
+const multipleScoreEl = document.getElementById('multipleScore');
+const judgeScoreEl = document.getElementById('judgeScore');
 
     // 内容标题元素
     const quizContentTitle = document.getElementById('quizContentTitle');
@@ -563,21 +567,33 @@ async function renderQuiz(quiz) {
 
     // 渲染各题型
     for (const [type, group] of Object.entries(groups)) {
-        if (group.items.length === 0) continue;
+    if (group.items.length === 0) continue;
 
-        // ★ 只显示内容标题，不操作帘头 header
-        if (group.titleEl) {
-            group.titleEl.style.display = 'block';
-            if (group.scoreTextEl) {
-                const perScore = group.totalScore / group.items.length;
-                group.scoreTextEl.textContent = `每题${perScore}分，共${group.totalScore}分`;
-            }
+    // 计算分数文本（内容标题和帘头共用）
+    const perScore = group.totalScore / group.items.length;
+    const scoreText = `每题${perScore}分，共${group.totalScore}分`;
+
+    // 显示内容标题
+    if (group.titleEl) {
+        group.titleEl.style.display = 'block';
+        if (group.scoreTextEl) {
+            group.scoreTextEl.textContent = scoreText;
         }
+    }
 
-        // 显示题型容器
-        const container = group.container;
-        if (!container) continue;
-        container.style.display = 'block';
+    // ★ 更新对应的帘头分数（关键新增）
+    if (type === 'single' && singleScoreEl) {
+        singleScoreEl.textContent = scoreText;
+    } else if (type === 'multiple' && multipleScoreEl) {
+        multipleScoreEl.textContent = scoreText;
+    } else if (type === 'judge' && judgeScoreEl) {
+        judgeScoreEl.textContent = scoreText;
+    }
+
+    // 显示题型容器
+    const container = group.container;
+    if (!container) continue;
+    container.style.display = 'block';
 
         // 渲染题目（保持原有逻辑不变）
         group.items.forEach((q, localIdx) => {
