@@ -1517,68 +1517,71 @@ function initStickyHeaders() {
     const dashboard = document.getElementById('dashboard');
     if (!dashboard || headers.length === 0) return;
 
-    // 先移除所有 active 类
-    headers.forEach(h => h.classList.remove('active'));
+    // 建立映射：帘头 id -> 对应的内容标题元素选择器
+    const triggerMap = {
+        'stageNavHeader': '.content-stage-nav .stage-nav label', // 内容区"切换阶段"标签
+        'studyHeader': '#studyContent .study-content-header',    // 学习资源标题区域
+        'quizTitleHeader': '#quizContentTitle',                 // 考核总标题
+        'singleHeader': '#quizSingleTitle',                     // 单选题标题
+        'multipleHeader': '#quizMultipleTitle',                 // 多选题标题
+        'judgeHeader': '#quizJudgeTitle'                        // 判断题标题
+    };
 
-    // 临时显示所有帘头，以便获取其位置（但不触发 active）
-    headers.forEach(h => h.style.display = 'block');
-
-    const headerList = [];
-    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
-
-    headers.forEach((header, index) => {
-        const rect = header.getBoundingClientRect();
-        // ★ 关键：提前触发，让帘头在内容标题即将滚出时出现（偏移量 -250px）
-        const top = rect.top + scrollY -250;
-        const next = headers[index + 1];
-        const nextTop = next ? next.getBoundingClientRect().top + scrollY : dashboard.scrollHeight;
-        headerList.push({
+    // 为每个帘头保存对应的触发元素（如果存在）
+    const headerTriggers = [];
+    headers.forEach(header => {
+        const triggerId = header.id;
+        let triggerEl = null;
+        if (triggerMap[triggerId]) {
+            triggerEl = document.querySelector(triggerMap[triggerId]);
+        }
+        // 如果触发元素不存在，则默认使用帘头自身（但实际不会）
+        headerTriggers.push({
             el: header,
-            start: top,
-            end: nextTop,
-            id: header.id
+            triggerEl: triggerEl || header
         });
     });
 
-    // 恢复显示状态（由后续滚动控制）
-    headers.forEach(h => h.style.display = '');
-
-    headerSections = headerList;
+    // 存储到全局供 handleScroll 使用
+    window._headerTriggers = headerTriggers;
     isHeaderInitialized = true;
+    // 立即执行一次
     handleScroll();
 }
+
 function handleScroll() {
-    if (!isHeaderInitialized || headerSections.length === 0) return;
+    if (!isHeaderInitialized) return;
 
-    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+    const triggers = window._headerTriggers || [];
+    if (triggers.length === 0) return;
 
-    if (scrollY < 30) {
-        headerSections.forEach(section => section.el.classList.remove('active'));
-        return;
-    }
-
+    // 找出当前应该激活的帘头
     let activeIndex = -1;
-    for (let i = 0; i < headerSections.length; i++) {
-        const section = headerSections[i];
-        if (scrollY >= section.start - 30 && scrollY < section.end) {
-            activeIndex = i;
-            break;
+    // 从后往前遍历，优先激活后面的（因为后面的帘头优先级高，替换前面的）
+    for (let i = triggers.length - 1; i >= 0; i--) {
+        const item = triggers[i];
+        const el = item.triggerEl;
+        // 检查触发元素是否在视口顶部（或刚滚出）
+        const rect = el.getBoundingClientRect();
+        // 当触发元素的顶部 <= 0 时，表示它已经滚出视口，此时应激活对应的帘头
+        if (rect.top <= 0) {
+            // 但是要确保该帘头是可见的（没有被 display:none 隐藏）
+            if (item.el.style.display !== 'none' && getComputedStyle(item.el).display !== 'none') {
+                activeIndex = i;
+                break;
+            }
         }
     }
 
-    if (activeIndex === -1 && scrollY >= headerSections[headerSections.length - 1].start) {
-        activeIndex = headerSections.length - 1;
-    }
-
-    headerSections.forEach((section, index) => {
+    // 如果都没有触发，则全部隐藏
+    triggers.forEach((item, index) => {
         if (index === activeIndex) {
-            section.el.classList.add('active');
+            item.el.classList.add('active');
         } else {
-            section.el.classList.remove('active');
+            item.el.classList.remove('active');
         }
     });
 }
-
 function initStickyControl() {
     setTimeout(() => {
         initStickyHeaders();
