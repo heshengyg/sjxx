@@ -97,41 +97,50 @@
             </div>
         </div>
 
-        <!-- ===== 考核内容（普通流） ===== -->
-        <div class="quiz-content-wrapper">
-            <!-- ===== 帘头4：单选题 ===== -->
-            <div class="sticky-header quiz-type-header" id="singleHeader">
-                <div class="quiz-type-bar">
-                    <span class="quiz-type-label">一、单选题</span>
-                    <span class="quiz-type-score" id="singleScore">每题5分，共50分</span>
-                </div>
-            </div>
-            <div class="quiz-type-body" id="singleContainer"></div>
+       <!-- ===== 考核内容（普通流） ===== -->
+<div class="quiz-content-wrapper">
+    <!-- ✅ 新增：普通流考核总标题 -->
+    <div class="quiz-content-title" id="quizContentTitle">📝 阶段考核</div>
 
-            <!-- ===== 帘头5：多选题 ===== -->
-            <div class="sticky-header quiz-type-header" id="multipleHeader">
-                <div class="quiz-type-bar">
-                    <span class="quiz-type-label">二、多选题</span>
-                    <span class="quiz-type-score" id="multipleScore">每题5分，共20分</span>
-                </div>
-            </div>
-            <div class="quiz-type-body" id="multipleContainer"></div>
-
-            <!-- ===== 帘头6：判断题 ===== -->
-            <div class="sticky-header quiz-type-header" id="judgeHeader">
-                <div class="quiz-type-bar">
-                    <span class="quiz-type-label">三、判断题</span>
-                    <span class="quiz-type-score" id="judgeScore">每题5分，共20分</span>
-                </div>
-            </div>
-            <div class="quiz-type-body" id="judgeContainer"></div>
-
-            <!-- ===== 考核底部：提交按钮 ===== -->
-            <div class="quiz-footer-global" id="quizFooterGlobal">
-                <button id="submitQuizBtn" class="btn submit-btn">✅ 提交考核</button>
-                <div id="quizResult" class="msg hidden"></div>
-            </div>
+    <!-- ===== 帘头4：单选题 ===== -->
+    <!-- ✅ 新增：普通流单选题标题 -->
+    <div class="quiz-type-title" id="quizSingleTitle">一、单选题 <span id="quizSingleScoreText">每题5分，共50分</span></div>
+    <div class="sticky-header quiz-type-header" id="singleHeader">
+        <div class="quiz-type-bar">
+            <span class="quiz-type-label">一、单选题</span>
+            <span class="quiz-type-score" id="singleScore">每题5分，共50分</span>
         </div>
+    </div>
+    <div class="quiz-type-body" id="singleContainer"></div>
+
+    <!-- ===== 帘头5：多选题 ===== -->
+    <!-- ✅ 新增：普通流多选题标题 -->
+    <div class="quiz-type-title" id="quizMultipleTitle">二、多选题 <span id="quizMultipleScoreText">每题5分，共20分</span></div>
+    <div class="sticky-header quiz-type-header" id="multipleHeader">
+        <div class="quiz-type-bar">
+            <span class="quiz-type-label">二、多选题</span>
+            <span class="quiz-type-score" id="multipleScore">每题5分，共20分</span>
+        </div>
+    </div>
+    <div class="quiz-type-body" id="multipleContainer"></div>
+
+    <!-- ===== 帘头6：判断题 ===== -->
+    <!-- ✅ 新增：普通流判断题标题 -->
+    <div class="quiz-type-title" id="quizJudgeTitle">三、判断题 <span id="quizJudgeScoreText">每题5分，共20分</span></div>
+    <div class="sticky-header quiz-type-header" id="judgeHeader">
+        <div class="quiz-type-bar">
+            <span class="quiz-type-label">三、判断题</span>
+            <span class="quiz-type-score" id="judgeScore">每题5分，共20分</span>
+        </div>
+    </div>
+    <div class="quiz-type-body" id="judgeContainer"></div>
+
+    <!-- ===== 考核底部：提交按钮 ===== -->
+    <div class="quiz-footer-global" id="quizFooterGlobal">
+        <button id="submitQuizBtn" class="btn submit-btn">✅ 提交考核</button>
+        <div id="quizResult" class="msg hidden"></div>
+    </div>
+</div>
 
         <!-- 底部栏 -->
         <div class="bottom-bar">

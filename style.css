@@ -764,3 +764,45 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
         font-size: 15px;
     }
 }
+/* ========== 内容区域考核标题（普通流） ========== */
+.quiz-content-title {
+    font-weight: 700;
+    font-size: 18px;
+    color: #1a2e3b;
+    padding: 14px 0 10px 0;
+    border-bottom: 2px solid #eef2f6;
+    margin-bottom: 10px;
+}
+
+.quiz-type-title {
+    font-weight: 600;
+    font-size: 16px;
+    color: #1a2e3b;
+    padding: 12px 0 6px 0;
+    border-bottom: 1px solid #eef2f6;
+    margin-top: 6px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.quiz-type-title span {
+    font-weight: 400;
+    font-size: 14px;
+    color: #5e6f7d;
+}
+
+@media (max-width: 480px) {
+    .quiz-content-title {
+        font-size: 16px;
+        padding: 10px 0 8px 0;
+    }
+    .quiz-type-title {
+        font-size: 14px;
+        padding: 8px 0 4px 0;
+    }
+    .quiz-type-title span {
+        font-size: 12px;
+    }
+}
