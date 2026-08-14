@@ -942,13 +942,22 @@ function navigateImage(delta) {
 // ========== Timer ==========
 function startTimer(resourceId, duration) {
     // 已有计时器或已完成，直接返回
-    if (timerIntervals[resourceId]) return;
-    if (progressMap[resourceId] && progressMap[resourceId].completed) return;
-
-    // ★ 关键修复：确保 duration 为正数
-    if (duration <= 0 || isNaN(duration)) {
-        duration = 60; // 默认1分钟
+    if (timerIntervals[resourceId]) {
+        console.log(`⏱️ 计时器已存在，跳过: ${resourceId}`);
+        return;
     }
+    if (progressMap[resourceId] && progressMap[resourceId].completed) {
+        console.log(`✅ 资源已完成，跳过: ${resourceId}`);
+        return;
+    }
+
+    // ★ 修复：确保 duration 为正数
+    if (typeof duration !== 'number' || duration <= 0 || isNaN(duration)) {
+        console.warn(`⚠️ duration 无效 (${duration})，强制设为 60 秒，资源: ${resourceId}`);
+        duration = 60;
+    }
+
+    console.log(`▶️ 启动计时器: ${resourceId}，总时长 ${duration} 秒`);
 
     if (!timerElapsed[resourceId]) timerElapsed[resourceId] = 0;
 
@@ -956,6 +965,7 @@ function startTimer(resourceId, duration) {
         timerElapsed[resourceId] += 1;
         const elapsed = timerElapsed[resourceId];
         const progress = Math.min(100, Math.round((elapsed / duration) * 100));
+        console.log(`📈 进度更新: ${resourceId}，已过 ${elapsed}s，进度 ${progress}%`);
         updateResourceProgress(resourceId, progress, 0);
         updateDetailProgress(resourceId);
         if (progress >= 100) {
@@ -965,6 +975,7 @@ function startTimer(resourceId, duration) {
     }, 1000);
     timerIntervals[resourceId] = interval;
 }
+
 function stopTimer(resourceId) {
     if (timerIntervals[resourceId]) {
         clearInterval(timerIntervals[resourceId]);
