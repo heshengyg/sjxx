@@ -562,8 +562,20 @@ const judgeScoreEl = document.getElementById('judgeScore');
     // ★ 只显示考核总标题（内容标题，不是帘头）
     if (quizContentTitle) quizContentTitle.style.display = 'block';
 
-    // 初始化 questionStates
-    questionStates = quiz.map(() => ({ confirmed: false, selected: [] }));
+        // 初始化 questionStates：优先从 Supabase 加载已保存状态
+    let savedState = null;
+    if (currentUser && isExamStage && quiz && quiz.length > 0) {
+        savedState = await loadQuizStateFromSupabase(currentViewStage);
+    }
+    if (savedState && savedState.questionStates && savedState.questionStates.length === quiz.length) {
+        // 确保每个状态都有 selected 和 confirmed 字段
+        questionStates = savedState.questionStates.map(s => ({
+            selected: s.selected || [],
+            confirmed: s.confirmed || false
+        }));
+    } else {
+        questionStates = quiz.map(() => ({ confirmed: false, selected: [] }));
+    }
 
 
     // 渲染各题型
@@ -1164,7 +1176,7 @@ function buildStageCards(container, currentStage, maxUnlocked) {
 }
 
 // ========== 更新阶段 UI ==========
-function updateStageUI(data) {
+async function updateStageUI(data) {
     if (!data) return;
     if (studyHeaderTitle) studyHeaderTitle.textContent = `📘 ${data.title}`;
     if (studyHeaderDesc) studyHeaderDesc.textContent = data.description || '';
@@ -1174,10 +1186,9 @@ function updateStageUI(data) {
     if (stageDesc) stageDesc.textContent = data.description || '';
     renderResources(currentViewStage, data.resources);
     controlQuizAreaVisibility(currentViewStage);
-    renderQuiz(data.quiz);
+    await renderQuiz(data.quiz);
     updateStageProgress(currentViewStage, data.resources);
 }
-
 // ========== 快速切换阶段 ==========
 function switchStageSync(stageId) {
     if (isSwitching) return;
@@ -1189,8 +1200,8 @@ function switchStageSync(stageId) {
         return;
     }
 
-    currentViewStage = stageId;
-    updateStageUI(data);
+        currentViewStage = stageId;
+    await updateStageUI(data);
 
     document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
     const cards = document.querySelectorAll('.stage-card');
@@ -1232,7 +1243,7 @@ async function updateDashboard(user) {
 
     const data = await loadStageData(currentViewStage);
     if (data) {
-        updateStageUI(data);
+        await updateStageUI(data);
     } else {
         if (stageTitle) stageTitle.textContent = `📘 第${currentViewStage}阶段`;
         if (stageDesc) stageDesc.textContent = '数据加载失败，请检查网络或JSON文件。';
