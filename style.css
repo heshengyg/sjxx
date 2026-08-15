@@ -817,30 +817,34 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     font-weight: 700;
 }
 
-/* 3. 帘头中的 "切换阶段（左右滑动）：" 标签 */
+/* 3. 内容区 "切换阶段：" 标签（非帘头） */
+.content-stage-nav .stage-nav label {
+    font-weight: 700;
+    color: #1a2e3b; /* 深色 */
+}
+
+/* 4. 帘头中的 "切换阶段（左右滑动）：" 标签 */
 #stageNavHeader .stage-nav label {
     font-weight: 700;
+    color: #1a2e3b; /* 改为深色，原来可能灰色 */
 }
 
 /* ===== 阶段描述缩进 + 符号 ===== */
 /* 内容区的阶段描述 */
 .study-content-desc {
-    padding-left: 2em;       /* 缩进2个中文字符 */
-    position: relative;
+    padding-left: 2em;          /* 整体缩进2字符 */
+    font-weight: 700;           /* 如果有加粗需求，保留 */
 }
 .study-content-desc::before {
-    content: "▸ ";           /* 可用 ▶ 或 ▸ 等符号 */
-    position: absolute;
-    left: 0;
+    content: "▶ ";              /* 符号和空格 */
+    /* 不设置position:absolute，默认inline，会出现在缩进内部 */
 }
 
 /* 帘头中的阶段描述（保持视觉一致） */
 .study-header-desc {
     padding-left: 2em;
-    position: relative;
+    font-weight: 700;
 }
 .study-header-desc::before {
-    content: "▸ ";
-    position: absolute;
-    left: 0;
+    content: "▶ ";
 }
