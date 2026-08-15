@@ -142,6 +142,38 @@
             <div id="authMsg" class="msg hidden"></div>
         </div>
 
+<!-- ===== 登录页面权益展示 ===== -->
+<div id="benefitsSection" class="benefits-section">
+    <div class="benefits-header">
+        <div class="benefits-title">🎁 学习权益包</div>
+        <div class="benefits-total">总价值 <span class="total-value" id="totalValue">¥0</span></div>
+    </div>
+    <div class="benefits-table-wrap">
+        <table class="benefits-table" id="benefitsTable">
+            <thead>
+                <tr><th>阶段</th><th>解锁权益</th><th>价值</th></tr>
+            </thead>
+            <tbody id="benefitsBody"></tbody>
+        </table>
+    </div>
+    <div class="benefits-footer">🎯 完成全部学习，解锁所有权益！</div>
+</div>
+
+<!-- ===== 权益弹窗 ===== -->
+<div class="modal-overlay" id="benefitsModal">
+    <div class="modal-card benefits-modal-card">
+        <div class="modal-header">
+            <h3>🎁 你的学习权益</h3>
+        </div>
+        <div id="benefitsModalBody">
+            <!-- 动态渲染 -->
+        </div>
+        <div class="benefits-modal-footer">
+            <button class="btn" id="benefitsModalCloseBtn">我知道了</button>
+        </div>
+    </div>
+</div>
+
         <!-- 主面板 -->
         <div id="dashboard" class="hidden">
             <!-- 顶部信息 -->

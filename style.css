@@ -856,3 +856,196 @@ body {
         font-size: 14px;
     }
 }
+/* ========== 权益展示（登录页面） ========== */
+.benefits-section {
+    background: linear-gradient(145deg, #f8faff 0%, #e8f0fe 100%);
+    border-radius: 24px;
+    padding: 20px 18px 18px;
+    margin-top: 16px;
+    border: 1px solid #dce3eb;
+    box-shadow: 0 4px 12px rgba(0,20,30,0.06);
+}
+.benefits-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+.benefits-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a2e3b;
+}
+.benefits-total {
+    font-size: 18px;
+    font-weight: 600;
+    color: #5e6f7d;
+}
+.total-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: #d4a017;
+    background: linear-gradient(135deg, #d4a017, #f5d742);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-left: 4px;
+}
+.benefits-table-wrap {
+    overflow-x: auto;
+}
+.benefits-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+}
+.benefits-table thead th {
+    background: #1a2e3b;
+    color: #fff;
+    padding: 10px 8px;
+    text-align: left;
+    font-weight: 600;
+}
+.benefits-table thead th:first-child { border-radius: 12px 0 0 0; }
+.benefits-table thead th:last-child { border-radius: 0 12px 0 0; }
+.benefits-table tbody td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #e4eaf0;
+    background: #fff;
+}
+.benefits-table tbody tr:last-child td:first-child { border-radius: 0 0 0 12px; }
+.benefits-table tbody tr:last-child td:last-child { border-radius: 0 0 12px 0; }
+.benefits-table tbody tr:hover td {
+    background: #f0f5fa;
+}
+.benefits-table .benefit-value {
+    font-weight: 700;
+    color: #1f7b4d;
+    text-align: right;
+    padding-right: 12px;
+}
+.benefits-footer {
+    text-align: center;
+    margin-top: 12px;
+    font-size: 15px;
+    color: #2e4a5e;
+    font-weight: 500;
+    background: #eef5f0;
+    padding: 8px;
+    border-radius: 40px;
+}
+
+/* ========== 权益弹窗 ========== */
+.benefits-modal-card {
+    max-width: 480px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+.benefits-modal-card .modal-header h3 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a2e3b;
+}
+.benefits-modal-body {
+    padding: 4px 0 12px;
+}
+.benefits-modal-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: #f8faff;
+    margin-bottom: 6px;
+    border: 1px solid #eef2f6;
+    transition: 0.15s;
+}
+.benefits-modal-item.unlocked {
+    border-color: #1f7b4d;
+    background: #eefaf4;
+}
+.benefits-modal-item .item-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.benefits-modal-item .item-status {
+    font-size: 18px;
+    width: 28px;
+    text-align: center;
+}
+.benefits-modal-item .item-name {
+    font-weight: 500;
+    font-size: 15px;
+}
+.benefits-modal-item .item-value {
+    font-size: 14px;
+    color: #5e6f7d;
+}
+.benefits-modal-progress {
+    margin: 16px 0 8px;
+    background: #e6eaef;
+    height: 8px;
+    border-radius: 20px;
+    overflow: hidden;
+}
+.benefits-modal-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #1f7b4d, #2ecc71);
+    border-radius: 20px;
+    transition: width 0.5s ease;
+}
+.benefits-modal-summary {
+    display: flex;
+    justify-content: space-between;
+    font-size: 15px;
+    color: #1a2e3b;
+    font-weight: 500;
+    margin-top: 4px;
+}
+.benefits-modal-footer {
+    margin-top: 16px;
+    display: flex;
+    justify-content: center;
+}
+.benefits-modal-footer .btn {
+    width: auto;
+    padding: 12px 36px;
+    font-size: 17px;
+    background: #1f7b4d;
+}
+.benefits-modal-footer .btn:hover {
+    background: #16633b;
+}
+
+/* ========== 移动端适配 ========== */
+@media (max-width: 480px) {
+    .benefits-title {
+        font-size: 17px;
+    }
+    .benefits-total {
+        font-size: 15px;
+    }
+    .total-value {
+        font-size: 22px;
+    }
+    .benefits-table {
+        font-size: 13px;
+    }
+    .benefits-table thead th,
+    .benefits-table tbody td {
+        padding: 6px 4px;
+    }
+    .benefits-modal-item {
+        padding: 8px 10px;
+        font-size: 14px;
+    }
+    .benefits-modal-item .item-name {
+        font-size: 14px;
+    }
+    .benefits-modal-footer .btn {
+        padding: 10px 24px;
+        font-size: 15px;
+    }
+}

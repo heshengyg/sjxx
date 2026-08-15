@@ -42,6 +42,105 @@ let isDataPreloaded = false;
 let allStageData = {};
 let isSwitching = false;
 
+// ========== ★ 新增：权益数据 ==========
+let benefitsData = null;
+let benefitsLoaded = false;
+
+async function loadBenefits() {
+    if (benefitsLoaded) return benefitsData;
+    try {
+        const resp = await fetch('benefits.json');
+        if (!resp.ok) throw new Error('加载权益数据失败');
+        const data = await resp.json();
+        benefitsData = data;
+        benefitsLoaded = true;
+        return data;
+    } catch (e) {
+        console.warn('权益数据加载失败，使用默认数据', e);
+        // 默认数据（防止页面空白）
+        benefitsData = {
+            total_value: 2883,
+            stages: [
+                { stage: 1, title: '第一阶段：认知破局', benefit: '解锁专属课程', value: 199 },
+                { stage: 2, title: '第二阶段：方向定位', benefit: '等级标识+流量扶持', value: 299 },
+                { stage: 3, title: '第三阶段：资源深挖', benefit: '资源对接+专属社群', value: 399 },
+                { stage: 4, title: '第四阶段：平台认知', benefit: '进阶标识+数据分析', value: 499 },
+                { stage: 5, title: '第五阶段：商家实操', benefit: '实操工具包+运营指导', value: 599 },
+                { stage: 6, title: '第六阶段：运营进阶', benefit: '精英标识+学习礼包', value: 888 }
+            ]
+        };
+        benefitsLoaded = true;
+        return benefitsData;
+    }
+}
+
+async function renderBenefitsTable() {
+    const data = await loadBenefits();
+    const tbody = document.getElementById('benefitsBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    data.stages.forEach(s => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${s.title}</td>
+            <td>${s.benefit}</td>
+            <td class="benefit-value">¥${s.value}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+    document.getElementById('totalValue').textContent = `¥${data.total_value}`;
+}
+
+function showBenefitsPopup() {
+    const modal = document.getElementById('benefitsModal');
+    const body = document.getElementById('benefitsModalBody');
+    if (!modal || !body) return;
+
+    // 若全部解锁，不再弹出（由调用处控制）
+    const stages = currentUser ? currentUser.completed_stages || [] : [];
+    const allUnlocked = stages.length >= TOTAL_STAGES;
+    if (allUnlocked) {
+        modal.classList.remove('open');
+        return;
+    }
+
+    loadBenefits().then(data => {
+        let html = '<div class="benefits-modal-body">';
+        data.stages.forEach(s => {
+            const unlocked = stages.includes(s.stage);
+            const statusIcon = unlocked ? '✅' : '🔒';
+            const statusClass = unlocked ? 'unlocked' : '';
+            html += `
+                <div class="benefits-modal-item ${statusClass}">
+                    <div class="item-left">
+                        <span class="item-status">${statusIcon}</span>
+                        <span class="item-name">${s.title}</span>
+                    </div>
+                    <span class="item-value">${unlocked ? '已解锁' : '未解锁'} · ¥${s.value}</span>
+                </div>
+            `;
+        });
+        const progress = Math.round((stages.length / TOTAL_STAGES) * 100);
+        html += `
+            <div class="benefits-modal-progress">
+                <div class="benefits-modal-progress-bar" style="width:${progress}%"></div>
+            </div>
+            <div class="benefits-modal-summary">
+                <span>学习进度 ${stages.length}/${TOTAL_STAGES}</span>
+                <span>当前等级：${currentUser ? getLevelFromStages(stages).label : '入门商家'}</span>
+            </div>
+        </div>
+        `;
+        body.innerHTML = html;
+        modal.classList.add('open');
+    });
+}
+
+function closeBenefitsPopup() {
+    document.getElementById('benefitsModal').classList.remove('open');
+}
+// ========== ★ 新增结束 ==========
+
 // DOM helpers
 const $ = id => document.getElementById(id);
 const authCard = $('authCard'), dashboard = $('dashboard');
@@ -1297,6 +1396,14 @@ async function updateDashboard(user) {
     }
 
     initStickyControl();
+
+    // ========== ★ 新增：权益弹窗逻辑 ==========
+    // 仅在未全部解锁时弹出（每次登录都弹出）
+    if (stages.length < TOTAL_STAGES) {
+        setTimeout(() => {
+            showBenefitsPopup();
+        }, 800);
+    }
 }
 
 // ========== Auth ==========
@@ -1732,6 +1839,12 @@ if (nameInput) nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter
 
 console.log('🐿️ 松鼠逛逛商家学堂');
 
+// ========== ★ 新增：权益弹窗关闭事件绑定 ==========
+document.getElementById('benefitsModalCloseBtn').addEventListener('click', closeBenefitsPopup);
+document.getElementById('benefitsModal').addEventListener('click', function(e) {
+    if (e.target === this) closeBenefitsPopup();
+});
+
 // ========== 浮动导航按钮控制 ==========
 function initFloatNav() {
     const floatNav = document.getElementById('floatNav');
@@ -1784,4 +1897,6 @@ function initFloatNav() {
 
 document.addEventListener('DOMContentLoaded', function() {
     initFloatNav();
+    // ★ 新增：页面加载时渲染权益表格（登录前也显示）
+    renderBenefitsTable();
 });
