@@ -824,3 +824,35 @@ body {
     font-size: 16px;
     color: #5e6f7d;
 }
+/* ========== 切换阶段容器 - 卡片样式 ========== */
+.content-stage-nav {
+    background: #f8faff;
+    border-radius: 20px;
+    padding: 16px 18px;
+    margin-bottom: 16px;
+    border: 1px solid #eef2f6;
+}
+
+/* 调整内部 stage-nav 的 padding，避免重复 */
+.content-stage-nav .stage-nav {
+    padding: 0; /* 原来有 4px 0 8px，去除外部边距，内部卡片已提供 */
+}
+
+/* 内容区切换阶段的标签样式，与卡片内其他文字统一 */
+.content-stage-nav .stage-nav label {
+    font-size: 15px; /* 与学习资源标题大小一致 */
+    font-weight: 700;
+    color: #1a2e3b;
+    margin-bottom: 6px;
+}
+
+/* 移动端适配 */
+@media (max-width: 480px) {
+    .content-stage-nav {
+        padding: 12px 12px;
+        margin-bottom: 12px;
+    }
+    .content-stage-nav .stage-nav label {
+        font-size: 14px;
+    }
+}
