@@ -806,23 +806,41 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
         font-size: 12px;
     }
 }
-/* 加粗切换阶段标签 */
-.content-stage-nav .stage-nav label {
+/* ===== 加粗需求 ===== */
+/* 1. 副标题 "分级学习 · 自动晋级 · 免费赋能" */
+.sub {
     font-weight: 700;
 }
 
-/* 加粗学习资源的标题和描述（内容区域） */
-.study-content-title {
+/* 2. 状态文字 "📖 当前阶段：2 · 等级 入门商家" */
+.status {
     font-weight: 700;
 }
+
+/* 3. 帘头中的 "切换阶段（左右滑动）：" 标签 */
+#stageNavHeader .stage-nav label {
+    font-weight: 700;
+}
+
+/* ===== 阶段描述缩进 + 符号 ===== */
+/* 内容区的阶段描述 */
 .study-content-desc {
-    font-weight: 700;
+    padding-left: 2em;       /* 缩进2个中文字符 */
+    position: relative;
+}
+.study-content-desc::before {
+    content: "▸ ";           /* 可用 ▶ 或 ▸ 等符号 */
+    position: absolute;
+    left: 0;
 }
 
-/* （可选）加粗帘头中的标题和描述，保持视觉一致 */
-.study-header-title {
-    font-weight: 700;
-}
+/* 帘头中的阶段描述（保持视觉一致） */
 .study-header-desc {
-    font-weight: 700;
+    padding-left: 2em;
+    position: relative;
+}
+.study-header-desc::before {
+    content: "▸ ";
+    position: absolute;
+    left: 0;
 }
