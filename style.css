@@ -848,3 +848,34 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 .study-header-desc::before {
     content: "▶ ";
 }
+/* ========== 移动端：减小左右内边距，让内容更满 ========== */
+@media (max-width: 480px) {
+    #app {
+        padding: 16px 10px 20px; /* 左右从 12px 减到 10px */
+    }
+    /* 如果还需要更窄边距，可设为 8px */
+}
+
+/* ========== 模态框宽度限制 ========== */
+.modal-overlay {
+    padding: 10px; /* 保证边缘有间距 */
+}
+.modal-card {
+    max-width: 480px; /* 与 #app 最大宽度一致 */
+    width: 100%;
+    margin: 0 auto;
+    padding: 20px 16px; /* 内部适当内边距 */
+}
+
+/* 模态框内的图片/视频自适应，防止溢出 */
+#detailBody video,
+#detailBody img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* 文章内容也限制宽度 */
+#detailBody .article-content {
+    max-width: 100%;
+    word-wrap: break-word;
+}
