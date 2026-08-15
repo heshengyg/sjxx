@@ -806,3 +806,23 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
         font-size: 12px;
     }
 }
+/* 加粗切换阶段标签 */
+.content-stage-nav .stage-nav label {
+    font-weight: 700;
+}
+
+/* 加粗学习资源的标题和描述（内容区域） */
+.study-content-title {
+    font-weight: 700;
+}
+.study-content-desc {
+    font-weight: 700;
+}
+
+/* （可选）加粗帘头中的标题和描述，保持视觉一致 */
+.study-header-title {
+    font-weight: 700;
+}
+.study-header-desc {
+    font-weight: 700;
+}
