@@ -948,26 +948,32 @@ function startTimer(resourceId, duration) {
         console.log(`⏱️ 计时器已存在，跳过: ${resourceId}`);
         return;
     }
-    if (progressMap[resourceId] && progressMap[resourceId].completed) {
+    const prog = progressMap[resourceId];
+    if (prog && prog.completed) {
         console.log(`✅ 资源已完成，跳过: ${resourceId}`);
         return;
     }
 
-    // ★ 修复：确保 duration 为正数
+    // 确保 duration 为正数
     if (typeof duration !== 'number' || duration <= 0 || isNaN(duration)) {
         console.warn(`⚠️ duration 无效 (${duration})，强制设为 60 秒，资源: ${resourceId}`);
         duration = 60;
     }
 
-    console.log(`▶️ 启动计时器: ${resourceId}，总时长 ${duration} 秒`);
+    // ★ 从已有进度计算已用时间（若进度为0则从0开始）
+    let elapsed = 0;
+    if (prog && prog.progress > 0 && prog.progress < 100) {
+        elapsed = Math.floor((prog.progress / 100) * duration);
+    }
+    timerElapsed[resourceId] = elapsed;
 
-    if (!timerElapsed[resourceId]) timerElapsed[resourceId] = 0;
+    console.log(`▶️ 启动计时器: ${resourceId}，总时长 ${duration} 秒，起始进度 ${prog ? prog.progress : 0}%`);
 
     const interval = setInterval(() => {
         timerElapsed[resourceId] += 1;
-        const elapsed = timerElapsed[resourceId];
-        const progress = Math.min(100, Math.round((elapsed / duration) * 100));
-        console.log(`📈 进度更新: ${resourceId}，已过 ${elapsed}s，进度 ${progress}%`);
+        const elapsedNow = timerElapsed[resourceId];
+        const progress = Math.min(100, Math.round((elapsedNow / duration) * 100));
+        console.log(`📈 进度更新: ${resourceId}，已过 ${elapsedNow}s，进度 ${progress}%`);
         updateResourceProgress(resourceId, progress, 0);
         updateDetailProgress(resourceId);
         if (progress >= 100) {
