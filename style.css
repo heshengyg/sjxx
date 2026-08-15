@@ -1,14 +1,14 @@
 /* ========== 全局 ========== */
 * { margin:0; padding:0; box-sizing:border-box; font-family: system-ui, -apple-system, sans-serif; }
-body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; font-size:18px; } /* 基础字号增大 */
 #app { max-width:480px; width:100%; background:#fff; border-radius:32px; padding:24px 20px 30px; box-shadow:0 20px 40px rgba(0,20,30,0.08); position:relative; }
 
 /* ========== 头部 ========== */
 .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
 .header-left { display:flex; align-items:center; gap:8px; }
-.header-left h1 { font-size:24px; font-weight:600; color:#1a2e3b; }
-.badge { background:#eef5f0; color:#1f7b4d; font-size:13px; padding:2px 14px; border-radius:30px; }
-.sub { color:#5e6f7d; font-size:15px; margin-bottom:24px; padding-bottom:12px; border-bottom:1px solid #ecf0f3; }
+.header-left h1 { font-size:26px; font-weight:600; color:#1a2e3b; } /* 24->26 */
+.badge { background:#eef5f0; color:#1f7b4d; font-size:15px; padding:2px 14px; border-radius:30px; } /* 13->15 */
+.sub { color:#5e6f7d; font-size:18px; margin-bottom:24px; padding-bottom:12px; border-bottom:1px solid #ecf0f3; font-weight:700; } /* 15->18 + 加粗 */
 
 /* ========== 头像 ========== */
 .avatar-wrapper { position:relative; cursor:pointer; display:none; }
@@ -17,40 +17,38 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 .avatar-circle.has-avatar { background-size:cover; background-position:center; }
 .dropdown-menu { position:absolute; right:0; top:48px; background:#fff; border-radius:16px; box-shadow:0 8px 24px rgba(0,0,0,0.12); padding:8px 0; min-width:160px; display:none; z-index:100; border:1px solid #e4eaf0; }
 .dropdown-menu.open { display:block; }
-.dropdown-item { padding:10px 18px; font-size:15px; color:#1a2e3b; display:flex; align-items:center; gap:10px; cursor:pointer; border:none; background:none; width:100%; text-align:left; }
+.dropdown-item { padding:10px 18px; font-size:17px; color:#1a2e3b; display:flex; align-items:center; gap:10px; cursor:pointer; border:none; background:none; width:100%; text-align:left; } /* 15->17 */
 .dropdown-item:hover { background:#f0f5fa; }
 .dropdown-item.danger { color:#b33; }
 .dropdown-item.danger:hover { background:#fde8e8; }
 
 /* ========== 卡片 & 输入 ========== */
 .card { background:#f8faff; border-radius:20px; padding:16px 18px; margin-bottom:16px; border:1px solid #eef2f6; }
-.input-field { width:100%; padding:14px 16px; border-radius:40px; border:1px solid #dce3eb; font-size:16px; margin-bottom:12px; outline:none; display:block; }
+.input-field { width:100%; padding:14px 16px; border-radius:40px; border:1px solid #dce3eb; font-size:18px; margin-bottom:12px; outline:none; display:block; } /* 16->18 */
 .input-field:focus { border-color:#1f7b4d; }
-.btn { background:#1a2e3b; color:#fff; font-weight:500; font-size:16px; padding:14px 18px; border-radius:60px; width:100%; cursor:pointer; border:none; transition:0.15s; box-shadow:0 6px 12px rgba(26,46,59,0.08); margin-top:6px; }
+.btn { background:#1a2e3b; color:#fff; font-weight:500; font-size:18px; padding:14px 18px; border-radius:60px; width:100%; cursor:pointer; border:none; transition:0.15s; box-shadow:0 6px 12px rgba(26,46,59,0.08); margin-top:6px; } /* 16->18 */
 .btn:active { transform:scale(0.97); }
 .btn-outline { background:transparent; border:1.5px solid #d0d9e2; color:#1a2e3b; box-shadow:none; }
 .hidden { display:none; }
-.msg { background:#eef5f0; padding:10px 14px; border-radius:40px; color:#1a4d33; font-size:15px; margin:12px 0 8px; }
+.msg { background:#eef5f0; padding:10px 14px; border-radius:40px; color:#1a4d33; font-size:17px; margin:12px 0 8px; } /* 15->17 */
 .msg.error { background:#f8dddd; color:#8b3a3a; }
 
 /* ========== 进度 ========== */
 .progress-wrap { background:#e6eaef; height:8px; border-radius:20px; margin:12px 0 6px; overflow:hidden; }
 .progress-fill { height:100%; width:0%; background:#1f7b4d; border-radius:20px; transition:width 0.4s; }
-.progress-labels { display:flex; justify-content:space-between; font-size:14px; color:#4d6677; margin:4px 0 12px; }
+.progress-labels { display:flex; justify-content:space-between; font-size:16px; color:#4d6677; margin:4px 0 12px; } /* 14->16 */
 .user-info { display:flex; justify-content:space-between; margin-bottom:6px; }
-.shop-name { font-weight:600; font-size:20px; }
-.level-tag { background:#1a2e3b; color:#fff; padding:2px 14px; border-radius:30px; font-size:13px; font-weight:500; }
-.status { font-size:15px; color:#1f2e3a; margin:8px 0 4px; }
+.shop-name { font-weight:600; font-size:22px; } /* 20->22 */
+.level-tag { background:#1a2e3b; color:#fff; padding:2px 14px; border-radius:30px; font-size:15px; font-weight:500; } /* 13->15 */
+.status { font-size:18px; color:#1f2e3a; margin:8px 0 4px; font-weight:700; } /* 15->18 + 加粗 */
 
 /* ============================================================
    ===== 核心：接力式帘头置顶（JS 控制 fixed，默认隐藏） =====
    ============================================================ */
-
 .sticky-header {
-    display: none; /* 默认隐藏，由 JS 控制显示 */
+    display: none;
     background: #fff;
 }
-
 .sticky-header.active {
     display: block;
     position: fixed;
@@ -72,9 +70,10 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 }
 .stage-nav label {
     display: block;
-    font-size: 15px;
-    color: #5e6f7d;
+    font-size: 17px;
+    color: #1a2e3b;
     margin-bottom: 4px;
+    font-weight: 700;
 }
 .stage-list {
     display: flex;
@@ -96,7 +95,7 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     border-radius: 20px;
     background: #eef2f6;
     color: #1a2e3b;
-    font-size: 14px;
+    font-size: 16px;
     cursor: pointer;
     transition: 0.2s;
     border: 2px solid transparent;
@@ -117,10 +116,10 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 }
 .stage-card .stage-label {
     font-weight: 500;
-    font-size: 13px;
+    font-size: 15px;
 }
 .stage-card .stage-status {
-    font-size: 12px;
+    font-size: 14px;
     color: #5e6f7d;
 }
 .stage-card.locked .stage-status {
@@ -131,9 +130,7 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 }
 
 /* ---------- 帘头2：学习资源（三行） ---------- */
-#studyHeader {
-    /* 无额外样式，由 .sticky-header 控制 */
-}
+#studyHeader { /* 无额外样式 */ }
 .study-title-bar {
     background: #f8faff;
     padding: 10px 16px 8px 16px;
@@ -143,16 +140,21 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 }
 .study-title-bar .study-header-title {
     font-weight: 600;
-    font-size: 16px;
+    font-size: 19px;
     margin-bottom: 2px;
 }
 .study-title-bar .study-header-desc {
-    font-size: 14px;
+    font-size: 17px;
     color: #2e4a5e;
     margin-bottom: 2px;
+    padding-left: 2em;
+    font-weight: 700;
+}
+.study-title-bar .study-header-desc::before {
+    content: "▶ ";
 }
 .study-title-bar .study-header-progress {
-    font-size: 14px;
+    font-size: 16px;
     color: #1f7b4d;
     font-weight: 500;
 }
@@ -164,8 +166,6 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     padding: 0 16px 12px 16px;
     margin-top: -1px;
 }
-
-/* 正常流三行 */
 .study-content-header {
     padding: 10px 0 8px 0;
     border-bottom: 1px solid #eef2f6;
@@ -173,16 +173,21 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 }
 .study-content-header .study-content-title {
     font-weight: 600;
-    font-size: 16px;
+    font-size: 19px;
     margin-bottom: 2px;
 }
 .study-content-header .study-content-desc {
-    font-size: 14px;
+    font-size: 17px;
     color: #2e4a5e;
     margin-bottom: 2px;
+    padding-left: 2em;
+    font-weight: 700;
+}
+.study-content-header .study-content-desc::before {
+    content: "▶ ";
 }
 .study-content-header .study-content-progress {
-    font-size: 14px;
+    font-size: 16px;
     color: #1f7b4d;
     font-weight: 500;
 }
@@ -212,18 +217,14 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
-}
-.resource-item .info {
-    flex: 1;
-    min-width: 0;
+    font-size: 26px;
 }
 .resource-item .info .title {
     font-weight: 500;
-    font-size: 15px;
+    font-size: 17px;
 }
 .resource-item .info .status {
-    font-size: 13px;
+    font-size: 15px;
     color: #5e6f7d;
 }
 .resource-item .info .status.completed {
@@ -237,7 +238,7 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     color: #fff;
     padding: 2px 8px;
     border-radius: 12px;
-    font-size: 11px;
+    font-size: 13px;
     flex-shrink: 0;
 }
 .resource-item.completed {
@@ -255,13 +256,11 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     font-weight: 600;
     color: #1a2e3b;
     margin: 0;
-    font-size: 17px;
+    font-size: 20px;
 }
 
 /* ---------- 帘头4/5/6：题型帘头 ---------- */
-.quiz-type-header {
-    background: #fff;
-}
+.quiz-type-header { background: #fff; }
 .quiz-type-bar {
     background: #f8faff;
     padding: 8px 18px 4px 18px;
@@ -272,11 +271,11 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 }
 .quiz-type-label {
     font-weight: 600;
-    font-size: 15px;
+    font-size: 17px;
     color: #1a2e3b;
 }
 .quiz-type-score {
-    font-size: 13px;
+    font-size: 15px;
     color: #5e6f7d;
 }
 
@@ -298,7 +297,7 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 .quiz-item .q-text {
     font-weight: 500;
     margin-bottom: 8px;
-    font-size: 15px;
+    font-size: 17px;
 }
 .quiz-item .options {
     display: flex;
@@ -309,7 +308,7 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 14px;
+    font-size: 16px;
     cursor: pointer;
     padding: 4px 8px;
     border-radius: 8px;
@@ -331,7 +330,7 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     border: none;
     background: #1f7b4d;
     color: #fff;
-    font-size: 13px;
+    font-size: 15px;
     cursor: pointer;
 }
 .quiz-item .confirm-btn.modify {
@@ -339,7 +338,7 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     color: #1a2e3b;
 }
 .quiz-item .status-badge {
-    font-size: 12px;
+    font-size: 14px;
     color: #1f7b4d;
     margin-left: 10px;
 }
@@ -359,13 +358,13 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 .quiz-footer-global .submit-btn {
     margin: 0;
     padding: 12px 18px;
-    font-size: 16px;
+    font-size: 18px;
     border-radius: 40px;
 }
 .quiz-footer-global .msg {
     margin: 8px 0 0 0;
     padding: 8px 14px;
-    font-size: 14px;
+    font-size: 16px;
 }
 
 /* ========== 登录进度条 ========== */
@@ -389,7 +388,7 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     position: absolute;
     right: 0;
     top: -18px;
-    font-size: 12px;
+    font-size: 14px;
     color: #1f7b4d;
     font-weight: 500;
 }
@@ -424,7 +423,7 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
     color: #fff;
-    font-size: 18px;
+    font-size: 20px;
     cursor: pointer;
     box-shadow: 0 4px 12px rgba(0,0,0,0.12);
     transition: all 0.25s ease;
@@ -461,21 +460,21 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     align-items: center;
     justify-content: center;
     z-index: 200;
-    padding: 20px;
+    padding: 10px;
 }
 .modal-overlay.open {
     display: flex;
 }
 .modal-card {
     background: #fff;
-    max-width: 700px;
+    max-width: 480px;
     width: 100%;
     border-radius: 28px;
-    padding: 24px 22px 30px;
+    padding: 20px 16px 30px;
     box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
 }
 .modal-large {
-    max-width: 700px;
+    max-width: 480px;
 }
 .modal-header {
     display: flex;
@@ -486,13 +485,14 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 .modal-close {
     background: none;
     border: none;
-    font-size: 28px;
+    font-size: 32px;
     cursor: pointer;
     color: #5e6f7d;
 }
 #detailBody video,
 #detailBody img {
-    width: 100%;
+    max-width: 100%;
+    height: auto;
     border-radius: 12px;
 }
 #detailBody .article-content {
@@ -501,12 +501,14 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     padding: 12px;
     background: #f8faff;
     border-radius: 12px;
-    font-size: 16px;
+    font-size: 18px;
     line-height: 1.6;
+    max-width: 100%;
+    word-wrap: break-word;
 }
 #detailProgress {
     margin-top: 12px;
-    font-size: 15px;
+    font-size: 17px;
     color: #1f7b4d;
 }
 .img-nav {
@@ -521,7 +523,7 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     border-radius: 30px;
     background: #fff;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 16px;
 }
 .img-nav button:hover {
     background: #eef5fa;
@@ -531,7 +533,7 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 .auth-title {
     font-weight: 600;
     margin-bottom: 12px;
-    font-size: 17px;
+    font-size: 19px;
 }
 .btn-row {
     display: flex;
@@ -556,7 +558,7 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     color: #1f7b4d;
     font-weight: 500;
     margin-bottom: 12px;
-    font-size: 14px;
+    font-size: 16px;
 }
 #avatarFileInput {
     display: none;
@@ -574,7 +576,7 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 .bottom-bar .refresh-btn {
     flex: 0 0 auto;
     padding: 6px 16px;
-    font-size: 13px;
+    font-size: 15px;
     border-radius: 30px;
     margin: 0;
     width: auto;
@@ -584,52 +586,60 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     margin: 0;
     padding: 0;
     text-align: right;
-    font-size: 12px;
+    font-size: 14px;
     color: #7b8b9a;
     border: none;
 }
 
 /* ========== 移动端适配 ========== */
 @media (max-width: 480px) {
+    body {
+        padding: 0 !important;
+        background: #fff;
+    }
     #app {
-        padding: 16px 12px 20px;
+        padding: 10px 6px 14px;
+        max-width: 100%;
+        border-radius: 0;
+        box-shadow: none;
+        width: 100%;
     }
     .header h1 {
-        font-size: 20px;
+        font-size: 22px;
     }
     .sub {
-        font-size: 13px;
+        font-size: 16px;
         margin-bottom: 16px;
     }
     .shop-name {
-        font-size: 18px;
+        font-size: 20px;
     }
     .level-tag {
-        font-size: 12px;
+        font-size: 14px;
         padding: 1px 10px;
     }
     .status {
-        font-size: 13px;
+        font-size: 16px;
     }
     .progress-labels {
-        font-size: 12px;
+        font-size: 14px;
     }
 
     .stage-nav {
         padding: 2px 0 4px 0;
     }
     .stage-nav label {
-        font-size: 13px;
+        font-size: 15px;
     }
     .stage-card {
         padding: 4px 12px;
-        font-size: 12px;
+        font-size: 14px;
     }
     .stage-card .stage-label {
-        font-size: 12px;
+        font-size: 14px;
     }
     .stage-card .stage-status {
-        font-size: 11px;
+        font-size: 13px;
     }
     .stage-list {
         gap: 4px;
@@ -639,25 +649,25 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
         padding: 8px 12px 6px 12px;
     }
     .study-title-bar .study-header-title {
-        font-size: 15px;
+        font-size: 17px;
     }
     .study-title-bar .study-header-desc {
-        font-size: 13px;
+        font-size: 15px;
     }
     .study-title-bar .study-header-progress {
-        font-size: 13px;
+        font-size: 14px;
     }
     .study-content-header {
         padding: 6px 0 4px 0;
     }
     .study-content-header .study-content-title {
-        font-size: 15px;
+        font-size: 17px;
     }
     .study-content-header .study-content-desc {
-        font-size: 13px;
+        font-size: 15px;
     }
     .study-content-header .study-content-progress {
-        font-size: 13px;
+        font-size: 14px;
     }
     #studyContent {
         padding: 0 12px 10px 12px;
@@ -670,16 +680,16 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     .resource-item .thumb {
         width: 44px;
         height: 34px;
-        font-size: 20px;
+        font-size: 22px;
     }
     .resource-item .info .title {
-        font-size: 14px;
+        font-size: 15px;
     }
     .resource-item .info .status {
-        font-size: 12px;
+        font-size: 14px;
     }
     .resource-item .badge-type {
-        font-size: 10px;
+        font-size: 12px;
         padding: 1px 6px;
     }
 
@@ -687,16 +697,16 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
         padding: 6px 12px 4px 12px;
     }
     .quiz-title-bar .quiz-title {
-        font-size: 15px;
+        font-size: 17px;
     }
     .quiz-type-bar {
         padding: 4px 12px 3px 12px;
     }
     .quiz-type-label {
-        font-size: 14px;
+        font-size: 16px;
     }
     .quiz-type-score {
-        font-size: 12px;
+        font-size: 14px;
     }
     .quiz-type-body {
         padding: 6px 12px 10px 12px;
@@ -707,14 +717,14 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
         margin-bottom: 8px;
     }
     .quiz-item .q-text {
-        font-size: 14px;
+        font-size: 15px;
     }
     .quiz-item .option-item {
-        font-size: 13px;
+        font-size: 15px;
         padding: 3px 6px;
     }
     .quiz-item .confirm-btn {
-        font-size: 12px;
+        font-size: 14px;
         padding: 3px 10px;
     }
 
@@ -723,10 +733,10 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     }
     .quiz-footer-global .submit-btn {
         padding: 10px 14px;
-        font-size: 15px;
+        font-size: 17px;
     }
     .quiz-footer-global .msg {
-        font-size: 13px;
+        font-size: 15px;
         padding: 6px 10px;
     }
 
@@ -738,18 +748,18 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     }
     .bottom-bar .refresh-btn {
         padding: 4px 12px;
-        font-size: 12px;
+        font-size: 14px;
     }
     .bottom-bar .footnote {
-        font-size: 11px;
+        font-size: 13px;
     }
 
     .btn {
-        font-size: 14px;
+        font-size: 16px;
         padding: 12px 16px;
     }
     .msg {
-        font-size: 14px;
+        font-size: 16px;
         padding: 8px 12px;
     }
 
@@ -761,22 +771,35 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     .float-btn {
         width: 38px;
         height: 38px;
-        font-size: 15px;
+        font-size: 17px;
+    }
+
+    /* 内容区域考核标题（普通流） */
+    .quiz-content-title {
+        font-size: 18px;
+        padding: 10px 0 8px 0;
+    }
+    .quiz-type-title {
+        font-size: 16px;
+        padding: 8px 0 4px 0;
+    }
+    .quiz-type-title span {
+        font-size: 14px;
     }
 }
+
 /* ========== 内容区域考核标题（普通流） ========== */
 .quiz-content-title {
     font-weight: 700;
-    font-size: 18px;
+    font-size: 21px;
     color: #1a2e3b;
     padding: 14px 0 10px 0;
     border-bottom: 2px solid #eef2f6;
     margin-bottom: 10px;
 }
-
 .quiz-type-title {
     font-weight: 600;
-    font-size: 16px;
+    font-size: 19px;
     color: #1a2e3b;
     padding: 12px 0 6px 0;
     border-bottom: 1px solid #eef2f6;
@@ -786,105 +809,10 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
     justify-content: space-between;
     align-items: center;
 }
-
 .quiz-type-title span {
     font-weight: 400;
-    font-size: 14px;
+    font-size: 16px;
     color: #5e6f7d;
 }
 
-@media (max-width: 480px) {
-    .quiz-content-title {
-        font-size: 16px;
-        padding: 10px 0 8px 0;
-    }
-    .quiz-type-title {
-        font-size: 14px;
-        padding: 8px 0 4px 0;
-    }
-    .quiz-type-title span {
-        font-size: 12px;
-    }
-}
-/* ===== 加粗需求 ===== */
-/* 1. 副标题 "分级学习 · 自动晋级 · 免费赋能" */
-.sub {
-    font-weight: 700;
-}
-
-/* 2. 状态文字 "📖 当前阶段：2 · 等级 入门商家" */
-.status {
-    font-weight: 700;
-}
-
-/* 3. 内容区 "切换阶段：" 标签（非帘头） */
-.content-stage-nav .stage-nav label {
-    font-weight: 700;
-    color: #1a2e3b; /* 深色 */
-}
-
-/* 4. 帘头中的 "切换阶段（左右滑动）：" 标签 */
-#stageNavHeader .stage-nav label {
-    font-weight: 700;
-    color: #1a2e3b; /* 改为深色，原来可能灰色 */
-}
-
-/* ===== 阶段描述缩进 + 符号 ===== */
-/* 内容区的阶段描述 */
-.study-content-desc {
-    padding-left: 2em;          /* 整体缩进2字符 */
-    font-weight: 700;           /* 如果有加粗需求，保留 */
-}
-.study-content-desc::before {
-    content: "▶ ";              /* 符号和空格 */
-    /* 不设置position:absolute，默认inline，会出现在缩进内部 */
-}
-
-/* 帘头中的阶段描述（保持视觉一致） */
-.study-header-desc {
-    padding-left: 2em;
-    font-weight: 700;
-}
-.study-header-desc::before {
-    content: "▶ ";
-}
-/* ========== 移动端：减小左右内边距，让内容更满 ========== */
-@media (max-width: 480px) {
-    /* 去除 body 的边距，让 app 贴边 */
-    body {
-        padding: 0 !important;
-        background: #fff; /* 可选，与 app 背景一致，避免边缘色差 */
-    }
-
-    /* 调整 app 容器，使其完全占满屏幕宽度 */
-    #app {
-        padding: 10px 6px 14px; /* 左右留 6px 防止内容贴边太紧，可自行改为 0 或 4px */
-        max-width: 100%;        /* 确保占满宽度 */
-        border-radius: 0;       /* 去除圆角，完全贴边 */
-        box-shadow: none;       /* 去除阴影，减少视觉边距 */
-        width: 100%;
-    }
-}
-/* ========== 模态框宽度限制 ========== */
-.modal-overlay {
-    padding: 10px; /* 保证边缘有间距 */
-}
-.modal-card {
-    max-width: 480px; /* 与 #app 最大宽度一致 */
-    width: 100%;
-    margin: 0 auto;
-    padding: 20px 16px; /* 内部适当内边距 */
-}
-
-/* 模态框内的图片/视频自适应，防止溢出 */
-#detailBody video,
-#detailBody img {
-    max-width: 100%;
-    height: auto;
-}
-
-/* 文章内容也限制宽度 */
-#detailBody .article-content {
-    max-width: 100%;
-    word-wrap: break-word;
-}
+/* ===== 加粗与符号保留（已在前面实现） ===== */
