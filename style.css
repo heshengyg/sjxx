@@ -850,12 +850,21 @@ body { background:#f5f7fb; min-height:100vh; display:flex; align-items:center; j
 }
 /* ========== 移动端：减小左右内边距，让内容更满 ========== */
 @media (max-width: 480px) {
-    #app {
-        padding: 10px 2px 14px; /* 左右从 12px 减到 2px */
+    /* 去除 body 的边距，让 app 贴边 */
+    body {
+        padding: 0 !important;
+        background: #fff; /* 可选，与 app 背景一致，避免边缘色差 */
     }
-    /* 如果还需要更窄边距，可设为 0px */
-}
 
+    /* 调整 app 容器，使其完全占满屏幕宽度 */
+    #app {
+        padding: 10px 6px 14px; /* 左右留 6px 防止内容贴边太紧，可自行改为 0 或 4px */
+        max-width: 100%;        /* 确保占满宽度 */
+        border-radius: 0;       /* 去除圆角，完全贴边 */
+        box-shadow: none;       /* 去除阴影，减少视觉边距 */
+        width: 100%;
+    }
+}
 /* ========== 模态框宽度限制 ========== */
 .modal-overlay {
     padding: 10px; /* 保证边缘有间距 */
