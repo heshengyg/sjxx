@@ -850,7 +850,7 @@ function openResourceDetail(resource, allResources) {
     detailBody.innerHTML = '';
     detailProgress.textContent = '';
 
-    if (resource.type === 'video') {
+        if (resource.type === 'video') {
         const video = document.createElement('video');
         video.src = resource.file;
         video.controls = true;
@@ -865,7 +865,7 @@ function openResourceDetail(resource, allResources) {
             savedPosition = prog.last_position;
         }
 
-        let lastValidTime = savedPosition;
+        let lastValidTime = savedPosition; // 当前最大可观看时间
         let isRestoring = false;
         let initialSeek = false;
 
@@ -908,6 +908,7 @@ function openResourceDetail(resource, allResources) {
                 }, 3000);
             }
 
+            // 如果播放位置超过允许的最大时间，强制跳回（防止意外）
             if (!isRestoring && !initialSeek && lastValidTime > 0) {
                 if (video.currentTime > lastValidTime + 0.5) {
                     video.currentTime = lastValidTime;
@@ -916,19 +917,26 @@ function openResourceDetail(resource, allResources) {
             }
         });
 
+        // ★ 核心：处理用户拖动进度条
         video.addEventListener('seeking', function() {
+            // 如果是内部恢复或初始定位，跳过
             if (isRestoring) return;
             if (initialSeek) return;
-            if (video.paused) return;
+
+            // 如果视频已完成，允许任意拖动
             if (progressMap[resource.id] && progressMap[resource.id].completed) {
+                // 更新最大可观看时间
                 lastValidTime = video.currentTime;
                 this._lastValidTime = video.currentTime;
                 return;
             }
+
+            // 如果拖拽到的位置超过了已学习进度（lastValidTime + 0.5秒容差），强制拉回
             if (video.currentTime > lastValidTime + 0.5) {
                 isRestoring = true;
                 video.currentTime = lastValidTime;
             } else {
+                // 允许在已学习区间内拖动，更新最大可观看时间
                 lastValidTime = video.currentTime;
                 this._lastValidTime = video.currentTime;
             }
@@ -939,10 +947,21 @@ function openResourceDetail(resource, allResources) {
                 isRestoring = false;
             }
             if (initialSeek) return;
-            if (progressMap[resource.id] && progressMap[resource.id].completed) return;
+
+            // 如果已完成，直接更新最大可观看时间
+            if (progressMap[resource.id] && progressMap[resource.id].completed) {
+                lastValidTime = video.currentTime;
+                this._lastValidTime = video.currentTime;
+                return;
+            }
+
+            // 二次检查，防止某些浏览器在 seeking 中设置 currentTime 后仍触发 seeked 导致位置偏差
             if (video.currentTime > lastValidTime + 0.5) {
                 video.currentTime = lastValidTime;
                 video.pause();
+            } else {
+                lastValidTime = video.currentTime;
+                this._lastValidTime = video.currentTime;
             }
         });
 
@@ -971,7 +990,8 @@ function openResourceDetail(resource, allResources) {
             if (e.name !== 'AbortError') console.warn('视频自动播放被阻止:', e);
         });
         activeResourceId = resource.id;
-    } else if (resource.type === 'image') {
+    }
+ else if (resource.type === 'image') {
         const img = document.createElement('img');
         img.src = resource.file;
         img.style.width = '100%';
