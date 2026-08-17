@@ -1216,10 +1216,6 @@ async function submitQuiz() {
         await supabaseClient.from('merchants').update({ quiz_results: results }).eq('id', currentUser.id);
         currentUser.quiz_results = results;
 
-        if (quizResult) {
-            quizResult.classList.remove('hidden');
-        }
-
         if (passed) {
             if (!stages.includes(actualStage)) {
                 const newStages = [...stages, actualStage];
@@ -1231,39 +1227,42 @@ async function submitQuiz() {
                     currentUser.level = newLevel.id;
                 }
                 const nextStage = getCurrentStage(newStages);
-                // 更新当前视图阶段
                 if (nextStage <= TOTAL_STAGES) currentViewStage = nextStage;
                 
-                // 先显示晋级消息
-                quizResult.textContent = `🎉 考核通过！得分 ${earnedScore}/${totalScore}，已晋级！${nextStage <= TOTAL_STAGES ? '进入下一阶段' : '全部完成！'}`;
-                quizResult.className = 'msg';
-                
-                // 刷新仪表盘（会隐藏 quizResult）
+                // 刷新仪表盘
                 await updateDashboard(currentUser);
-                
-                // 重新显示消息（因为 updateDashboard 会隐藏）
-                if (quizResult) {
-                    quizResult.classList.remove('hidden');
-                    quizResult.textContent = `🎉 考核通过！得分 ${earnedScore}/${totalScore}，已晋级！${nextStage <= TOTAL_STAGES ? '进入下一阶段' : '全部完成！'}`;
-                    quizResult.className = 'msg';
-                }
+                // 显示晋级消息（延迟确保 updateDashboard 已完成）
+                setTimeout(() => {
+                    if (quizResult) {
+                        quizResult.classList.remove('hidden');
+                        quizResult.textContent = `🎉 考核通过！得分 ${earnedScore}/${totalScore}，已晋级！${nextStage <= TOTAL_STAGES ? '进入下一阶段' : '全部完成！'}`;
+                        quizResult.className = 'msg';
+                    }
+                }, 100);
                 return;
             } else {
-                quizResult.textContent = `✅ 考核通过！得分 ${earnedScore}/${totalScore}，阶段已标记完成。`;
-                quizResult.className = 'msg';
+                // 已标记过，仍显示通过
+                await updateDashboard(currentUser);
+                setTimeout(() => {
+                    if (quizResult) {
+                        quizResult.classList.remove('hidden');
+                        quizResult.textContent = `✅ 考核通过！得分 ${earnedScore}/${totalScore}，阶段已标记完成。`;
+                        quizResult.className = 'msg';
+                    }
+                }, 100);
+                return;
             }
         } else {
-            // ★ 修改不通过消息格式
-            quizResult.textContent = `目前答卷${earnedScore}分，未满足晋级条件，请修改答卷！\n满分${totalScore}分，及格${passThreshold}分`;
-            quizResult.className = 'msg error';
-        }
-        // 非晋级情况，刷新仪表盘（但保留消息）
-        await updateDashboard(currentUser);
-        // 确保消息不被隐藏
-        if (quizResult) {
-            quizResult.classList.remove('hidden');
-            // 如果消息被覆盖，重新设置（但 updateDashboard 可能已重置）
-            // 这里不重复设置，因为上面已设置
+            // 未通过
+            await updateDashboard(currentUser);
+            setTimeout(() => {
+                if (quizResult) {
+                    quizResult.classList.remove('hidden');
+                    quizResult.textContent = `目前答卷${earnedScore}分，未满足晋级条件，请修改答卷！\n满分${totalScore}分，及格${passThreshold}分`;
+                    quizResult.className = 'msg error';
+                }
+            }, 100);
+            return;
         }
     } catch (e) {
         if (quizResult) {
@@ -1273,6 +1272,7 @@ async function submitQuiz() {
         }
     }
 }
+
 // ========== 生成阶段卡片 ==========
 function buildStageCards(container, currentStage, maxUnlocked) {
     if (!container) return;
