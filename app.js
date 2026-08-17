@@ -1846,12 +1846,6 @@ if (logoutBtn) {
         logout();
     });
 }
-// ★ 绑定提交考核按钮
-const submitBtn = document.getElementById('submitQuizBtn');
-if (submitBtn) {
-    submitBtn.addEventListener('click', submitQuiz);
-}
-
 if (detailCloseBtn) detailCloseBtn.addEventListener('click', closeDetailModal);
 if (detailModal) {
     detailModal.addEventListener('click', function(e) {
@@ -1861,11 +1855,9 @@ if (detailModal) {
 if (phoneInput) phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 if (passwordInput) passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 if (nameInput) nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
-// ★ 新增：提交考核按钮事件绑定
-const submitBtn = document.getElementById('submitQuizBtn');
-if (submitBtn) {
-    submitBtn.addEventListener('click', submitQuiz);
-}
+
+// ★ 提交考核按钮事件绑定
+document.getElementById('submitQuizBtn').addEventListener('click', submitQuiz);
 
 console.log('🐿️ 松鼠逛逛商家学堂');
 
