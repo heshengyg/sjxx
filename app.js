@@ -1899,4 +1899,16 @@ document.addEventListener('DOMContentLoaded', function() {
     initFloatNav();
     // ★ 新增：页面加载时渲染权益表格（登录前也显示）
     renderBenefitsTable();
+
+    // ========== ★ 新增：权益表格折叠切换 ==========
+    const toggleBtn = document.getElementById('benefitsToggleBtn');
+    const tableWrap = document.getElementById('benefitsTableWrap');
+    if (toggleBtn && tableWrap) {
+        let expanded = false;
+        toggleBtn.addEventListener('click', function() {
+            expanded = !expanded;
+            tableWrap.classList.toggle('expanded', expanded);
+            toggleBtn.textContent = expanded ? '▼ 收起权益详情' : '▶ 展开权益详情';
+        });
+    }
 });

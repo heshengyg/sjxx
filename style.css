@@ -249,6 +249,7 @@ body {
     border-radius: 12px;
     font-size: 13px;
     flex-shrink: 0;
+    margin-left: auto; /* 靠右对齐 */
 }
 .resource-item.completed {
     border-color: #1f7b4d;
@@ -1048,4 +1049,31 @@ body {
         padding: 10px 24px;
         font-size: 15px;
     }
+}
+/* 折叠控制按钮 */
+.benefits-toggle {
+    text-align: center;
+    margin: 6px 0 10px;
+}
+.benefits-toggle-btn {
+    background: none;
+    border: none;
+    color: #1f7b4d;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 16px;
+    border-radius: 20px;
+    background: #eef5f0;
+    transition: 0.2s;
+}
+.benefits-toggle-btn:hover {
+    background: #dce8e0;
+}
+/* 默认折叠表格 */
+.benefits-table-wrap {
+    display: none; /* 默认隐藏 */
+}
+.benefits-table-wrap.expanded {
+    display: block; /* 展开时显示 */
 }
