@@ -1861,6 +1861,11 @@ if (detailModal) {
 if (phoneInput) phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 if (passwordInput) passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 if (nameInput) nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
+// ★ 新增：提交考核按钮事件绑定
+const submitBtn = document.getElementById('submitQuizBtn');
+if (submitBtn) {
+    submitBtn.addEventListener('click', submitQuiz);
+}
 
 console.log('🐿️ 松鼠逛逛商家学堂');
 
