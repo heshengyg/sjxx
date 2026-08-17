@@ -1897,11 +1897,9 @@ function initFloatNav() {
 
 document.addEventListener('DOMContentLoaded', function() {
     initFloatNav();
+    renderBenefitsTable();
 
-    // 渲染权益表格（独立执行，不影响折叠功能）
-    renderBenefitsTable().catch(e => console.warn('权益表格渲染失败:', e));
-
-    // 权益折叠切换
+    // ========== ★ 新增：权益表格折叠切换 ==========
     const toggleBtn = document.getElementById('benefitsToggleBtn');
     const tableWrap = document.getElementById('benefitsTableWrap');
     if (toggleBtn && tableWrap) {
@@ -1910,12 +1908,13 @@ document.addEventListener('DOMContentLoaded', function() {
             expanded = !expanded;
             tableWrap.classList.toggle('expanded', expanded);
             toggleBtn.textContent = expanded ? '▼ 收起权益详情' : '▶ 展开权益详情';
-            // 调试日志（可在控制台查看）
-            console.log('权益折叠状态:', expanded ? '展开' : '折叠');
+
+            // ★ 重新计算帘头位置（页面高度变化）
+            isHeaderInitialized = false;
+            setTimeout(function() {
+                initStickyHeaders();
+                handleScroll();
+            }, 50);
         });
-    } else {
-        console.warn('折叠按钮或表格容器未找到，请检查HTML中的id');
-        console.log('toggleBtn:', toggleBtn);
-        console.log('tableWrap:', tableWrap);
     }
 });
