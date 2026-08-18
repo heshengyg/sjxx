@@ -646,19 +646,17 @@ async function renderQuiz(quiz) {
         if (submitBtn) {
             submitBtn.textContent = '🔄 重新提交';
             submitBtn.onclick = function() {
-                if (confirm('重新提交将重置所有答案，确定继续吗？')) {
-                    const quizData = stageData[currentViewStage]?.quiz;
-                    if (quizData) {
-                        questionStates = quizData.map(() => ({ confirmed: false, selected: [] }));
-                        renderQuiz(quizData);
-                        submitBtn.textContent = '✅ 提交考核';
-                        submitBtn.onclick = submitQuiz;
-                        if (quizResult) {
-                            quizResult.classList.add('hidden');
-                        }
-                    }
-                }
-            };
+    const quizData = stageData[currentViewStage]?.quiz;
+    if (quizData) {
+        questionStates = quizData.map(() => ({ confirmed: false, selected: [] }));
+        renderQuiz(quizData);
+        submitBtn.textContent = '✅ 提交考核';
+        submitBtn.onclick = submitQuiz;
+        if (quizResult) {
+            quizResult.classList.add('hidden');
+        }
+    }
+};
         }
     }
 
@@ -852,19 +850,17 @@ async function renderQuiz(quiz) {
         if (isPassed && historyData) {
             submitBtn.textContent = '🔄 重新提交';
             submitBtn.onclick = function() {
-                if (confirm('重新提交将重置所有答案，确定继续吗？')) {
-                    const quizData = stageData[currentViewStage]?.quiz;
-                    if (quizData) {
-                        questionStates = quizData.map(() => ({ confirmed: false, selected: [] }));
-                        renderQuiz(quizData);
-                        submitBtn.textContent = '✅ 提交考核';
-                        submitBtn.onclick = submitQuiz;
-                        if (quizResult) {
-                            quizResult.classList.add('hidden');
-                        }
-                    }
-                }
-            };
+    const quizData = stageData[targetStage]?.quiz;
+    if (quizData) {
+        questionStates = quizData.map(() => ({ confirmed: false, selected: [] }));
+        renderQuiz(quizData);
+        submitBtn.textContent = '✅ 提交考核';
+        submitBtn.onclick = submitQuiz;
+        if (quizResult) {
+            quizResult.classList.add('hidden');
+        }
+    }
+};
         } else {
             // 未通过：正常提交
             submitBtn.disabled = false;
@@ -1271,7 +1267,7 @@ async function submitQuiz() {
     const stageKey = `stage_${targetStage}`;
     const history = results[stageKey] || null;
 
-    // ★ 判断是否应该更新成绩（本次更好 或 之前未通过本次通过）
+    // 判断是否应该更新成绩
     let shouldUpdate = false;
     if (!history || earnedScore > history.correct) {
         shouldUpdate = true;
@@ -1300,7 +1296,7 @@ async function submitQuiz() {
         }
     }
 
-    // ★ 更新晋级状态（首次通过）
+    // 更新晋级状态（首次通过）
     if (passed && !isStagePassed) {
         const newStages = [...(currentUser.completed_stages || []), targetStage];
         await supabaseClient.from('merchants').update({ completed_stages: newStages }).eq('id', currentUser.id);
@@ -1314,7 +1310,6 @@ async function submitQuiz() {
         const maxUnlocked = currentUser.completed_stages.length > 0 ? Math.max(...currentUser.completed_stages) : 0;
         buildStageCards(stageList, currentViewStage, maxUnlocked);
         buildStageCards(stageListContent, currentViewStage, maxUnlocked);
-        // 更新进度显示
         const done = Math.min(currentUser.completed_stages.length, TOTAL_STAGES);
         const pct = Math.round((done / TOTAL_STAGES) * 100);
         if (progressFill) progressFill.style.width = pct + '%';
@@ -1326,7 +1321,7 @@ async function submitQuiz() {
         if (statusText) statusText.textContent = `📖 ${done >= TOTAL_STAGES ? '已完成全部阶段' : '当前阶段：' + currentViewStage} · 等级 ${level.label}`;
     }
 
-    // ★ 显示本次成绩和最好成绩（在 quizResult 区域）
+    // 显示本次成绩和最好成绩
     const best = results[stageKey] || history || { correct: earnedScore, total: totalScore };
     let displayMsg = `📊 本次得分：${earnedScore}/${totalScore}（达标分 ${passThreshold}）`;
     if (history && best.correct > earnedScore) {
@@ -1342,22 +1337,20 @@ async function submitQuiz() {
         quizResult.className = passed ? 'msg' : 'msg error';
     }
 
-    // ★ 更新提交按钮
+    // ★ 更新提交按钮（移除 confirm 弹窗）
     const submitBtn = document.getElementById('submitQuizBtn');
     if (submitBtn) {
         if (passed || isStagePassed) {
             submitBtn.textContent = '🔄 重新提交';
             submitBtn.onclick = function() {
-                if (confirm('重新提交将重置所有答案，确定继续吗？')) {
-                    const quizData = stageData[targetStage]?.quiz;
-                    if (quizData) {
-                        questionStates = quizData.map(() => ({ confirmed: false, selected: [] }));
-                        renderQuiz(quizData);
-                        submitBtn.textContent = '✅ 提交考核';
-                        submitBtn.onclick = submitQuiz;
-                        if (quizResult) {
-                            quizResult.classList.add('hidden');
-                        }
+                const quizData = stageData[targetStage]?.quiz;
+                if (quizData) {
+                    questionStates = quizData.map(() => ({ confirmed: false, selected: [] }));
+                    renderQuiz(quizData);
+                    submitBtn.textContent = '✅ 提交考核';
+                    submitBtn.onclick = submitQuiz;
+                    if (quizResult) {
+                        quizResult.classList.add('hidden');
                     }
                 }
             };
@@ -1367,17 +1360,15 @@ async function submitQuiz() {
         }
     }
 
-    // ★ 控制"进入最新阶段"按钮
+    // 控制"进入最新阶段"按钮
     const refreshBtn = document.getElementById('refreshBtn');
     if (refreshBtn) {
         if (passed && !isStagePassed) {
-            // 首次通过：可用
             refreshBtn.disabled = false;
             refreshBtn.style.opacity = '1';
             refreshBtn.textContent = '🚀 进入最新阶段';
             refreshBtn.onclick = goToLatestStage;
         } else {
-            // 已通过或未通过：置灰
             refreshBtn.disabled = true;
             refreshBtn.style.opacity = '0.5';
             refreshBtn.textContent = '进入最新阶段';
@@ -1391,6 +1382,7 @@ async function submitQuiz() {
         }
     }
 }
+
 // ========== 生成阶段卡片 ==========
 function buildStageCards(container, currentStage, maxUnlocked) {
     if (!container) return;
