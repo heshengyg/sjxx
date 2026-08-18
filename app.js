@@ -361,11 +361,8 @@ async function loadUserProgress() {
                 };
             });
         }
-    } catch (e) {
-        console.warn('加载学习进度失败:', e);
-    }
+    } catch (e) { console.warn('加载进度失败:', e); }
 }
-
 async function updateResourceProgress(resourceId, progress, position = 0) {
     if (!currentUser) return;
     if (!progressMap[resourceId]) {
@@ -381,7 +378,7 @@ async function updateResourceProgress(resourceId, progress, position = 0) {
         progressMap[resourceId].completed = true;
         progressMap[resourceId].progress = 100;
     }
-    // ★ 只保存到 Supabase，不再写 localStorage
+    // 移除 saveProgressToLocal 调用
     try {
         await supabaseClient
             .from('user_learning_progress')
@@ -393,9 +390,7 @@ async function updateResourceProgress(resourceId, progress, position = 0) {
                 last_position: progressMap[resourceId].last_position,
                 last_updated: new Date().toISOString()
             }, { onConflict: 'user_id, resource_id' });
-    } catch (e) {
-        console.warn('保存进度到 Supabase 失败:', e);
-    }
+    } catch (e) { console.warn('保存进度失败:', e); }
     renderCurrentStageResources();
     updateDetailProgress(resourceId);
 }
@@ -852,10 +847,9 @@ function openResourceDetail(resource, allResources) {
         savedPosition = prog.last_position;
     }
 
-    let lastValidTime = savedPosition; // 最大可观看时间
+    let lastValidTime = savedPosition; // 当前最大可观看时间
     let isRestoring = false;
     let initialSeek = false;
-    let hasStarted = false;
 
     video.addEventListener('loadedmetadata', function() {
         if (savedPosition > 0 && savedPosition < video.duration - 0.5) {
@@ -875,7 +869,7 @@ function openResourceDetail(resource, allResources) {
     let saveTimer = null;
     function updateAndSave() {
         if (!video.duration) return;
-        const pos = video._lastValidTime;
+        const pos = lastValidTime;
         const pct = Math.round((pos / video.duration) * 100);
         updateResourceProgress(resource.id, pct, pos);
         updateDetailProgress(resource.id);
@@ -883,11 +877,11 @@ function openResourceDetail(resource, allResources) {
 
     video.addEventListener('timeupdate', function() {
         if (!isRestoring && !initialSeek) {
-            // 只增不减，最大可观看时间
             if (video.currentTime > lastValidTime) {
                 lastValidTime = video.currentTime;
-                this._lastValidTime = video.currentTime;
             }
+            // ★ 关键：始终保持 _lastValidTime 与 lastValidTime 同步（记录最大进度）
+            this._lastValidTime = lastValidTime;
         }
         const pct = Math.round((video.currentTime / video.duration) * 100);
         if (detailProgress) detailProgress.textContent = `学习进度：${pct}%`;
@@ -899,7 +893,7 @@ function openResourceDetail(resource, allResources) {
             }, 3000);
         }
 
-        // 防跳转
+        // 如果播放位置超过允许的最大时间，强制跳回
         if (!isRestoring && !initialSeek && lastValidTime > 0) {
             if (video.currentTime > lastValidTime + 0.5) {
                 video.currentTime = lastValidTime;
@@ -908,47 +902,48 @@ function openResourceDetail(resource, allResources) {
         }
     });
 
-    // 处理拖动（seeking）
+    // ★ 核心：处理用户拖动进度条（移动端加强）
     video.addEventListener('seeking', function() {
         if (isRestoring) return;
         if (initialSeek) return;
 
-        const prog = progressMap[resource.id];
-        if (prog && prog.completed) {
-            // 已完成，允许任意拖动
+        if (progressMap[resource.id] && progressMap[resource.id].completed) {
             lastValidTime = video.duration;
             this._lastValidTime = video.duration;
             return;
         }
 
-        // 如果拖到未学习区域，强制拉回
-        if (video.currentTime > lastValidTime + 0.5) {
+        const targetTime = video.currentTime;
+        if (targetTime > lastValidTime + 0.5) {
             isRestoring = true;
             video.currentTime = lastValidTime;
+            video.pause(); // ★ 立即暂停
         }
-        // 否则不更新 lastValidTime
     });
 
     video.addEventListener('seeked', function() {
         if (isRestoring) {
             isRestoring = false;
+            if (video.currentTime >= lastValidTime) {
+                video.pause();
+            }
             return;
         }
         if (initialSeek) return;
 
-        const prog = progressMap[resource.id];
-        if (prog && prog.completed) {
+        if (progressMap[resource.id] && progressMap[resource.id].completed) {
             lastValidTime = video.duration;
             this._lastValidTime = video.duration;
             return;
         }
 
-        // 二次检查
-        if (video.currentTime > lastValidTime + 0.5) {
-            video.currentTime = lastValidTime;
-            video.pause();
-        }
-        // 不更新 lastValidTime
+        // ★ 移动端延迟检查，确保 currentTime 已更新
+        setTimeout(() => {
+            if (video.currentTime > lastValidTime + 0.5) {
+                video.currentTime = lastValidTime;
+                video.pause();
+            }
+        }, 50);
     });
 
     video.addEventListener('ended', function() {
@@ -958,6 +953,7 @@ function openResourceDetail(resource, allResources) {
             return;
         }
         this._lastValidTime = video.duration;
+        lastValidTime = video.duration;
         if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
         markResourceCompleted(resource.id);
     });
@@ -1924,6 +1920,12 @@ function initFloatNav() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // ★ 清除旧缓存（一次性）
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('progress_')) {
+            localStorage.removeItem(key);
+        }
+    });
     initFloatNav();
     renderBenefitsTable();
 
