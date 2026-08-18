@@ -1229,6 +1229,15 @@ async function submitQuiz() {
                 const nextStage = getCurrentStage(newStages);
                 if (nextStage <= TOTAL_STAGES) currentViewStage = nextStage;
                 
+                // 记住密码处理
+const rememberMe = document.getElementById('rememberMe');
+if (rememberMe && rememberMe.checked) {
+    localStorage.setItem('squirrel_phone', phone);
+    localStorage.setItem('squirrel_pass', btoa(password)); // Base64 编码存储
+} else {
+    localStorage.removeItem('squirrel_phone');
+    localStorage.removeItem('squirrel_pass');
+}
                 // 刷新仪表盘
                 await updateDashboard(currentUser);
                 // 显示晋级消息（延迟确保 updateDashboard 已完成）
@@ -1925,9 +1934,26 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('已清除缓存:', key);
         }
     });
+    // ★ 记住密码自动填充
+    const savedPhone = localStorage.getItem('squirrel_phone');
+    const savedPass = localStorage.getItem('squirrel_pass');
+    if (savedPhone && savedPass && phoneInput && passwordInput) {
+        phoneInput.value = savedPhone;
+        passwordInput.value = atob(savedPass); // Base64 解码
+        document.getElementById('rememberMe').checked = true;
+    }
+
     initFloatNav();
     renderBenefitsTable();
-
+    // 密码显示/隐藏切换
+const togglePassword = document.getElementById('togglePassword');
+if (togglePassword && passwordInput) {
+    togglePassword.addEventListener('click', function() {
+        const isPassword = passwordInput.type === 'password';
+        passwordInput.type = isPassword ? 'text' : 'password';
+        this.textContent = isPassword ? '🙈' : '👁️';
+    });
+}
     // ========== ★ 新增：权益表格折叠切换 ==========
     const toggleBtn = document.getElementById('benefitsToggleBtn');
     const tableWrap = document.getElementById('benefitsTableWrap');

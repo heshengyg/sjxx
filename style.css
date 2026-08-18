@@ -1100,3 +1100,47 @@ body {
 .benefits-table-wrap.expanded {
     display: block; /* 展开时显示 */
 }
+
+/* ========== 密码显示切换 ========== */
+.password-wrapper {
+    position: relative;
+    width: 100%;
+}
+.password-wrapper .input-field {
+    padding-right: 48px; /* 为眼睛图标留出空间 */
+}
+.toggle-password {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 22px;
+    cursor: pointer;
+    user-select: none;
+    color: #5e6f7d;
+    line-height: 1;
+    transition: color 0.2s;
+}
+.toggle-password:hover {
+    color: #1a2e3b;
+}
+
+/* ========== 记住密码复选框 ========== */
+.remember-me {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 4px;
+    font-size: 16px;
+    color: #1a2e3b;
+}
+.remember-me input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #1f7b4d;
+    cursor: pointer;
+}
+.remember-me label {
+    cursor: pointer;
+    user-select: none;
+}
