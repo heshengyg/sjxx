@@ -371,14 +371,15 @@ async function updateResourceProgress(resourceId, progress, position = 0) {
     if (progress > progressMap[resourceId].progress) {
         progressMap[resourceId].progress = Math.min(100, progress);
     }
-    if (position > progressMap[resourceId].last_position) {
-        progressMap[resourceId].last_position = position;
+    // ★ 确保 position 为整数
+    const intPos = Math.floor(position);
+    if (intPos > progressMap[resourceId].last_position) {
+        progressMap[resourceId].last_position = intPos;
     }
     if (progressMap[resourceId].progress >= 100) {
         progressMap[resourceId].completed = true;
         progressMap[resourceId].progress = 100;
     }
-    // 移除 saveProgressToLocal 调用
     try {
         await supabaseClient
             .from('user_learning_progress')
@@ -850,8 +851,8 @@ function openResourceDetail(resource, allResources) {
     let lastValidTime = savedPosition; // 当前最大可观看时间
     let isRestoring = false;
     let initialSeek = false;
+    let pendingSeek = false; // ★ 新增：标记有待处理的越界修正
 
-    // ★ 加载完成后定位到上次进度
     video.addEventListener('loadedmetadata', function() {
         if (savedPosition > 0 && savedPosition < video.duration - 0.5) {
             initialSeek = true;
@@ -870,20 +871,17 @@ function openResourceDetail(resource, allResources) {
     let saveTimer = null;
     function updateAndSave() {
         if (!video.duration) return;
-        // ★ 始终保存最大已学时间
-        const pos = lastValidTime;
+        const pos = Math.floor(lastValidTime);
         const pct = Math.round((pos / video.duration) * 100);
         updateResourceProgress(resource.id, pct, pos);
         updateDetailProgress(resource.id);
     }
 
-    // ★ timeupdate：只增加最大时间，不减少
     video.addEventListener('timeupdate', function() {
         if (!isRestoring && !initialSeek) {
             if (video.currentTime > lastValidTime) {
                 lastValidTime = video.currentTime;
             }
-            // 同步 _lastValidTime 用于关闭时保存
             this._lastValidTime = lastValidTime;
         }
         const pct = Math.round((video.currentTime / video.duration) * 100);
@@ -896,7 +894,6 @@ function openResourceDetail(resource, allResources) {
             }, 3000);
         }
 
-        // 播放中越界立即拉回（防意外）
         if (!isRestoring && !initialSeek && lastValidTime > 0) {
             if (video.currentTime > lastValidTime + 0.5) {
                 video.currentTime = lastValidTime;
@@ -910,7 +907,6 @@ function openResourceDetail(resource, allResources) {
         if (isRestoring) return;
         if (initialSeek) return;
 
-        // 已完成则允许任意操作
         if (progressMap[resource.id] && progressMap[resource.id].completed) {
             lastValidTime = video.duration;
             this._lastValidTime = video.duration;
@@ -918,44 +914,53 @@ function openResourceDetail(resource, allResources) {
         }
 
         const targetTime = video.currentTime;
-        // 越界修正
         if (targetTime > lastValidTime + 0.5) {
             isRestoring = true;
+            pendingSeek = true;
             video.currentTime = lastValidTime;
-            video.pause(); // 立即暂停
+            video.pause();
         }
     });
 
-    // ★ seeked：最终确认（同步检查，不使用延迟）
+    // ★ seeked：最终确认（加强修正）
     video.addEventListener('seeked', function() {
-        // 若是我们主动修正（isRestoring），则重置标志并确保暂停
-        if (isRestoring) {
+        // 处理 pending 修正
+        if (pendingSeek) {
+            pendingSeek = false;
             isRestoring = false;
-            if (video.currentTime >= lastValidTime) {
+            // 强制停在 lastValidTime（确保整数秒）
+            const target = Math.floor(lastValidTime);
+            if (Math.abs(video.currentTime - target) > 0.5) {
+                video.currentTime = target;
                 video.pause();
             }
-            // 再次确认，若仍然越界则修正（极少情况）
+            // 再次检查，若仍越界则再次修正
             if (video.currentTime > lastValidTime + 0.5) {
                 video.currentTime = lastValidTime;
                 video.pause();
             }
             return;
         }
+        if (isRestoring) {
+            isRestoring = false;
+            if (video.currentTime >= lastValidTime) {
+                video.pause();
+            }
+            return;
+        }
         if (initialSeek) return;
 
-        // 已完成则直接更新
         if (progressMap[resource.id] && progressMap[resource.id].completed) {
             lastValidTime = video.duration;
             this._lastValidTime = video.duration;
             return;
         }
 
-        // 二次检查：若仍越界则修正
+        // 二次检查（覆盖点击进度条上某点的情况）
         if (video.currentTime > lastValidTime + 0.5) {
             video.currentTime = lastValidTime;
             video.pause();
         }
-        // 不更新 lastValidTime，只允许播放时增加
     });
 
     video.addEventListener('ended', function() {
@@ -1026,7 +1031,7 @@ function closeDetailModal() {
     detailModal.classList.remove('open');
 
     if (currentVideoElement) {
-        const safePos = currentVideoElement._lastValidTime || 0;
+        const safePos = Math.floor(currentVideoElement._lastValidTime || 0);
         currentVideoElement.pause();
         if (currentVideoElement.duration) {
             const pct = Math.round((safePos / currentVideoElement.duration) * 100);
@@ -1039,7 +1044,6 @@ function closeDetailModal() {
         activeResourceId = null;
     }
 }
-
 function navigateImage(delta) {
     const newIdx = currentImageIdx + delta;
     if (newIdx < 0 || newIdx >= currentImageResources.length) return;
