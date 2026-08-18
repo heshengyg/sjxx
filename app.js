@@ -603,12 +603,10 @@ async function renderQuiz(quiz) {
     const quizTitleHeader = document.getElementById('quizTitleHeader');
     const quizFooterGlobal = document.getElementById('quizFooterGlobal');
     const submitBtn = document.getElementById('submitQuizBtn');
-// 获取帘头中的分数显示元素（用于设置分数）
-const singleScoreEl = document.getElementById('singleScore');
-const multipleScoreEl = document.getElementById('multipleScore');
-const judgeScoreEl = document.getElementById('judgeScore');
+    const singleScoreEl = document.getElementById('singleScore');
+    const multipleScoreEl = document.getElementById('multipleScore');
+    const judgeScoreEl = document.getElementById('judgeScore');
 
-    // 内容标题元素
     const quizContentTitle = document.getElementById('quizContentTitle');
     const quizSingleTitle = document.getElementById('quizSingleTitle');
     const quizSingleScoreText = document.getElementById('quizSingleScoreText');
@@ -628,6 +626,41 @@ const judgeScoreEl = document.getElementById('judgeScore');
     [quizContentTitle, quizSingleTitle, quizMultipleTitle, quizJudgeTitle].forEach(el => {
         if (el) el.style.display = 'none';
     });
+
+    // ★ 检查当前阶段是否已通过（用于显示历史成绩）
+    const stageId = currentViewStage;
+    const isPassed = currentUser && currentUser.completed_stages && currentUser.completed_stages.includes(stageId);
+    let historyData = null;
+    if (isPassed && currentUser) {
+        const results = currentUser.quiz_results || {};
+        const stageKey = `stage_${stageId}`;
+        historyData = results[stageKey] || null;
+    }
+
+    // ★ 如果已通过且有历史成绩，立即显示
+    if (isPassed && historyData && quizResult) {
+        const passThreshold = Math.round(historyData.total * 0.8);
+        quizResult.classList.remove('hidden');
+        quizResult.innerHTML = `✅ 已通过！历史最好成绩：${historyData.correct}/${historyData.total}（达标分 ${passThreshold}）`;
+        quizResult.className = 'msg';
+        if (submitBtn) {
+            submitBtn.textContent = '🔄 重新提交';
+            submitBtn.onclick = function() {
+                if (confirm('重新提交将重置所有答案，确定继续吗？')) {
+                    const quizData = stageData[currentViewStage]?.quiz;
+                    if (quizData) {
+                        questionStates = quizData.map(() => ({ confirmed: false, selected: [] }));
+                        renderQuiz(quizData);
+                        submitBtn.textContent = '✅ 提交考核';
+                        submitBtn.onclick = submitQuiz;
+                        if (quizResult) {
+                            quizResult.classList.add('hidden');
+                        }
+                    }
+                }
+            };
+        }
+    }
 
     if (!isExamStage || !quiz || quiz.length === 0) {
         return;
@@ -653,16 +686,15 @@ const judgeScoreEl = document.getElementById('judgeScore');
     const hasAnyQuiz = groups.single.items.length > 0 || groups.multiple.items.length > 0 || groups.judge.items.length > 0;
     if (!hasAnyQuiz) return;
 
-    // ★ 只显示考核总标题（内容标题，不是帘头）
+    // 显示考核总标题（内容标题，不是帘头）
     if (quizContentTitle) quizContentTitle.style.display = 'block';
 
-        // 初始化 questionStates：优先从 Supabase 加载已保存状态
+    // 初始化 questionStates：优先从 Supabase 加载已保存状态
     let savedState = null;
     if (currentUser && isExamStage && quiz && quiz.length > 0) {
         savedState = await loadQuizStateFromSupabase(currentViewStage);
     }
     if (savedState && savedState.questionStates && savedState.questionStates.length === quiz.length) {
-        // 确保每个状态都有 selected 和 confirmed 字段
         questionStates = savedState.questionStates.map(s => ({
             selected: s.selected || [],
             confirmed: s.confirmed || false
@@ -671,38 +703,37 @@ const judgeScoreEl = document.getElementById('judgeScore');
         questionStates = quiz.map(() => ({ confirmed: false, selected: [] }));
     }
 
-
     // 渲染各题型
     for (const [type, group] of Object.entries(groups)) {
-    if (group.items.length === 0) continue;
+        if (group.items.length === 0) continue;
 
-    // 计算分数文本（内容标题和帘头共用）
-    const perScore = group.totalScore / group.items.length;
-    const scoreText = `每题${perScore}分，共${group.totalScore}分`;
+        // 计算分数文本（内容标题和帘头共用）
+        const perScore = group.totalScore / group.items.length;
+        const scoreText = `每题${perScore}分，共${group.totalScore}分`;
 
-    // 显示内容标题
-    if (group.titleEl) {
-        group.titleEl.style.display = 'block';
-        if (group.scoreTextEl) {
-            group.scoreTextEl.textContent = scoreText;
+        // 显示内容标题
+        if (group.titleEl) {
+            group.titleEl.style.display = 'block';
+            if (group.scoreTextEl) {
+                group.scoreTextEl.textContent = scoreText;
+            }
         }
-    }
 
-    // ★ 更新对应的帘头分数（关键新增）
-    if (type === 'single' && singleScoreEl) {
-        singleScoreEl.textContent = scoreText;
-    } else if (type === 'multiple' && multipleScoreEl) {
-        multipleScoreEl.textContent = scoreText;
-    } else if (type === 'judge' && judgeScoreEl) {
-        judgeScoreEl.textContent = scoreText;
-    }
+        // 更新对应的帘头分数
+        if (type === 'single' && singleScoreEl) {
+            singleScoreEl.textContent = scoreText;
+        } else if (type === 'multiple' && multipleScoreEl) {
+            multipleScoreEl.textContent = scoreText;
+        } else if (type === 'judge' && judgeScoreEl) {
+            judgeScoreEl.textContent = scoreText;
+        }
 
-    // 显示题型容器
-    const container = group.container;
-    if (!container) continue;
-    container.style.display = 'block';
+        // 显示题型容器
+        const container = group.container;
+        if (!container) continue;
+        container.style.display = 'block';
 
-        // 渲染题目（保持原有逻辑不变）
+        // 渲染题目
         group.items.forEach((q, localIdx) => {
             const globalIdx = quiz.indexOf(q);
             const wrapper = document.createElement('div');
@@ -814,18 +845,41 @@ const judgeScoreEl = document.getElementById('judgeScore');
         if (el) el.style.display = 'block';
     });
     if (quizFooterGlobal) quizFooterGlobal.style.display = 'block';
+
+    // ★ 设置提交按钮
     if (submitBtn) {
-        submitBtn.disabled = false;
-        submitBtn.textContent = '✅ 提交考核';
+        // 如果已通过，显示"重新提交"
+        if (isPassed && historyData) {
+            submitBtn.textContent = '🔄 重新提交';
+            submitBtn.onclick = function() {
+                if (confirm('重新提交将重置所有答案，确定继续吗？')) {
+                    const quizData = stageData[currentViewStage]?.quiz;
+                    if (quizData) {
+                        questionStates = quizData.map(() => ({ confirmed: false, selected: [] }));
+                        renderQuiz(quizData);
+                        submitBtn.textContent = '✅ 提交考核';
+                        submitBtn.onclick = submitQuiz;
+                        if (quizResult) {
+                            quizResult.classList.add('hidden');
+                        }
+                    }
+                }
+            };
+        } else {
+            // 未通过：正常提交
+            submitBtn.disabled = false;
+            submitBtn.textContent = '✅ 提交考核';
+            submitBtn.onclick = submitQuiz;
+        }
     }
 
-    // ★ 确保内容标题重新显示
+    // 确保内容标题重新显示
     if (quizContentTitle) quizContentTitle.style.display = 'block';
     if (groups.single.items.length > 0 && quizSingleTitle) quizSingleTitle.style.display = 'block';
     if (groups.multiple.items.length > 0 && quizMultipleTitle) quizMultipleTitle.style.display = 'block';
     if (groups.judge.items.length > 0 && quizJudgeTitle) quizJudgeTitle.style.display = 'block';
 
-    // ★ 重置帘头内联样式，让 CSS 控制显示
+    // 重置帘头内联样式，让 CSS 控制显示
     [singleHeader, multipleHeader, judgeHeader, quizTitleHeader].forEach(el => {
         if (el) el.style.display = '';
     });
@@ -1223,7 +1277,6 @@ async function submitQuiz() {
     if (!history || earnedScore > bestScore) {
         shouldUpdate = true;
     } else if (passed && !isStagePassed) {
-        // 之前未通过，本次通过，更新
         shouldUpdate = true;
     }
 
@@ -1248,7 +1301,7 @@ async function submitQuiz() {
         }
     }
 
-    // ★ 更新晋级状态（仅当本次通过且之前未通过时）
+    // 更新晋级状态（仅当本次通过且之前未通过时）
     if (passed && !isStagePassed) {
         const newStages = [...(currentUser.completed_stages || []), targetStage];
         await supabaseClient.from('merchants').update({ completed_stages: newStages }).eq('id', currentUser.id);
@@ -1258,15 +1311,11 @@ async function submitQuiz() {
             await supabaseClient.from('merchants').update({ level: newLevel.id }).eq('id', currentUser.id);
             currentUser.level = newLevel.id;
         }
-        // 如果是首次通过，刷新仪表盘（更新阶段和等级）
-        await updateDashboard(currentUser);
-    } else if (!passed && !isStagePassed) {
-        // 未通过且未通过，刷新仪表盘（更新UI）
+        // 刷新仪表盘
         await updateDashboard(currentUser);
     } else {
-        // ★ 已通过阶段重新提交，不刷新仪表盘，仅更新成绩显示（已在 results 中更新）
-        // 只更新 currentUser 的 quiz_results，但不需要重新加载整个页面
-        // 只需要更新界面上的成绩显示和按钮状态即可
+        // 刷新UI（更新成绩显示）
+        await updateDashboard(currentUser);
     }
 
     // ★ 显示本次成绩和最好成绩
@@ -1282,10 +1331,10 @@ async function submitQuiz() {
         quizResult.className = passed ? 'msg' : 'msg error';
     }
 
-    // 更新提交按钮
+    // ★ 更新提交按钮
     const submitBtn = document.getElementById('submitQuizBtn');
     if (submitBtn) {
-        // 如果本次通过或已通过，显示“重新提交”
+        // 如果本次通过或已通过，显示"重新提交"
         if (passed || isStagePassed) {
             submitBtn.textContent = '🔄 重新提交';
             submitBtn.onclick = function() {
@@ -1308,25 +1357,16 @@ async function submitQuiz() {
         }
     }
 
-    // ★ 如果是已通过阶段重新提交，不刷新页面，所以无需 setTimeout 恢复消息
-    if (isStagePassed && passed) {
-        // 确保消息显示
+    // 确保消息在 updateDashboard 后仍然显示
+    setTimeout(() => {
         if (quizResult) {
             quizResult.classList.remove('hidden');
             quizResult.innerHTML = `${msg}<br>${bestMsg}`;
-            quizResult.className = 'msg';
+            quizResult.className = passed ? 'msg' : 'msg error';
         }
-    } else {
-        // 其他情况，可能 updateDashboard 会隐藏消息，延迟恢复
-        setTimeout(() => {
-            if (quizResult) {
-                quizResult.classList.remove('hidden');
-                quizResult.innerHTML = `${msg}<br>${bestMsg}`;
-                quizResult.className = passed ? 'msg' : 'msg error';
-            }
-        }, 100);
-    }
+    }, 100);
 }
+
 // ========== 生成阶段卡片 ==========
 function buildStageCards(container, currentStage, maxUnlocked) {
     if (!container) return;
