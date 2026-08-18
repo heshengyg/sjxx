@@ -1222,10 +1222,10 @@ async function submitQuiz() {
         return;
     }
 
-    // ★ 判断该阶段是否已通过
+    // 判断该阶段是否已通过
     const isStagePassed = currentUser.completed_stages && currentUser.completed_stages.includes(targetStage);
 
-    // ★ 如果未通过，则检查资源是否全部完成（已通过则跳过此项检查）
+    // 未通过时检查资源完成
     if (!isStagePassed) {
         const resources = data.resources || [];
         const allCompleted = resources.every(r => progressMap[r.id] && progressMap[r.id].completed);
@@ -1239,7 +1239,7 @@ async function submitQuiz() {
         }
     }
 
-    // 检查是否所有题目已确认
+    // 检查所有题目已确认
     const allConfirmed = questionStates.every(s => s && s.confirmed === true);
     if (!allConfirmed) {
         if (quizResult) {
@@ -1270,11 +1270,10 @@ async function submitQuiz() {
     const results = currentUser.quiz_results || {};
     const stageKey = `stage_${targetStage}`;
     const history = results[stageKey] || null;
-    const bestScore = history ? history.correct : 0;
 
-    // 更新结果（仅当本次成绩更好或之前没有记录时）
+    // ★ 判断是否应该更新成绩（本次更好 或 之前未通过本次通过）
     let shouldUpdate = false;
-    if (!history || earnedScore > bestScore) {
+    if (!history || earnedScore > history.correct) {
         shouldUpdate = true;
     } else if (passed && !isStagePassed) {
         shouldUpdate = true;
@@ -1301,8 +1300,7 @@ async function submitQuiz() {
         }
     }
 
-    // ★ 更新晋级状态（仅当本次通过且之前未通过时）
-    let justPassed = false;
+    // ★ 更新晋级状态（首次通过）
     if (passed && !isStagePassed) {
         const newStages = [...(currentUser.completed_stages || []), targetStage];
         await supabaseClient.from('merchants').update({ completed_stages: newStages }).eq('id', currentUser.id);
@@ -1312,62 +1310,35 @@ async function submitQuiz() {
             await supabaseClient.from('merchants').update({ level: newLevel.id }).eq('id', currentUser.id);
             currentUser.level = newLevel.id;
         }
-        justPassed = true;
+        // 刷新阶段卡片和进度
+        const maxUnlocked = currentUser.completed_stages.length > 0 ? Math.max(...currentUser.completed_stages) : 0;
+        buildStageCards(stageList, currentViewStage, maxUnlocked);
+        buildStageCards(stageListContent, currentViewStage, maxUnlocked);
+        // 更新进度显示
+        const done = Math.min(currentUser.completed_stages.length, TOTAL_STAGES);
+        const pct = Math.round((done / TOTAL_STAGES) * 100);
+        if (progressFill) progressFill.style.width = pct + '%';
+        if (stepLabel) stepLabel.textContent = `学习进度 ${pct}% (${done}/${TOTAL_STAGES})`;
+        const level = getLevelFromStages(currentUser.completed_stages);
+        if (levelDisplay) levelDisplay.textContent = level.label;
+        const nextLevel = level.next ? getLevelById(level.next) : null;
+        if (nextLevelLabel) nextLevelLabel.textContent = nextLevel ? `下一等级：${nextLevel.label}` : '🏆 已达最高等级';
+        if (statusText) statusText.textContent = `📖 ${done >= TOTAL_STAGES ? '已完成全部阶段' : '当前阶段：' + currentViewStage} · 等级 ${level.label}`;
     }
 
-    // ★ 更新界面（不调用 updateDashboard，避免自动跳转）
-    // 更新阶段卡片状态
-    const maxUnlocked = currentUser.completed_stages.length > 0 ? Math.max(...currentUser.completed_stages) : 0;
-    buildStageCards(stageList, currentViewStage, maxUnlocked);
-    buildStageCards(stageListContent, currentViewStage, maxUnlocked);
-    // 更新顶部进度
-    const done = Math.min(currentUser.completed_stages.length, TOTAL_STAGES);
-    const pct = Math.round((done / TOTAL_STAGES) * 100);
-    if (progressFill) progressFill.style.width = pct + '%';
-    if (stepLabel) stepLabel.textContent = `学习进度 ${pct}% (${done}/${TOTAL_STAGES})`;
-    const level = getLevelFromStages(currentUser.completed_stages);
-    if (levelDisplay) levelDisplay.textContent = level.label;
-    const nextLevel = level.next ? getLevelById(level.next) : null;
-    if (nextLevelLabel) nextLevelLabel.textContent = nextLevel ? `下一等级：${nextLevel.label}` : '🏆 已达最高等级';
-    if (statusText) statusText.textContent = `📖 当前阶段：${currentViewStage} · 等级 ${level.label}`;
-    // 更新头像（如果有变化）
-    updateAvatar(currentUser);
-
-    // ★ 显示结果弹窗
+    // ★ 显示本次成绩和最好成绩（在 quizResult 区域）
     const best = results[stageKey] || history || { correct: earnedScore, total: totalScore };
-    const bestScoreDisplay = best.correct;
-    const bestTotal = best.total;
-    const isReSubmit = history && history.correct > 0; // 是否重新提交
-
-    let msg = `📊 本次得分：${earnedScore}/${totalScore}（达标分 ${passThreshold}）`;
-    if (isReSubmit && bestScoreDisplay > earnedScore) {
-        msg += `\n🏆 历史最好成绩：${bestScoreDisplay}/${bestTotal}`;
-    } else if (isReSubmit && bestScoreDisplay === earnedScore) {
-        msg += `\n🏆 当前为历史最好成绩：${bestScoreDisplay}/${bestTotal}`;
+    let displayMsg = `📊 本次得分：${earnedScore}/${totalScore}（达标分 ${passThreshold}）`;
+    if (history && best.correct > earnedScore) {
+        displayMsg += `<br>🏆 历史最好成绩：${best.correct}/${best.total}`;
+    } else if (history && best.correct === earnedScore && history.correct > 0) {
+        displayMsg += `<br>🏆 当前为历史最好成绩：${best.correct}/${best.total}`;
     }
+    displayMsg += `<br>${passed ? '✅ 已通过' : '❌ 未通过'}`;
 
-    // 使用弹窗显示
-    const confirmMsg = passed 
-        ? `✅ 考核通过！\n${msg}\n\n点击"确认"停留在当前页面，点击"进入最新阶段"跳转。`
-        : `❌ 考核未通过！\n${msg}\n\n请修改后重新提交。`;
-
-    const result = confirm(confirmMsg);
-    // confirm 返回 true 表示点击"确定"，false 表示点击"取消"
-    // 但我们用自定义方式实现两个按钮的效果：点击"确定"停留，点击"进入最新阶段"跳转
-    // 由于 confirm 只有两个按钮，我们用 alert 替代，并在按钮下方显示操作提示
-    // 更好的方式：使用自定义弹窗，但先用 alert 快速实现
-
-    // ★ 在 quizResult 区域显示成绩（始终显示）
     if (quizResult) {
         quizResult.classList.remove('hidden');
-        let displayMsg = `📊 本次得分：${earnedScore}/${totalScore}（达标分 ${passThreshold}）`;
-        if (isReSubmit && bestScoreDisplay > earnedScore) {
-            displayMsg += `\n🏆 历史最好成绩：${bestScoreDisplay}/${bestTotal}`;
-        } else if (isReSubmit && bestScoreDisplay === earnedScore) {
-            displayMsg += `\n🏆 当前为历史最好成绩：${bestScoreDisplay}/${bestTotal}`;
-        }
-        displayMsg += `\n${passed ? '✅ 已通过' : '❌ 未通过'}`;
-        quizResult.innerHTML = displayMsg.replace(/\n/g, '<br>');
+        quizResult.innerHTML = displayMsg;
         quizResult.className = passed ? 'msg' : 'msg error';
     }
 
@@ -1396,17 +1367,28 @@ async function submitQuiz() {
         }
     }
 
-    // ★ 如果刚刚通过，且用户点击了"进入最新阶段"，则跳转
-    // 由于 confirm 无法区分两个按钮，我们使用 setTimeout 延迟询问
-    if (passed && justPassed) {
-        setTimeout(() => {
-            if (confirm('🎉 恭喜通过！是否进入最新阶段？\n点击"确定"进入最新阶段，点击"取消"停留在当前页面。')) {
-                // 跳转到最新阶段
-                goToLatestStage();
-            }
-        }, 300);
-    } else if (passed && isStagePassed) {
-        // 已通过阶段重新提交，不弹窗询问
+    // ★ 控制"进入最新阶段"按钮
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+        if (passed && !isStagePassed) {
+            // 首次通过：可用
+            refreshBtn.disabled = false;
+            refreshBtn.style.opacity = '1';
+            refreshBtn.textContent = '🚀 进入最新阶段';
+            refreshBtn.onclick = goToLatestStage;
+        } else {
+            // 已通过或未通过：置灰
+            refreshBtn.disabled = true;
+            refreshBtn.style.opacity = '0.5';
+            refreshBtn.textContent = '进入最新阶段';
+            refreshBtn.onclick = function() {
+                if (passed) {
+                    alert('您已通过本阶段，如需进入最新阶段请点击"进入最新阶段"按钮（首次通过时可用）');
+                } else {
+                    alert('请先通过考核再进入最新阶段');
+                }
+            };
+        }
     }
 }
 // ========== 生成阶段卡片 ==========
@@ -1712,11 +1694,9 @@ async function goToLatestStage() {
             alert('🎉 您已完成全部阶段！');
             return;
         }
-        // 切换到最新阶段
         if (currentViewStage !== nextStage) {
             await switchStageSync(nextStage);
         } else {
-            // 如果已经在最新阶段，刷新数据
             await updateDashboard(currentUser);
         }
         if (quizResult) {
