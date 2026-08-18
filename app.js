@@ -848,10 +848,10 @@ function openResourceDetail(resource, allResources) {
         savedPosition = prog.last_position;
     }
 
-    let lastValidTime = savedPosition; // 当前最大可观看时间
+    let lastValidTime = savedPosition;
     let isRestoring = false;
     let initialSeek = false;
-    let pendingSeek = false; // ★ 新增：标记有待处理的越界修正
+    let needPause = false; // ★ 新增
 
     video.addEventListener('loadedmetadata', function() {
         if (savedPosition > 0 && savedPosition < video.duration - 0.5) {
@@ -871,7 +871,7 @@ function openResourceDetail(resource, allResources) {
     let saveTimer = null;
     function updateAndSave() {
         if (!video.duration) return;
-        const pos = Math.floor(lastValidTime);
+        const pos = lastValidTime;
         const pct = Math.round((pos / video.duration) * 100);
         updateResourceProgress(resource.id, pct, pos);
         updateDetailProgress(resource.id);
@@ -902,7 +902,7 @@ function openResourceDetail(resource, allResources) {
         }
     });
 
-    // ★ 核心：处理用户拖动（点击或拖拽）
+    // ★ 改进的 seeking 和 seeked
     video.addEventListener('seeking', function() {
         if (isRestoring) return;
         if (initialSeek) return;
@@ -916,35 +916,21 @@ function openResourceDetail(resource, allResources) {
         const targetTime = video.currentTime;
         if (targetTime > lastValidTime + 0.5) {
             isRestoring = true;
-            pendingSeek = true;
+            needPause = true;
             video.currentTime = lastValidTime;
             video.pause();
         }
     });
 
-    // ★ seeked：最终确认（加强修正）
     video.addEventListener('seeked', function() {
-        // 处理 pending 修正
-        if (pendingSeek) {
-            pendingSeek = false;
-            isRestoring = false;
-            // 强制停在 lastValidTime（确保整数秒）
-            const target = Math.floor(lastValidTime);
-            if (Math.abs(video.currentTime - target) > 0.5) {
-                video.currentTime = target;
-                video.pause();
-            }
-            // 再次检查，若仍越界则再次修正
-            if (video.currentTime > lastValidTime + 0.5) {
-                video.currentTime = lastValidTime;
-                video.pause();
-            }
-            return;
-        }
         if (isRestoring) {
             isRestoring = false;
-            if (video.currentTime >= lastValidTime) {
+            if (video.currentTime > lastValidTime + 0.5) {
+                video.currentTime = lastValidTime;
+            }
+            if (needPause) {
                 video.pause();
+                needPause = false;
             }
             return;
         }
@@ -956,10 +942,10 @@ function openResourceDetail(resource, allResources) {
             return;
         }
 
-        // 二次检查（覆盖点击进度条上某点的情况）
         if (video.currentTime > lastValidTime + 0.5) {
             video.currentTime = lastValidTime;
             video.pause();
+            needPause = false;
         }
     });
 
