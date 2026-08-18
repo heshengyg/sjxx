@@ -139,6 +139,17 @@ function showBenefitsPopup() {
 function closeBenefitsPopup() {
     document.getElementById('benefitsModal').classList.remove('open');
 }
+// ========== 记住密码保存 ==========
+function saveRememberMe(phone, password) {
+    const rememberMe = document.getElementById('rememberMe');
+    if (rememberMe && rememberMe.checked) {
+        localStorage.setItem('squirrel_phone', phone);
+        localStorage.setItem('squirrel_pass', btoa(password));
+    } else {
+        localStorage.removeItem('squirrel_phone');
+        localStorage.removeItem('squirrel_pass');
+    }
+}
 // ========== ★ 新增结束 ==========
 
 // DOM helpers
@@ -1229,15 +1240,6 @@ async function submitQuiz() {
                 const nextStage = getCurrentStage(newStages);
                 if (nextStage <= TOTAL_STAGES) currentViewStage = nextStage;
                 
-                // 记住密码处理
-const rememberMe = document.getElementById('rememberMe');
-if (rememberMe && rememberMe.checked) {
-    localStorage.setItem('squirrel_phone', phone);
-    localStorage.setItem('squirrel_pass', btoa(password)); // Base64 编码存储
-} else {
-    localStorage.removeItem('squirrel_phone');
-    localStorage.removeItem('squirrel_pass');
-}
                 // 刷新仪表盘
                 await updateDashboard(currentUser);
                 // 显示晋级消息（延迟确保 updateDashboard 已完成）
@@ -1487,6 +1489,7 @@ async function handleAuth() {
             currentViewStage = getCurrentStage(stages);
             if (currentViewStage > TOTAL_STAGES) currentViewStage = TOTAL_STAGES;
             await updateDashboard(currentUser);
+            saveRememberMe(phone, password);
             showAuthMsg(`欢迎回来，${existing.name}`, false);
 
             setTimeout(preloadAllStages, 500);
@@ -1524,6 +1527,7 @@ async function handleAuth() {
             if (dashboard) dashboard.classList.remove('hidden');
             currentViewStage = 1;
             await updateDashboard(currentUser);
+            saveRememberMe(phone, password);
             showAuthMsg(`🎉 注册成功，${name}！`, false);
 
             setTimeout(preloadAllStages, 500);
