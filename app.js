@@ -851,6 +851,7 @@ function openResourceDetail(resource, allResources) {
     let isRestoring = false;
     let initialSeek = false;
 
+    // ★ 加载完成后定位到上次进度
     video.addEventListener('loadedmetadata', function() {
         if (savedPosition > 0 && savedPosition < video.duration - 0.5) {
             initialSeek = true;
@@ -869,18 +870,20 @@ function openResourceDetail(resource, allResources) {
     let saveTimer = null;
     function updateAndSave() {
         if (!video.duration) return;
+        // ★ 始终保存最大已学时间
         const pos = lastValidTime;
         const pct = Math.round((pos / video.duration) * 100);
         updateResourceProgress(resource.id, pct, pos);
         updateDetailProgress(resource.id);
     }
 
+    // ★ timeupdate：只增加最大时间，不减少
     video.addEventListener('timeupdate', function() {
         if (!isRestoring && !initialSeek) {
             if (video.currentTime > lastValidTime) {
                 lastValidTime = video.currentTime;
             }
-            // ★ 关键：始终保持 _lastValidTime 与 lastValidTime 同步（记录最大进度）
+            // 同步 _lastValidTime 用于关闭时保存
             this._lastValidTime = lastValidTime;
         }
         const pct = Math.round((video.currentTime / video.duration) * 100);
@@ -893,7 +896,7 @@ function openResourceDetail(resource, allResources) {
             }, 3000);
         }
 
-        // 如果播放位置超过允许的最大时间，强制跳回
+        // 播放中越界立即拉回（防意外）
         if (!isRestoring && !initialSeek && lastValidTime > 0) {
             if (video.currentTime > lastValidTime + 0.5) {
                 video.currentTime = lastValidTime;
@@ -902,11 +905,12 @@ function openResourceDetail(resource, allResources) {
         }
     });
 
-    // ★ 核心：处理用户拖动进度条（移动端加强）
+    // ★ 核心：处理用户拖动（点击或拖拽）
     video.addEventListener('seeking', function() {
         if (isRestoring) return;
         if (initialSeek) return;
 
+        // 已完成则允许任意操作
         if (progressMap[resource.id] && progressMap[resource.id].completed) {
             lastValidTime = video.duration;
             this._lastValidTime = video.duration;
@@ -914,36 +918,44 @@ function openResourceDetail(resource, allResources) {
         }
 
         const targetTime = video.currentTime;
+        // 越界修正
         if (targetTime > lastValidTime + 0.5) {
             isRestoring = true;
             video.currentTime = lastValidTime;
-            video.pause(); // ★ 立即暂停
+            video.pause(); // 立即暂停
         }
     });
 
+    // ★ seeked：最终确认（同步检查，不使用延迟）
     video.addEventListener('seeked', function() {
+        // 若是我们主动修正（isRestoring），则重置标志并确保暂停
         if (isRestoring) {
             isRestoring = false;
             if (video.currentTime >= lastValidTime) {
+                video.pause();
+            }
+            // 再次确认，若仍然越界则修正（极少情况）
+            if (video.currentTime > lastValidTime + 0.5) {
+                video.currentTime = lastValidTime;
                 video.pause();
             }
             return;
         }
         if (initialSeek) return;
 
+        // 已完成则直接更新
         if (progressMap[resource.id] && progressMap[resource.id].completed) {
             lastValidTime = video.duration;
             this._lastValidTime = video.duration;
             return;
         }
 
-        // ★ 移动端延迟检查，确保 currentTime 已更新
-        setTimeout(() => {
-            if (video.currentTime > lastValidTime + 0.5) {
-                video.currentTime = lastValidTime;
-                video.pause();
-            }
-        }, 50);
+        // 二次检查：若仍越界则修正
+        if (video.currentTime > lastValidTime + 0.5) {
+            video.currentTime = lastValidTime;
+            video.pause();
+        }
+        // 不更新 lastValidTime，只允许播放时增加
     });
 
     video.addEventListener('ended', function() {
@@ -1920,10 +1932,11 @@ function initFloatNav() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // ★ 清除旧缓存（一次性）
+    // ★ 清除所有进度缓存（仅执行一次，之后不会再产生新缓存）
     Object.keys(localStorage).forEach(key => {
         if (key.startsWith('progress_')) {
             localStorage.removeItem(key);
+            console.log('已清除缓存:', key);
         }
     });
     initFloatNav();
