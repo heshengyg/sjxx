@@ -1156,19 +1156,54 @@ function updateStageProgress(stage, resources) {
 // ========== submitQuiz ==========
 async function submitQuiz() {
     if (!currentUser) return;
-    const stages = currentUser.completed_stages || [];
-    const actualStage = getCurrentStage(stages);
 
-    if (currentViewStage !== actualStage || actualStage > TOTAL_STAGES) {
-        if (quizResult) {
-            quizResult.classList.remove('hidden');
-            quizResult.textContent = '⚠️ 只能提交当前阶段的考核。';
-            quizResult.className = 'msg error';
+    const targetStage = currentViewStage;
+    const stages = currentUser.completed_stages || [];
+
+    // ★ 检查当前阶段是否已通过
+    const isPassed = stages.includes(targetStage);
+    if (isPassed) {
+        const results = currentUser.quiz_results || {};
+        const stageKey = `stage_${targetStage}`;
+        const result = results[stageKey];
+        if (result) {
+            const passThreshold = Math.round(result.total * 0.8);
+            const msg = `✅ 您已通过本阶段考核！得分 ${result.correct}/${result.total}，达标分 ${passThreshold}。`;
+            if (quizResult) {
+                quizResult.classList.remove('hidden');
+                quizResult.textContent = msg;
+                quizResult.className = 'msg';
+            }
+            const submitBtn = document.getElementById('submitQuizBtn');
+            if (submitBtn) {
+                submitBtn.textContent = '🔄 重新提交';
+                submitBtn.disabled = false;
+                // 绑定重新提交事件
+                submitBtn.onclick = function() {
+                    if (confirm('重新提交将覆盖之前的成绩，确定继续吗？')) {
+                        const quizData = stageData[targetStage]?.quiz;
+                        if (quizData) {
+                            questionStates = quizData.map(() => ({ confirmed: false, selected: [] }));
+                            // 重新渲染考核
+                            renderQuiz(quizData);
+                            // 更新按钮
+                            submitBtn.textContent = '✅ 提交考核';
+                            submitBtn.onclick = submitQuiz;
+                            if (quizResult) {
+                                quizResult.classList.add('hidden');
+                            }
+                        } else {
+                            alert('无法获取考核数据，请刷新页面重试。');
+                        }
+                    }
+                };
+            }
+            return; // 不再继续提交逻辑
         }
-        return;
     }
 
-    const data = stageData[actualStage];
+    // 后续逻辑：提交考核（目标阶段为 currentViewStage）
+    const data = stageData[targetStage];
     if (!data || !data.quiz || data.quiz.length === 0) {
         if (quizResult) {
             quizResult.classList.remove('hidden');
@@ -1211,15 +1246,14 @@ async function submitQuiz() {
         }
     });
 
-    const scorePercent = Math.round((earnedScore / totalScore) * 100);
     const passThreshold = Math.round(totalScore * 0.8);
     const passed = earnedScore >= passThreshold;
 
     const results = currentUser.quiz_results || {};
-    results[`stage_${actualStage}`] = {
+    results[`stage_${targetStage}`] = {
         correct: earnedScore,
         total: totalScore,
-        passRate: scorePercent,
+        passRate: Math.round((earnedScore / totalScore) * 100),
         passed: passed,
         date: new Date().toISOString()
     };
@@ -1229,8 +1263,9 @@ async function submitQuiz() {
         currentUser.quiz_results = results;
 
         if (passed) {
-            if (!stages.includes(actualStage)) {
-                const newStages = [...stages, actualStage];
+            // 如果当前阶段尚未完成，则标记完成并晋级
+            if (!stages.includes(targetStage)) {
+                const newStages = [...stages, targetStage];
                 await supabaseClient.from('merchants').update({ completed_stages: newStages }).eq('id', currentUser.id);
                 currentUser.completed_stages = newStages;
                 const newLevel = getLevelFromStages(newStages);
@@ -1238,43 +1273,44 @@ async function submitQuiz() {
                     await supabaseClient.from('merchants').update({ level: newLevel.id }).eq('id', currentUser.id);
                     currentUser.level = newLevel.id;
                 }
-                const nextStage = getCurrentStage(newStages);
-                if (nextStage <= TOTAL_STAGES) currentViewStage = nextStage;
-                
                 // 刷新仪表盘
                 await updateDashboard(currentUser);
-                // 显示晋级消息（延迟确保 updateDashboard 已完成）
-                setTimeout(() => {
-                    if (quizResult) {
-                        quizResult.classList.remove('hidden');
-                        quizResult.textContent = `🎉 考核通过！得分 ${earnedScore}/${totalScore}，已晋级！${nextStage <= TOTAL_STAGES ? '进入下一阶段' : '全部完成！'}`;
-                        quizResult.className = 'msg';
-                    }
-                }, 100);
-                return;
+                // 显示晋级消息
+                if (quizResult) {
+                    quizResult.classList.remove('hidden');
+                    quizResult.textContent = `🎉 考核通过！得分 ${earnedScore}/${totalScore}，达标分 ${passThreshold}，已晋级！`;
+                    quizResult.className = 'msg';
+                }
             } else {
-                // 已标记过，仍显示通过
+                // 已通过但重新提交，只更新成绩，不晋级
+                if (quizResult) {
+                    quizResult.classList.remove('hidden');
+                    quizResult.textContent = `✅ 考核通过！得分 ${earnedScore}/${totalScore}，达标分 ${passThreshold}，成绩已更新。`;
+                    quizResult.className = 'msg';
+                }
+                // 刷新仪表盘（更新UI）
                 await updateDashboard(currentUser);
-                setTimeout(() => {
-                    if (quizResult) {
-                        quizResult.classList.remove('hidden');
-                        quizResult.textContent = `✅ 考核通过！得分 ${earnedScore}/${totalScore}，阶段已标记完成。`;
-                        quizResult.className = 'msg';
-                    }
-                }, 100);
-                return;
             }
         } else {
             // 未通过
-            await updateDashboard(currentUser);
-            setTimeout(() => {
+            if (stages.includes(targetStage)) {
+                // 之前已通过，但这次未通过，保留之前状态，只显示信息
                 if (quizResult) {
                     quizResult.classList.remove('hidden');
-                    quizResult.textContent = `目前答卷${earnedScore}分，未满足晋级条件，请修改答卷！\n满分${totalScore}分，及格${passThreshold}分`;
+                    quizResult.textContent = `❌ 本次未通过（得分 ${earnedScore}/${totalScore}，达标分 ${passThreshold}），但您之前已通过本阶段，成绩未受影响。`;
                     quizResult.className = 'msg error';
                 }
-            }, 100);
-            return;
+                // 刷新仪表盘（更新UI）
+                await updateDashboard(currentUser);
+            } else {
+                // 未通过且之前未通过，显示未通过信息
+                if (quizResult) {
+                    quizResult.classList.remove('hidden');
+                    quizResult.textContent = `❌ 考核未通过！得分 ${earnedScore}/${totalScore}，达标分 ${passThreshold}，请修改后重试。`;
+                    quizResult.className = 'msg error';
+                }
+                await updateDashboard(currentUser);
+            }
         }
     } catch (e) {
         if (quizResult) {
@@ -1284,7 +1320,6 @@ async function submitQuiz() {
         }
     }
 }
-
 // ========== 生成阶段卡片 ==========
 function buildStageCards(container, currentStage, maxUnlocked) {
     if (!container) return;
