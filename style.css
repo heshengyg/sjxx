@@ -470,28 +470,41 @@ body {
     align-items: center;
     justify-content: center;
     z-index: 200;
-    padding: 10px; /* 屏幕边距 */
+    padding: 10px;
 }
 .modal-overlay.open {
     display: flex;
 }
 
-/* 弹窗卡片 */
+/* 弹窗卡片 - 通用 */
 .modal-card {
     background: #fff;
-    max-width: calc(100vw - 20px); /* 比屏幕宽度小20px */
-    max-height: calc(100vh - 20px); /* 比屏幕高度小20px */
+    max-width: 480px;          /* 与主容器一致，电脑端限制宽度 */
     width: 100%;
     border-radius: 28px;
     padding: 20px 16px 30px;
     box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
-    overflow-y: auto; /* 内容过多时可滚动 */
+    max-height: 90vh;          /* 高度限制，防止溢出 */
+    overflow-y: auto;
     box-sizing: border-box;
+    margin: 0 auto;
 }
 .modal-large {
-    max-width: calc(100vw - 20px);
+    max-width: 480px;          /* 与普通一致，不再用 700px */
 }
 
+/* 移动端适配：弹窗尽量占满屏幕，但保留边距 */
+@media (max-width: 480px) {
+    .modal-card {
+        max-width: calc(100vw - 20px);
+        max-height: calc(100vh - 20px);
+        border-radius: 20px;
+        padding: 16px 12px 24px;
+    }
+    .modal-large {
+        max-width: calc(100vw - 20px);
+    }
+}
 /* 头部 */
 .modal-header {
     display: flex;

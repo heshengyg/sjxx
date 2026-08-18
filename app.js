@@ -851,124 +851,145 @@ function openResourceDetail(resource, allResources) {
     detailProgress.textContent = '';
 
         if (resource.type === 'video') {
-        const video = document.createElement('video');
-        video.src = resource.file;
-        video.controls = true;
-        video.playsInline = true;
-        video.style.width = '100%';
-        video.style.borderRadius = '12px';
-        video.preload = 'metadata';
+    const video = document.createElement('video');
+    video.src = resource.file;
+    video.controls = true;
+    video.playsInline = true;
+    video.style.width = '100%';
+    video.style.borderRadius = '12px';
+    video.preload = 'metadata';
 
-        let savedPosition = 0;
-        const prog = progressMap[resource.id];
-        if (prog && prog.last_position && !prog.completed) {
-            savedPosition = prog.last_position;
+    let savedPosition = 0;
+    const prog = progressMap[resource.id];
+    if (prog && prog.last_position && !prog.completed) {
+        savedPosition = prog.last_position;
+    }
+
+    let lastValidTime = savedPosition; // 最大可观看时间
+    let isRestoring = false;
+    let initialSeek = false;
+    let hasStarted = false;
+
+    video.addEventListener('loadedmetadata', function() {
+        if (savedPosition > 0 && savedPosition < video.duration - 0.5) {
+            initialSeek = true;
+            video.currentTime = savedPosition;
+            const onSeeked = function() {
+                initialSeek = false;
+                video.removeEventListener('seeked', onSeeked);
+            };
+            video.addEventListener('seeked', onSeeked);
+            lastValidTime = savedPosition;
+            this._lastValidTime = savedPosition;
+        }
+        updateDetailProgress(resource.id);
+    });
+
+    let saveTimer = null;
+    function updateAndSave() {
+        if (!video.duration) return;
+        const pos = video._lastValidTime;
+        const pct = Math.round((pos / video.duration) * 100);
+        updateResourceProgress(resource.id, pct, pos);
+        updateDetailProgress(resource.id);
+    }
+
+    video.addEventListener('timeupdate', function() {
+        if (!isRestoring && !initialSeek) {
+            // 只增不减，最大可观看时间
+            if (video.currentTime > lastValidTime) {
+                lastValidTime = video.currentTime;
+                this._lastValidTime = video.currentTime;
+            }
+        }
+        const pct = Math.round((video.currentTime / video.duration) * 100);
+        if (detailProgress) detailProgress.textContent = `学习进度：${pct}%`;
+
+        if (!saveTimer) {
+            saveTimer = setTimeout(() => {
+                updateAndSave();
+                saveTimer = null;
+            }, 3000);
         }
 
-        let lastValidTime = savedPosition; // 当前最大可观看时间
-        let isRestoring = false;
-        let initialSeek = false;
-
-        video.addEventListener('loadedmetadata', function() {
-            if (savedPosition > 0 && savedPosition < video.duration - 0.5) {
-                initialSeek = true;
-                video.currentTime = savedPosition;
-                const onSeeked = function() {
-                    initialSeek = false;
-                    video.removeEventListener('seeked', onSeeked);
-                };
-                video.addEventListener('seeked', onSeeked);
-                lastValidTime = savedPosition;
-                this._lastValidTime = savedPosition;
-            }
-            updateDetailProgress(resource.id);
-        });
-
-        let saveTimer = null;
-        function updateAndSave() {
-            if (!video.duration) return;
-            const pos = video._lastValidTime;
-            const pct = Math.round((pos / video.duration) * 100);
-            updateResourceProgress(resource.id, pct, pos);
-            updateDetailProgress(resource.id);
-        }
-
-                video.addEventListener('timeupdate', function() {
-            if (!isRestoring && !initialSeek) {
-                // 只有在播放位置大于当前最大可观看时间时才更新
-                if (video.currentTime > lastValidTime) {
-                    lastValidTime = video.currentTime;
-                    this._lastValidTime = video.currentTime;
-                }
-            }
-            const pct = Math.round((video.currentTime / video.duration) * 100);
-            if (detailProgress) detailProgress.textContent = `学习进度：${pct}%`;
-
-            if (!saveTimer) {
-                saveTimer = setTimeout(() => {
-                    updateAndSave();
-                    saveTimer = null;
-                }, 3000);
-            }
-
-            // 如果播放位置超过允许的最大时间，强制跳回（防止意外）
-            if (!isRestoring && !initialSeek && lastValidTime > 0) {
-                if (video.currentTime > lastValidTime + 0.5) {
-                    video.currentTime = lastValidTime;
-                    video.pause();
-                }
-            }
-        });
-
-        // ★ 核心：处理用户拖动进度条
-        video.addEventListener('seeking', function() {
-            if (isRestoring) return;
-            if (initialSeek) return;
-
-            // 如果视频已完成，允许任意拖动
-            if (progressMap[resource.id] && progressMap[resource.id].completed) {
-                // 更新最大可观看时间（因已完成，可设为 duration）
-                lastValidTime = video.duration;
-                this._lastValidTime = video.duration;
-                return;
-            }
-
-            // 如果拖拽到的位置超过了已学习进度（lastValidTime + 0.5秒容差），强制拉回
-            if (video.currentTime > lastValidTime + 0.5) {
-                isRestoring = true;
-                video.currentTime = lastValidTime;
-            }
-            // 否则（在已学习区域内），不做任何操作，允许跳转，但不改变 lastValidTime
-        });
-
-        video.addEventListener('seeked', function() {
-            if (isRestoring) {
-                isRestoring = false;
-                return;
-            }
-            if (initialSeek) return;
-
-            // 如果已完成，直接更新最大可观看时间
-            if (progressMap[resource.id] && progressMap[resource.id].completed) {
-                lastValidTime = video.duration;
-                this._lastValidTime = video.duration;
-                return;
-            }
-
-            // 二次检查，防止某些浏览器在 seeking 中设置 currentTime 后仍触发 seeked 导致位置偏差
+        // 防跳转
+        if (!isRestoring && !initialSeek && lastValidTime > 0) {
             if (video.currentTime > lastValidTime + 0.5) {
                 video.currentTime = lastValidTime;
                 video.pause();
             }
-            // 否则不更新 lastValidTime
-        });
-        detailBody.appendChild(video);
-        currentVideoElement = video;
-        video.play().catch(e => {
-            if (e.name !== 'AbortError') console.warn('视频自动播放被阻止:', e);
-        });
-        activeResourceId = resource.id;
-    }
+        }
+    });
+
+    // 处理拖动（seeking）
+    video.addEventListener('seeking', function() {
+        if (isRestoring) return;
+        if (initialSeek) return;
+
+        const prog = progressMap[resource.id];
+        if (prog && prog.completed) {
+            // 已完成，允许任意拖动
+            lastValidTime = video.duration;
+            this._lastValidTime = video.duration;
+            return;
+        }
+
+        // 如果拖到未学习区域，强制拉回
+        if (video.currentTime > lastValidTime + 0.5) {
+            isRestoring = true;
+            video.currentTime = lastValidTime;
+        }
+        // 否则不更新 lastValidTime
+    });
+
+    video.addEventListener('seeked', function() {
+        if (isRestoring) {
+            isRestoring = false;
+            return;
+        }
+        if (initialSeek) return;
+
+        const prog = progressMap[resource.id];
+        if (prog && prog.completed) {
+            lastValidTime = video.duration;
+            this._lastValidTime = video.duration;
+            return;
+        }
+
+        // 二次检查
+        if (video.currentTime > lastValidTime + 0.5) {
+            video.currentTime = lastValidTime;
+            video.pause();
+        }
+        // 不更新 lastValidTime
+    });
+
+    video.addEventListener('ended', function() {
+        if (this._lastValidTime < video.duration - 1) {
+            video.currentTime = this._lastValidTime;
+            video.pause();
+            return;
+        }
+        this._lastValidTime = video.duration;
+        if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+        markResourceCompleted(resource.id);
+    });
+
+    video.addEventListener('click', function() {
+        if (video.paused) {
+            video.play();
+        } else {
+            video.pause();
+        }
+    });
+
+    detailBody.appendChild(video);
+    currentVideoElement = video;
+    video.play().catch(e => {
+        if (e.name !== 'AbortError') console.warn('视频自动播放被阻止:', e);
+    });
+    activeResourceId = resource.id;
+}
  else if (resource.type === 'image') {
         const img = document.createElement('img');
         img.src = resource.file;
