@@ -190,6 +190,7 @@ const detailCloseBtn = $('detailCloseBtn');
 const loginProgressWrap = $('loginProgressWrap');
 const loginProgressBar = $('loginProgressBar');
 const loginProgressText = $('loginProgressText');
+const changeShopNameBtn = $('changeShopNameBtn');
 
 function getSubmitBtn() {
     return document.getElementById('submitQuizBtn');
@@ -1644,7 +1645,36 @@ async function saveAvatar() {
         if (avatarModalMsg) { avatarModalMsg.classList.remove('hidden'); avatarModalMsg.textContent = '❌ ' + e.message; avatarModalMsg.className = 'msg error'; }
     }
 }
-
+// ========== 更改店铺名 ==========
+function openShopNameModal() {
+    if (!currentUser) return;
+    const newName = prompt('请输入新的店铺名称：', currentUser.name);
+    if (newName === null) return; // 用户取消
+    const trimmed = newName.trim();
+    if (!trimmed) {
+        alert('店铺名不能为空');
+        return;
+    }
+    if (trimmed === currentUser.name) {
+        alert('新名称与当前名称相同');
+        return;
+    }
+    // 更新 Supabase
+    supabaseClient
+        .from('merchants')
+        .update({ name: trimmed })
+        .eq('id', currentUser.id)
+        .then(({ error }) => {
+            if (error) {
+                alert('更新失败：' + error.message);
+                return;
+            }
+            currentUser.name = trimmed;
+            shopNameDisplay.textContent = trimmed;
+            alert('✅ 店铺名已更新！');
+        })
+        .catch(e => alert('错误：' + e.message));
+}
 // ========== Change Password ==========
 function openPasswordModal() {
     if (!passwordModal) return;
@@ -1848,6 +1878,13 @@ if (changePasswordBtn) {
         e.stopPropagation();
         if (dropdownMenu) dropdownMenu.classList.remove('open');
         openPasswordModal();
+    });
+}
+if (changeShopNameBtn) {
+    changeShopNameBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (dropdownMenu) dropdownMenu.classList.remove('open');
+        openShopNameModal();
     });
 }
 if (passwordCancelBtn) passwordCancelBtn.addEventListener('click', function() { if (passwordModal) passwordModal.classList.remove('open'); });
