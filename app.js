@@ -345,35 +345,25 @@ function saveProgressToLocal(resourceId, progress, position, completed) {
 }
 
 async function loadUserProgress() {
-    const localData = loadProgressFromLocal();
     progressMap = {};
-    Object.keys(localData).forEach(key => {
-        const item = localData[key];
-        progressMap[key] = {
-            progress: item.progress_percent || 0,
-            completed: item.completed || false,
-            last_position: item.last_position || 0
-        };
-    });
+    if (!currentUser) return;
     try {
-        if (currentUser) {
-            const { data, error } = await supabaseClient
-                .from('user_learning_progress')
-                .select('*')
-                .eq('user_id', currentUser.id);
-            if (!error && data) {
-                data.forEach(p => {
-                    if (!progressMap[p.resource_id]) {
-                        progressMap[p.resource_id] = {
-                            progress: p.progress_percent || 0,
-                            completed: p.completed || false,
-                            last_position: p.last_position || 0
-                        };
-                    }
-                });
-            }
+        const { data, error } = await supabaseClient
+            .from('user_learning_progress')
+            .select('*')
+            .eq('user_id', currentUser.id);
+        if (!error && data) {
+            data.forEach(p => {
+                progressMap[p.resource_id] = {
+                    progress: p.progress_percent || 0,
+                    completed: p.completed || false,
+                    last_position: p.last_position || 0
+                };
+            });
         }
-    } catch (e) {}
+    } catch (e) {
+        console.warn('加载学习进度失败:', e);
+    }
 }
 
 async function updateResourceProgress(resourceId, progress, position = 0) {
@@ -391,12 +381,7 @@ async function updateResourceProgress(resourceId, progress, position = 0) {
         progressMap[resourceId].completed = true;
         progressMap[resourceId].progress = 100;
     }
-    saveProgressToLocal(
-        resourceId,
-        progressMap[resourceId].progress,
-        progressMap[resourceId].last_position,
-        progressMap[resourceId].completed
-    );
+    // ★ 只保存到 Supabase，不再写 localStorage
     try {
         await supabaseClient
             .from('user_learning_progress')
@@ -408,17 +393,18 @@ async function updateResourceProgress(resourceId, progress, position = 0) {
                 last_position: progressMap[resourceId].last_position,
                 last_updated: new Date().toISOString()
             }, { onConflict: 'user_id, resource_id' });
-    } catch (e) {}
+    } catch (e) {
+        console.warn('保存进度到 Supabase 失败:', e);
+    }
     renderCurrentStageResources();
     updateDetailProgress(resourceId);
 }
-
 async function markResourceCompleted(resourceId) {
     if (!currentUser) return;
     if (progressMap[resourceId] && progressMap[resourceId].completed) return;
     const curLastPos = progressMap[resourceId] ? progressMap[resourceId].last_position : 0;
     progressMap[resourceId] = { progress: 100, completed: true, last_position: curLastPos };
-    saveProgressToLocal(resourceId, 100, curLastPos, true);
+    // ★ 只保存到 Supabase
     try {
         await supabaseClient
             .from('user_learning_progress')
@@ -430,7 +416,9 @@ async function markResourceCompleted(resourceId) {
                 last_position: curLastPos,
                 last_updated: new Date().toISOString()
             }, { onConflict: 'user_id, resource_id' });
-    } catch (e) {}
+    } catch (e) {
+        console.warn('标记资源完成失败:', e);
+    }
     const data = stageData[currentViewStage];
     if (data && data.resources) {
         const allCompleted = data.resources.every(r => progressMap[r.id] && progressMap[r.id].completed);
@@ -442,7 +430,6 @@ async function markResourceCompleted(resourceId) {
     renderCurrentStageResources();
     updateDetailProgress(resourceId);
 }
-
 // ========== Render resources ==========
 function renderResources(stage, resources) {
     if (!resourcesContainer) return;
