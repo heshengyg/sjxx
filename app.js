@@ -850,7 +850,6 @@ function openResourceDetail(resource, allResources) {
 
     let lastValidTime = savedPosition; // 最大可观看时间
     let initialSeek = false;
-    let isCorrection = false; // ★ 修正操作标志，防止递归
 
     // 加载完成后定位
     video.addEventListener('loadedmetadata', function() {
@@ -871,16 +870,15 @@ function openResourceDetail(resource, allResources) {
     let saveTimer = null;
     function updateAndSave() {
         if (!video.duration) return;
-        // 保存最大进度
         const pos = lastValidTime;
         const pct = Math.round((pos / video.duration) * 100);
         updateResourceProgress(resource.id, pct, pos);
         updateDetailProgress(resource.id);
     }
 
-    // ★ timeupdate：只增加最大时间
+    // timeupdate：只增加最大时间
     video.addEventListener('timeupdate', function() {
-        if (!initialSeek && !isCorrection) {
+        if (!initialSeek) {
             if (video.currentTime > lastValidTime) {
                 lastValidTime = video.currentTime;
             }
@@ -896,8 +894,8 @@ function openResourceDetail(resource, allResources) {
             }, 3000);
         }
 
-        // 播放中越界立即修正（非修正操作下）
-        if (!initialSeek && !isCorrection && lastValidTime > 0) {
+        // 播放中越界立即修正（防止意外）
+        if (!initialSeek && lastValidTime > 0) {
             if (video.currentTime > lastValidTime + 0.5) {
                 video.currentTime = lastValidTime;
                 video.pause();
@@ -905,10 +903,9 @@ function openResourceDetail(resource, allResources) {
         }
     });
 
-    // ★ 处理用户 seek（点选或拖动）
+    // ★ 处理 seeking：提前拦截越界
     video.addEventListener('seeking', function() {
         if (initialSeek) return;
-        if (isCorrection) return; // 防止修正递归
 
         if (progressMap[resource.id] && progressMap[resource.id].completed) {
             lastValidTime = video.duration;
@@ -918,39 +915,26 @@ function openResourceDetail(resource, allResources) {
 
         const targetTime = video.currentTime;
         if (targetTime > lastValidTime + 0.5) {
-            isCorrection = true;
+            // 直接修正，并设置一个标志告诉 seeked 不要重复修正
             video.currentTime = lastValidTime;
             video.pause();
         }
     });
 
+    // ★ 核心：seeked 最终检查（无论何种方式都强制执行）
     video.addEventListener('seeked', function() {
         if (initialSeek) return;
 
         if (progressMap[resource.id] && progressMap[resource.id].completed) {
             lastValidTime = video.duration;
             this._lastValidTime = video.duration;
-            isCorrection = false;
             return;
         }
 
-        // ★ 修正分支
-        if (isCorrection) {
-            isCorrection = false;
-            if (video.currentTime > lastValidTime + 0.5) {
-                video.currentTime = lastValidTime;
-            }
-            video.pause();
-            return;
-        }
-
-        // ★ 正常 seek 后检查（点选可能直接到这里）
+        // ★ 最终修正：如果当前位置仍然越界，强制拉回
         if (video.currentTime > lastValidTime + 0.5) {
-            // 触发修正流程（会再次进入 seeking，但 isCorrection 为 true 会阻止递归）
-            isCorrection = true;
             video.currentTime = lastValidTime;
             video.pause();
-            // 注意：这里会触发新的 seeking，但被 isCorrection 拦截，然后进入 seeked 修正分支
         }
     });
 
