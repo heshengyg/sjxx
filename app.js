@@ -848,9 +848,10 @@ function openResourceDetail(resource, allResources) {
         savedPosition = prog.last_position;
     }
 
-    let lastValidTime = savedPosition; // 最大可观看时间
+    let lastValidTime = savedPosition;
     let initialSeek = false;
-    let isCorrection = false;
+    let correctionPending = false;
+    let isCorrecting = false;
 
     video.addEventListener('loadedmetadata', function() {
         if (savedPosition > 0 && savedPosition < video.duration - 0.5) {
@@ -877,7 +878,16 @@ function openResourceDetail(resource, allResources) {
     }
 
     video.addEventListener('timeupdate', function() {
-        if (initialSeek || isCorrection) return; // 修正期间跳过
+        if (initialSeek || isCorrecting) return;
+
+        // 最终防线：只要越界就修正
+        if (lastValidTime > 0 && video.currentTime > lastValidTime + 0.5) {
+            isCorrecting = true;
+            video.currentTime = lastValidTime;
+            video.pause();
+            isCorrecting = false;
+            return;
+        }
 
         if (video.currentTime > lastValidTime) {
             lastValidTime = video.currentTime;
@@ -893,69 +903,46 @@ function openResourceDetail(resource, allResources) {
                 saveTimer = null;
             }, 3000);
         }
-
-        // 播放中越界立即修正（极少数情况）
-        if (lastValidTime > 0 && video.currentTime > lastValidTime + 0.5) {
-            video.currentTime = lastValidTime;
-            video.pause();
-        }
     });
 
     video.addEventListener('seeking', function() {
-        if (initialSeek || isCorrection) return;
-
+        if (initialSeek) return;
         if (progressMap[resource.id] && progressMap[resource.id].completed) {
             lastValidTime = video.duration;
             this._lastValidTime = video.duration;
             return;
         }
-
-        const targetTime = video.currentTime;
-        if (targetTime > lastValidTime + 0.5) {
-            isCorrection = true;
-            video.currentTime = lastValidTime;
-            video.pause();
+        if (video.currentTime > lastValidTime + 0.5) {
+            correctionPending = true;
+            // 在下一帧修正，避免冲突
+            requestAnimationFrame(() => {
+                if (correctionPending) {
+                    isCorrecting = true;
+                    video.currentTime = lastValidTime;
+                    video.pause();
+                    isCorrecting = false;
+                    correctionPending = false;
+                }
+            });
         }
     });
 
-    // ★ 核心修复：处理 seeked（点击或拖动结束）
     video.addEventListener('seeked', function() {
         if (initialSeek) return;
-
-        // 如果是我们的修正操作，重置标志并确保暂停
-        if (isCorrection) {
-            isCorrection = false;
-            // 再次确认位置
-            if (video.currentTime > lastValidTime + 0.5) {
-                video.currentTime = lastValidTime;
-            }
-            video.pause();
-            return;
-        }
-
-        // 已完成
         if (progressMap[resource.id] && progressMap[resource.id].completed) {
             lastValidTime = video.duration;
             this._lastValidTime = video.duration;
+            correctionPending = false;
             return;
         }
-
-        // ★ 关键：检查最终位置，若越界则延迟修正，避免与浏览器的默认跳转冲突
+        // 如果越界，立即修正
         if (video.currentTime > lastValidTime + 0.5) {
-            // 立即修正一次
+            isCorrecting = true;
             video.currentTime = lastValidTime;
             video.pause();
-
-            // 为了彻底阻止播放，使用 setTimeout 再次检查和暂停（处理播放状态下的点击）
-            setTimeout(() => {
-                if (video.currentTime > lastValidTime + 0.5) {
-                    video.currentTime = lastValidTime;
-                }
-                video.pause();
-                // 释放标志，允许正常播放
-                isCorrection = false;
-            }, 0);
+            isCorrecting = false;
         }
+        correctionPending = false;
     });
 
     video.addEventListener('ended', function() {
