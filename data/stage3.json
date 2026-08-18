@@ -1,28 +1,20 @@
 {
   "stage": 3,
-  "title": "进阶",
-  "description": "好好学",
+  "title": "",
+  "description": "",
   "resources": [
     {
       "id": "r1",
       "type": "video",
       "title": "新视频",
-      "originalName": "intro_video1.mp4",
-      "targetFile": "video/stage3_intro1.mp4"
+      "file": "video/stage3_intro1.mp4"
     },
     {
       "id": "r2",
       "type": "image",
       "title": "新图片",
-      "originalName": "news1_1.jpg",
-      "targetFile": "image/stage3_chart1.jpg",
+      "file": "image/stage3_chart1.webp",
       "duration": 300
-    },
-    {
-      "id": "r3",
-      "type": "article",
-      "title": "的帅哥帅哥",
-      "content": "<p><span style=\"color: rgb(245, 219, 77); background-color: rgb(225, 60, 57);\"><u><strong>手动阀手动阀</strong></u></span></p>"
     }
   ],
   "quiz": []
