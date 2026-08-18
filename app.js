@@ -1248,7 +1248,7 @@ async function submitQuiz() {
         }
     }
 
-    // 更新晋级状态（仅当本次通过且之前未通过时）
+    // ★ 更新晋级状态（仅当本次通过且之前未通过时）
     if (passed && !isStagePassed) {
         const newStages = [...(currentUser.completed_stages || []), targetStage];
         await supabaseClient.from('merchants').update({ completed_stages: newStages }).eq('id', currentUser.id);
@@ -1258,11 +1258,15 @@ async function submitQuiz() {
             await supabaseClient.from('merchants').update({ level: newLevel.id }).eq('id', currentUser.id);
             currentUser.level = newLevel.id;
         }
-        // 刷新仪表盘
+        // 如果是首次通过，刷新仪表盘（更新阶段和等级）
+        await updateDashboard(currentUser);
+    } else if (!passed && !isStagePassed) {
+        // 未通过且未通过，刷新仪表盘（更新UI）
         await updateDashboard(currentUser);
     } else {
-        // 刷新UI（更新成绩显示）
-        await updateDashboard(currentUser);
+        // ★ 已通过阶段重新提交，不刷新仪表盘，仅更新成绩显示（已在 results 中更新）
+        // 只更新 currentUser 的 quiz_results，但不需要重新加载整个页面
+        // 只需要更新界面上的成绩显示和按钮状态即可
     }
 
     // ★ 显示本次成绩和最好成绩
@@ -1304,16 +1308,25 @@ async function submitQuiz() {
         }
     }
 
-    // 确保消息在 updateDashboard 后仍然显示
-    setTimeout(() => {
+    // ★ 如果是已通过阶段重新提交，不刷新页面，所以无需 setTimeout 恢复消息
+    if (isStagePassed && passed) {
+        // 确保消息显示
         if (quizResult) {
             quizResult.classList.remove('hidden');
             quizResult.innerHTML = `${msg}<br>${bestMsg}`;
-            quizResult.className = passed ? 'msg' : 'msg error';
+            quizResult.className = 'msg';
         }
-    }, 100);
+    } else {
+        // 其他情况，可能 updateDashboard 会隐藏消息，延迟恢复
+        setTimeout(() => {
+            if (quizResult) {
+                quizResult.classList.remove('hidden');
+                quizResult.innerHTML = `${msg}<br>${bestMsg}`;
+                quizResult.className = passed ? 'msg' : 'msg error';
+            }
+        }, 100);
+    }
 }
-
 // ========== 生成阶段卡片 ==========
 function buildStageCards(container, currentStage, maxUnlocked) {
     if (!container) return;
@@ -1604,19 +1617,33 @@ function showAuthMsg(text, isError = true) {
     authMsg.className = 'msg' + (isError ? ' error' : '');
 }
 
-async function refreshUser() {
+// 跳转到最新阶段（原“刷新状态”）
+async function goToLatestStage() {
     if (!currentUser) return;
     try {
         const { data, error } = await supabaseClient.from('merchants').select('*').eq('id', currentUser.id).single();
         if (error) throw error;
         currentUser = data;
         const stages = currentUser.completed_stages || [];
-        currentViewStage = getCurrentStage(stages);
-        if (currentViewStage > TOTAL_STAGES) currentViewStage = TOTAL_STAGES;
-        await updateDashboard(currentUser);
-    } catch (e) { alert('刷新失败: ' + e.message); }
+        const nextStage = getCurrentStage(stages);
+        if (nextStage > TOTAL_STAGES) {
+            alert('🎉 您已完成全部阶段！');
+            return;
+        }
+        // 切换到最新阶段
+        if (currentViewStage !== nextStage) {
+            await switchStageSync(nextStage);
+        } else {
+            // 如果已经在最新阶段，刷新数据
+            await updateDashboard(currentUser);
+        }
+        if (quizResult) {
+            quizResult.classList.add('hidden');
+        }
+    } catch (e) {
+        alert('跳转失败: ' + e.message);
+    }
 }
-
 // ========== Avatar Upload ==========
 let selectedFile = null;
 function openAvatarModal() {
@@ -1881,7 +1908,7 @@ function initStickyControl() {
 
 // ========== Event Bindings ==========
 if (authBtn) authBtn.addEventListener('click', handleAuth);
-if (refreshBtn) refreshBtn.addEventListener('click', refreshUser);
+if (refreshBtn) refreshBtn.addEventListener('click', goToLatestStage);
 if (avatarWrapper) {
     avatarWrapper.addEventListener('click', function(e) {
         e.stopPropagation();
