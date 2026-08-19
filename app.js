@@ -487,8 +487,17 @@ async function autoAdvanceStage(stageId) {
             console.log(`✅ 等级更新为: ${newLevel.id}`);
         }
         
-        // 3. 计算下一阶段
-        const nextStage = getCurrentStage(newStages);
+        // 3. ★ 重新从数据库加载用户数据（确保数据最新）
+        const { data: refreshedUser, error: refreshError } = await supabaseClient
+            .from('merchants')
+            .select('*')
+            .eq('id', currentUser.id)
+            .single();
+        if (refreshError) throw refreshError;
+        currentUser = refreshedUser;
+        
+        // 4. 计算下一阶段
+        const nextStage = getCurrentStage(currentUser.completed_stages);
         if (nextStage <= TOTAL_STAGES) {
             currentViewStage = nextStage;
             console.log(`✅ 当前视图阶段更新为: ${nextStage}`);
@@ -501,28 +510,28 @@ async function autoAdvanceStage(stageId) {
             return;
         }
         
-        // 4. 显示晋级消息
+        // 5. 显示晋级消息
         if (learnMsg) {
             learnMsg.classList.remove('hidden');
             learnMsg.textContent = `🎉 恭喜完成第${stageId}阶段，已自动晋级至第${nextStage}阶段！`;
         }
         
-        // 5. ★ 直接刷新整个仪表盘（最稳妥的方式）
+        // 6. ★ 刷新仪表盘
         await updateDashboard(currentUser);
         
-        // 6. 额外确保阶段卡片状态正确
+        // 7. 额外确保阶段卡片状态正确
         const maxUnlocked = currentUser.completed_stages.length > 0 ? Math.max(...currentUser.completed_stages) : 0;
         buildStageCards(stageList, currentViewStage, maxUnlocked);
         buildStageCards(stageListContent, currentViewStage, maxUnlocked);
         
-        // 7. 隐藏学习提示（3秒后）
+        // 8. 隐藏学习提示（3秒后）
         setTimeout(() => {
             if (learnMsg) {
                 learnMsg.classList.add('hidden');
             }
         }, 3000);
         
-        // 8. 清除 quizResult
+        // 9. 清除 quizResult
         if (quizResult) {
             quizResult.classList.add('hidden');
         }
