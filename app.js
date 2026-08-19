@@ -1284,7 +1284,6 @@ function navigateImage(delta) {
 
 // ========== Timer ==========
 function startTimer(resourceId, duration) {
-    // 已有计时器或已完成，直接返回
     if (timerIntervals[resourceId]) {
         console.log(`⏱️ 计时器已存在，跳过: ${resourceId}`);
         return;
@@ -1295,31 +1294,61 @@ function startTimer(resourceId, duration) {
         return;
     }
 
-    // 确保 duration 为正数
     if (typeof duration !== 'number' || duration <= 0 || isNaN(duration)) {
         console.warn(`⚠️ duration 无效 (${duration})，强制设为 60 秒，资源: ${resourceId}`);
         duration = 60;
     }
 
-    // ★ 从已有进度计算已用时间（若进度为0则从0开始）
     let elapsed = 0;
     if (prog && prog.progress > 0 && prog.progress < 100) {
         elapsed = Math.floor((prog.progress / 100) * duration);
     }
     timerElapsed[resourceId] = elapsed;
 
-    console.log(`▶️ 启动计时器: ${resourceId}，总时长 ${duration} 秒，起始进度 ${prog ? prog.progress : 0}%`);
+    console.log(`▶️ 启动计时器: ${resourceId}，总时长 ${duration} 秒`);
 
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
         timerElapsed[resourceId] += 1;
         const elapsedNow = timerElapsed[resourceId];
         const progress = Math.min(100, Math.round((elapsedNow / duration) * 100));
-        console.log(`📈 进度更新: ${resourceId}，已过 ${elapsedNow}s，进度 ${progress}%`);
-        updateResourceProgress(resourceId, progress, 0);
+        await updateResourceProgress(resourceId, progress, 0);
         updateDetailProgress(resourceId);
+        
         if (progress >= 100) {
             stopTimer(resourceId);
-            markResourceCompleted(resourceId);
+            await markResourceCompleted(resourceId);
+            
+            // ★★★ 核心修复：直接在这里检查并晋级 ★★★
+            const data = stageData[currentViewStage];
+            if (data && data.resources) {
+                const allCompleted = data.resources.every(r => progressMap[r.id] && progressMap[r.id].completed);
+                console.log(`📊 资源 ${resourceId} 完成，全部完成: ${allCompleted}`);
+                
+                if (allCompleted) {
+                    const isExamStage = EXAM_STAGES.includes(currentViewStage);
+                    console.log(`📌 阶段 ${currentViewStage}, 有考核: ${isExamStage}`);
+                    
+                    if (!isExamStage) {
+                        // 无考核，直接晋级
+                        console.log(`🚀 无考核，自动晋级...`);
+                        await autoAdvanceStage(currentViewStage);
+                    } else {
+                        // 有考核，检查是否已通过
+                        const isPassed = currentUser.completed_stages && currentUser.completed_stages.includes(currentViewStage);
+                        if (isPassed) {
+                            console.log(`✅ 考核已通过，自动晋级...`);
+                            await autoAdvanceStage(currentViewStage);
+                        } else {
+                            console.log(`📝 请完成考核后晋级`);
+                            if (learnMsg) {
+                                learnMsg.classList.remove('hidden');
+                                learnMsg.textContent = '🎉 本阶段所有学习资源已完成，请完成考核以晋级！';
+                            }
+                            renderCurrentStageResources();
+                        }
+                    }
+                }
+            }
         }
     }, 1000);
     timerIntervals[resourceId] = interval;
