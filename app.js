@@ -1705,7 +1705,7 @@ async function submitQuiz() {
     }
 }
 
-// ========== 生成阶段卡片 ==========
+// ========== 完整替换 buildStageCards ==========
 function buildStageCards(container, currentStage, maxUnlocked) {
     if (!container) return;
     container.innerHTML = '';
@@ -1730,6 +1730,10 @@ function buildStageCards(container, currentStage, maxUnlocked) {
                                 updateStageUI(d);
                                 document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
                                 card.classList.add('active');
+                                // ★★★ 点击后滚动到当前卡片 ★★★
+                                setTimeout(() => {
+                                    if (container) scrollToActiveStage(container);
+                                }, 100);
                             }
                         })();
                     }
@@ -1749,8 +1753,34 @@ function buildStageCards(container, currentStage, maxUnlocked) {
 
         container.appendChild(card);
     }
+
+    // ★★★ 滚动到当前阶段卡片（居中显示）★★★
+    setTimeout(() => {
+        scrollToActiveStage(container);
+    }, 50);
 }
 
+// ========== 新增 scrollToActiveStage 函数 ==========
+function scrollToActiveStage(container) {
+    if (!container) return;
+    const activeCard = container.querySelector('.stage-card.active');
+    if (!activeCard) return;
+    
+    // 确保容器可以滚动
+    if (container.scrollWidth <= container.clientWidth) return;
+    
+    requestAnimationFrame(() => {
+        const containerWidth = container.offsetWidth;
+        const cardOffsetLeft = activeCard.offsetLeft;
+        const cardWidth = activeCard.offsetWidth;
+        // 滚动到卡片居中位置
+        const scrollPosition = cardOffsetLeft - (containerWidth / 2) + (cardWidth / 2);
+        container.scrollTo({
+            left: Math.max(0, scrollPosition),
+            behavior: 'smooth'
+        });
+    });
+}
 // ========== 更新阶段 UI ==========
 async function updateStageUI(data) {
     if (!data) return;
@@ -1765,14 +1795,13 @@ async function updateStageUI(data) {
     await renderQuiz(data.quiz);
     updateStageProgress(currentViewStage, data.resources);
 }
-// ========== 快速切换阶段 ==========
+// ========== 替换 switchStageSync 函数 ==========
 async function switchStageSync(stageId) {
     if (isSwitching) return;
     isSwitching = true;
 
     let data = allStageData[stageId] || stageData[stageId];
     if (!data) {
-        // 尝试重新加载该阶段数据
         console.warn(`阶段 ${stageId} 数据不存在，尝试重新加载...`);
         data = await loadStageData(stageId);
         if (!data) {
@@ -1794,13 +1823,20 @@ async function switchStageSync(stageId) {
 
     isSwitching = false;
 
+    // ★★★ 新增：滚动到当前阶段卡片（居中显示）★★★
+    setTimeout(() => {
+        const stageList = document.querySelector('#stageList');
+        if (stageList) scrollToActiveStage(stageList);
+        const stageListContent = document.querySelector('#stageListContent');
+        if (stageListContent) scrollToActiveStage(stageListContent);
+    }, 150);
+
     // 重置帘头滚动控制
     setTimeout(() => {
         isHeaderInitialized = false;
         initStickyHeaders();
     }, 100);
 }
-
 // ========== Dashboard ==========
 async function updateDashboard(user) {
     if (!user) return;
@@ -1845,7 +1881,15 @@ currentViewStage = actualStage > TOTAL_STAGES ? TOTAL_STAGES : actualStage;
         setTimeout(preloadAllStages, 800);
     }
 
-    initStickyControl();
+    // ★★★ 新增：延迟滚动到当前阶段 ★★★
+setTimeout(() => {
+    const stageList = document.querySelector('#stageList');
+    if (stageList) scrollToActiveStage(stageList);
+    const stageListContent = document.querySelector('#stageListContent');
+    if (stageListContent) scrollToActiveStage(stageListContent);
+}, 300);
+
+initStickyControl();
 
     // ========== ★ 新增：权益弹窗逻辑 ==========
     // 仅在未全部解锁时弹出（每次登录都弹出）
