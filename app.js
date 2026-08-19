@@ -769,7 +769,7 @@ async function loadQuizStateFromSupabase(stageId) {
     return null;
 }
 
-// ========== renderQuiz ==========
+// ========== 替换 renderQuiz 函数 ==========
 async function renderQuiz(quiz) {
     const isExamStage = EXAM_STAGES.includes(currentViewStage);
 
@@ -795,19 +795,18 @@ async function renderQuiz(quiz) {
     const quizJudgeTitle = document.getElementById('quizJudgeTitle');
     const quizJudgeScoreText = document.getElementById('quizJudgeScoreText');
 
-    // 先全部隐藏（包括内容标题和帘头）
+    // 先全部隐藏
     [singleHeader, multipleHeader, judgeHeader, quizTitleHeader, quizFooterGlobal].forEach(el => {
         if (el) el.style.display = 'none';
     });
     [singleContainer, multipleContainer, judgeContainer].forEach(el => {
         if (el) { el.innerHTML = ''; el.style.display = 'none'; }
     });
-    // 隐藏内容标题
     [quizContentTitle, quizSingleTitle, quizMultipleTitle, quizJudgeTitle].forEach(el => {
         if (el) el.style.display = 'none';
     });
 
-    // ★ 检查当前阶段是否已通过（用于显示历史成绩）
+    // 检查当前阶段是否已通过
     const stageId = currentViewStage;
     const isPassed = currentUser && currentUser.completed_stages && currentUser.completed_stages.includes(stageId);
     let historyData = null;
@@ -817,7 +816,6 @@ async function renderQuiz(quiz) {
         historyData = results[stageKey] || null;
     }
 
-    // ★ 如果已通过且有历史成绩，立即显示
     if (isPassed && historyData && quizResult) {
         const passThreshold = Math.round(historyData.total * 0.8);
         quizResult.classList.remove('hidden');
@@ -826,17 +824,17 @@ async function renderQuiz(quiz) {
         if (submitBtn) {
             submitBtn.textContent = '🔄 重新提交';
             submitBtn.onclick = function() {
-    const quizData = stageData[currentViewStage]?.quiz;
-    if (quizData) {
-        questionStates = quizData.map(() => ({ confirmed: false, selected: [] }));
-        renderQuiz(quizData);
-        submitBtn.textContent = '✅ 提交考核';
-        submitBtn.onclick = submitQuiz;
-        if (quizResult) {
-            quizResult.classList.add('hidden');
-        }
-    }
-};
+                const quizData = stageData[currentViewStage]?.quiz;
+                if (quizData) {
+                    questionStates = quizData.map(() => ({ confirmed: false, selected: [] }));
+                    renderQuiz(quizData);
+                    submitBtn.textContent = '✅ 提交考核';
+                    submitBtn.onclick = submitQuiz;
+                    if (quizResult) {
+                        quizResult.classList.add('hidden');
+                    }
+                }
+            };
         }
     }
 
@@ -861,13 +859,31 @@ async function renderQuiz(quiz) {
         }
     });
 
+    // ★★★ 计算总分数和达标分 ★★★
+    let totalQuizScore = 0;
+    ['single', 'multiple', 'judge'].forEach(key => {
+        totalQuizScore += groups[key].totalScore || 0;
+    });
+    const passScore = Math.round(totalQuizScore * 0.8);
+
     const hasAnyQuiz = groups.single.items.length > 0 || groups.multiple.items.length > 0 || groups.judge.items.length > 0;
     if (!hasAnyQuiz) return;
 
-    // 显示考核总标题（内容标题，不是帘头）
-    if (quizContentTitle) quizContentTitle.style.display = 'block';
+    // ★★★ 显示考核总标题（含总分和达标分）★★★
+    if (quizContentTitle) {
+        quizContentTitle.style.display = 'block';
+        // 查找标题文本元素，如果没有则使用整个元素
+        const titleTextEl = quizContentTitle.querySelector('.title-text') || quizContentTitle;
+        // 如果元素是 span 或 div，直接设置 textContent
+        if (titleTextEl) {
+            // 检查是否已经包含分数信息
+            if (!titleTextEl.textContent.includes('共')) {
+                titleTextEl.textContent = `阶段考核  共${totalQuizScore}分/达标${passScore}分`;
+            }
+        }
+    }
 
-    // 初始化 questionStates：优先从 Supabase 加载已保存状态
+    // 初始化 questionStates
     let savedState = null;
     if (currentUser && isExamStage && quiz && quiz.length > 0) {
         savedState = await loadQuizStateFromSupabase(currentViewStage);
@@ -885,26 +901,34 @@ async function renderQuiz(quiz) {
     for (const [type, group] of Object.entries(groups)) {
         if (group.items.length === 0) continue;
 
-        // 计算分数文本（内容标题和帘头共用）
+        // ★★★ 分数显示用括号括起来 ★★★
         const perScore = group.totalScore / group.items.length;
-        const scoreText = `每题${perScore}分，共${group.totalScore}分`;
+const scoreText = `（每题${perScore}分，共${group.totalScore}分）`;
 
         // 显示内容标题
-        if (group.titleEl) {
-            group.titleEl.style.display = 'block';
-            if (group.scoreTextEl) {
-                group.scoreTextEl.textContent = scoreText;
-            }
-        }
+if (group.titleEl) {
+    group.titleEl.style.display = 'block';
+    if (group.scoreTextEl) {
+        group.scoreTextEl.textContent = scoreText;  // scoreText 已带括号
+        group.scoreTextEl.style.textAlign = 'right';
+        group.scoreTextEl.style.float = 'right';
+    }
+}
 
-        // 更新对应的帘头分数
-        if (type === 'single' && singleScoreEl) {
-            singleScoreEl.textContent = scoreText;
-        } else if (type === 'multiple' && multipleScoreEl) {
-            multipleScoreEl.textContent = scoreText;
-        } else if (type === 'judge' && judgeScoreEl) {
-            judgeScoreEl.textContent = scoreText;
-        }
+// 更新对应的帘头分数
+if (type === 'single' && singleScoreEl) {
+    singleScoreEl.textContent = scoreText;  // scoreText 已带括号
+    singleScoreEl.style.textAlign = 'right';
+    singleScoreEl.style.float = 'right';
+} else if (type === 'multiple' && multipleScoreEl) {
+    multipleScoreEl.textContent = scoreText;  // scoreText 已带括号
+    multipleScoreEl.style.textAlign = 'right';
+    multipleScoreEl.style.float = 'right';
+} else if (type === 'judge' && judgeScoreEl) {
+    judgeScoreEl.textContent = scoreText;  // scoreText 已带括号
+    judgeScoreEl.style.textAlign = 'right';
+    judgeScoreEl.style.float = 'right';
+}
 
         // 显示题型容器
         const container = group.container;
@@ -1018,31 +1042,29 @@ async function renderQuiz(quiz) {
         });
     }
 
-    // 强制显示容器（不操作帘头）
+    // 强制显示容器
     [singleContainer, multipleContainer, judgeContainer].forEach(el => {
         if (el) el.style.display = 'block';
     });
     if (quizFooterGlobal) quizFooterGlobal.style.display = 'block';
 
-    // ★ 设置提交按钮
+    // 设置提交按钮
     if (submitBtn) {
-        // 如果已通过，显示"重新提交"
         if (isPassed && historyData) {
             submitBtn.textContent = '🔄 重新提交';
             submitBtn.onclick = function() {
-    const quizData = stageData[currentViewStage]?.quiz;
-    if (quizData) {
-        questionStates = quizData.map(() => ({ confirmed: false, selected: [] }));
-        renderQuiz(quizData);
-        submitBtn.textContent = '✅ 提交考核';
-        submitBtn.onclick = submitQuiz;
-        if (quizResult) {
-            quizResult.classList.add('hidden');
-        }
-    }
-};
+                const quizData = stageData[currentViewStage]?.quiz;
+                if (quizData) {
+                    questionStates = quizData.map(() => ({ confirmed: false, selected: [] }));
+                    renderQuiz(quizData);
+                    submitBtn.textContent = '✅ 提交考核';
+                    submitBtn.onclick = submitQuiz;
+                    if (quizResult) {
+                        quizResult.classList.add('hidden');
+                    }
+                }
+            };
         } else {
-            // 未通过：正常提交
             submitBtn.disabled = false;
             submitBtn.textContent = '✅ 提交考核';
             submitBtn.onclick = submitQuiz;
@@ -1050,19 +1072,28 @@ async function renderQuiz(quiz) {
     }
 
     // 确保内容标题重新显示
-    if (quizContentTitle) quizContentTitle.style.display = 'block';
+    if (quizContentTitle) {
+    // 计算总分数和达标分
+    let totalQuizScore = 0;
+    ['single', 'multiple', 'judge'].forEach(key => {
+        totalQuizScore += groups[key]?.totalScore || 0;
+    });
+    const passScore = Math.round(totalQuizScore * 0.8);
+    
+    quizContentTitle.style.display = 'block';
+    quizContentTitle.textContent = `📝 阶段考核  共${totalQuizScore}分/达标${passScore}分`;
+}
     if (groups.single.items.length > 0 && quizSingleTitle) quizSingleTitle.style.display = 'block';
     if (groups.multiple.items.length > 0 && quizMultipleTitle) quizMultipleTitle.style.display = 'block';
     if (groups.judge.items.length > 0 && quizJudgeTitle) quizJudgeTitle.style.display = 'block';
 
-    // 重置帘头内联样式，让 CSS 控制显示
+    // 重置帘头内联样式
     [singleHeader, multipleHeader, judgeHeader, quizTitleHeader].forEach(el => {
         if (el) el.style.display = '';
     });
 
     updateSubmitButtonState();
 }
-
 // ========== Resource Detail Modal ==========
 let currentVideoElement = null;
 
