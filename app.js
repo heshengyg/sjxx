@@ -477,20 +477,31 @@ async function autoAdvanceStage(stageId) {
             await supabaseClient.from('merchants').update({ level: newLevel.id }).eq('id', currentUser.id);
             currentUser.level = newLevel.id;
         }
+        
+        // ★ 计算下一阶段
+        const nextStage = getCurrentStage(newStages);
+        if (nextStage <= TOTAL_STAGES) {
+            currentViewStage = nextStage;
+        }
+        
         // 显示晋级消息
         if (learnMsg) {
             learnMsg.classList.remove('hidden');
-            learnMsg.textContent = `🎉 恭喜完成第${stageId}阶段，已自动晋级！`;
+            learnMsg.textContent = `🎉 恭喜完成第${stageId}阶段，已自动晋级至第${nextStage}阶段！`;
             setTimeout(() => {
                 learnMsg.classList.add('hidden');
             }, 3000);
         }
-        // 刷新仪表盘
+        
+        // ★ 刷新仪表盘（会重新加载当前阶段数据）
         await updateDashboard(currentUser);
-        // 重新加载当前阶段数据（更新阶段卡片状态）
-        const data = await loadStageData(currentViewStage);
-        if (data) {
-            await updateStageUI(data);
+        
+        // ★ 如果晋级后当前视图阶段已变化，重新加载数据
+        if (currentViewStage !== stageId) {
+            const data = await loadStageData(currentViewStage);
+            if (data) {
+                await updateStageUI(data);
+            }
         }
     } catch (e) {
         console.warn('自动晋级失败:', e);
@@ -501,6 +512,7 @@ async function autoAdvanceStage(stageId) {
         }
     }
 }
+
 // ========== Render resources ==========
 function renderResources(stage, resources) {
     if (!resourcesContainer) return;
@@ -1549,9 +1561,8 @@ async function updateDashboard(user) {
     const stages = user.completed_stages || [];
     const level = getLevelFromStages(stages);
     const actualStage = getCurrentStage(stages);
-    if (!currentViewStage || currentViewStage < 1 || currentViewStage > TOTAL_STAGES) {
-        currentViewStage = actualStage > TOTAL_STAGES ? TOTAL_STAGES : actualStage;
-    }
+    // ★ 始终更新到最新阶段
+currentViewStage = actualStage > TOTAL_STAGES ? TOTAL_STAGES : actualStage;
     if (shopNameDisplay) shopNameDisplay.textContent = user.name || '商家';
     if (levelDisplay) levelDisplay.textContent = level.label;
     const done = Math.min(stages.length, TOTAL_STAGES);
