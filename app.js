@@ -410,6 +410,7 @@ async function updateResourceProgress(resourceId, progress, position = 0) {
 async function markResourceCompleted(resourceId) {
     if (!currentUser) return;
     if (progressMap[resourceId] && progressMap[resourceId].completed) return;
+    
     const curLastPos = progressMap[resourceId] ? progressMap[resourceId].last_position : 0;
     progressMap[resourceId] = { progress: 100, completed: true, last_position: curLastPos };
     
@@ -424,6 +425,7 @@ async function markResourceCompleted(resourceId) {
                 last_position: curLastPos,
                 last_updated: new Date().toISOString()
             }, { onConflict: 'user_id, resource_id' });
+        console.log(`✅ 资源 ${resourceId} 已标记完成`);
     } catch (e) {
         console.warn('标记资源完成失败:', e);
     }
@@ -431,6 +433,8 @@ async function markResourceCompleted(resourceId) {
     const data = stageData[currentViewStage];
     if (data && data.resources) {
         const allCompleted = data.resources.every(r => progressMap[r.id] && progressMap[r.id].completed);
+        console.log(`📊 资源完成情况: ${allCompleted ? '全部完成 ✅' : '未全部完成'}`);
+        
         if (allCompleted) {
             if (learnMsg) {
                 learnMsg.classList.remove('hidden');
@@ -438,11 +442,13 @@ async function markResourceCompleted(resourceId) {
             }
             
             const isExamStage = EXAM_STAGES.includes(currentViewStage);
+            console.log(`📌 阶段 ${currentViewStage}, 是否考核: ${isExamStage}`);
+            
             if (!isExamStage) {
-                // ★ 无考核阶段，自动晋级 - 添加 await
+                // ★ 无考核阶段，自动晋级
+                console.log(`🚀 触发自动晋级...`);
                 await autoAdvanceStage(currentViewStage);
-                // 晋级后刷新资源列表
-                renderCurrentStageResources();
+                // ★ autoAdvanceStage 内部会调用 updateDashboard，这里不再重复刷新
                 return;
             } else {
                 // 有考核阶段，显示考核提示
@@ -451,10 +457,13 @@ async function markResourceCompleted(resourceId) {
                 }
                 const isPassed = currentUser.completed_stages && currentUser.completed_stages.includes(currentViewStage);
                 if (isPassed) {
+                    console.log(`📌 阶段 ${currentViewStage} 已通过考核，自动晋级`);
                     await autoAdvanceStage(currentViewStage);
-                    renderCurrentStageResources();
                     return;
                 }
+                // 未通过考核，刷新资源列表显示考核
+                renderCurrentStageResources();
+                return;
             }
         }
     }
@@ -463,99 +472,107 @@ async function markResourceCompleted(resourceId) {
     updateDetailProgress(resourceId);
 }
 
-// ========== 修改 autoAdvanceStage 函数 ==========
+// ========== 替换 autoAdvanceStage 函数 ==========
 async function autoAdvanceStage(stageId) {
-    if (!currentUser) return;
+    if (!currentUser) {
+        console.error('❌ currentUser 为空');
+        return;
+    }
+    
     const stages = currentUser.completed_stages || [];
+    console.log(`🔍 当前 completed_stages:`, stages);
+    console.log(`🔍 要晋级的阶段: ${stageId}`);
+    
     if (stages.includes(stageId)) {
         console.log(`阶段 ${stageId} 已通过，无需重复晋级`);
         return;
     }
     
     const newStages = [...stages, stageId];
+    console.log(`🚀 准备更新为:`, newStages);
+    
     try {
-        console.log(`🚀 开始晋级: 阶段 ${stageId} -> ${JSON.stringify(newStages)}`);
-        
-        // ★ 1. 先更新 completed_stages
-        const { error: updateError } = await supabaseClient
+        // ★ 方法1：直接使用 update，明确指定 completed_stages
+        console.log('📤 发送更新请求到 Supabase...');
+        const { data: updateResult, error: updateError } = await supabaseClient
             .from('merchants')
-            .update({ completed_stages: newStages })
-            .eq('id', currentUser.id);
+            .update({ 
+                completed_stages: newStages,
+                level: getLevelFromStages(newStages).id
+            })
+            .eq('id', currentUser.id)
+            .select();  // ★ 添加 .select() 返回更新后的数据
         
         if (updateError) {
-            console.error('更新 completed_stages 失败:', updateError);
+            console.error('❌ 更新失败:', updateError);
             throw updateError;
         }
-        console.log('✅ completed_stages 更新成功');
         
-        // ★ 2. 更新等级
-        const newLevel = getLevelFromStages(newStages);
-        if (newLevel.id !== currentUser.level) {
-            const { error: levelError } = await supabaseClient
-                .from('merchants')
-                .update({ level: newLevel.id })
-                .eq('id', currentUser.id);
-            if (levelError) {
-                console.warn('更新等级失败:', levelError);
-            } else {
-                console.log(`✅ 等级更新为: ${newLevel.id}`);
-            }
+        console.log('✅ 更新成功，返回数据:', updateResult);
+        
+        // ★ 直接使用返回的数据更新 currentUser
+        if (updateResult && updateResult.length > 0) {
+            currentUser = updateResult[0];
+            console.log('✅ currentUser 已更新:', currentUser);
+            console.log('✅ completed_stages 现在为:', currentUser.completed_stages);
+        } else {
+            // 如果 select 没返回数据，手动更新
+            currentUser.completed_stages = newStages;
+            currentUser.level = getLevelFromStages(newStages).id;
+            console.log('⚠️ 未返回数据，手动更新 currentUser');
         }
         
-        // ★ 3. 重新从数据库加载用户数据（确保数据最新）
-        const { data: refreshedUser, error: refreshError } = await supabaseClient
+        // ★ 验证数据库是否真的更新了
+        const { data: verifyData, error: verifyError } = await supabaseClient
             .from('merchants')
-            .select('*')
+            .select('id, phone, name, completed_stages, level')
             .eq('id', currentUser.id)
             .single();
         
-        if (refreshError) {
-            console.error('刷新用户数据失败:', refreshError);
-            // 即使刷新失败，也手动更新内存中的数据
-            currentUser.completed_stages = newStages;
-            if (newLevel.id !== currentUser.level) {
-                currentUser.level = newLevel.id;
+        if (!verifyError && verifyData) {
+            console.log('🔍 验证数据库:', verifyData.completed_stages);
+            // 如果验证数据不同，强制同步
+            if (JSON.stringify(verifyData.completed_stages) !== JSON.stringify(currentUser.completed_stages)) {
+                console.warn('⚠️ 数据不一致，强制同步');
+                currentUser.completed_stages = verifyData.completed_stages || [];
+                currentUser.level = verifyData.level;
             }
-        } else {
-            currentUser = refreshedUser;
         }
         
-        console.log('✅ 用户数据已更新:', currentUser.completed_stages);
-        
-        // ★ 4. 计算下一阶段
+        // ★ 计算下一阶段
         const nextStage = getCurrentStage(currentUser.completed_stages || []);
-        if (nextStage <= TOTAL_STAGES) {
-            currentViewStage = nextStage;
-            console.log(`✅ 当前视图阶段更新为: ${nextStage}`);
-        } else {
+        console.log(`📌 下一阶段: ${nextStage}`);
+        
+        if (nextStage > TOTAL_STAGES) {
             console.log('🎉 已完成全部阶段');
             if (learnMsg) {
                 learnMsg.classList.remove('hidden');
                 learnMsg.textContent = '🎉 恭喜您已完成全部阶段！';
             }
-            // 刷新仪表盘
             await updateDashboard(currentUser);
             return;
         }
         
-        // ★ 5. 显示晋级消息
+        // ★ 更新当前视图
+        currentViewStage = nextStage;
+        
+        // ★ 显示消息
         if (learnMsg) {
             learnMsg.classList.remove('hidden');
             learnMsg.textContent = `🎉 恭喜完成第${stageId}阶段，已自动晋级至第${nextStage}阶段！`;
             learnMsg.className = 'msg';
         }
         
-        // ★ 6. 刷新仪表盘（会重新加载当前阶段数据）
+        // ★ 重新加载进度和刷新界面
+        await loadUserProgress();
         await updateDashboard(currentUser);
         
-        // ★ 7. 隐藏学习提示（3秒后）
         setTimeout(() => {
             if (learnMsg) {
                 learnMsg.classList.add('hidden');
             }
         }, 3000);
         
-        // ★ 8. 清除 quizResult
         if (quizResult) {
             quizResult.classList.add('hidden');
         }
@@ -563,7 +580,7 @@ async function autoAdvanceStage(stageId) {
         console.log(`✅ 晋级完成，当前阶段: ${currentViewStage}`);
         
     } catch (e) {
-        console.error('自动晋级失败:', e);
+        console.error('❌ 自动晋级失败:', e);
         if (learnMsg) {
             learnMsg.classList.remove('hidden');
             learnMsg.textContent = '❌ 晋级失败: ' + e.message;
