@@ -1753,7 +1753,55 @@ function buildStageCards(container, currentStage, maxUnlocked) {
     // ★★★ 滚动到当前阶段卡片（居中显示）★★★
     setTimeout(() => {
         scrollToActiveStage(container);
+    }, 50);// ========== 替换 buildStageCards 函数 ==========
+function buildStageCards(container, currentStage, maxUnlocked) {
+    if (!container) return;
+    container.innerHTML = '';
+    for (let i = 1; i <= TOTAL_STAGES; i++) {
+        const card = document.createElement('div');
+        card.className = 'stage-card';
+        if (i === currentStage) card.classList.add('active');
+        const isUnlocked = (i <= maxUnlocked + 1);
+        if (!isUnlocked) {
+            card.classList.add('locked');
+            card.style.cursor = 'not-allowed';
+        } else {
+            card.addEventListener('click', function() {
+                if (i !== currentViewStage) {
+                    if (allStageData[i] || stageData[i]) {
+                        switchStageSync(i);
+                    } else {
+                        currentViewStage = i;
+                        (async () => {
+                            const d = await loadStageData(currentViewStage);
+                            if (d) {
+                                updateStageUI(d);
+                                document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
+                                card.classList.add('active');
+                            }
+                        })();
+                    }
+                }
+            });
+        }
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'stage-label';
+        const info = STAGE_INFO[i] || { title: `第${i}阶段` };
+        labelSpan.textContent = info.title;
+        card.appendChild(labelSpan);
+
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'stage-status';
+        statusSpan.textContent = isUnlocked ? (i <= maxUnlocked ? '✅ 已解锁' : '🔓 可学习') : '🔒 未解锁';
+        card.appendChild(statusSpan);
+
+        container.appendChild(card);
+    }
+    // ★★★ 滚动到当前阶段卡片（居中显示）★★★
+    setTimeout(function() {
+        scrollToActiveStage(container);
     }, 50);
+}
 
 // ========== 替换 scrollToActiveStage 函数 ==========
 function scrollToActiveStage(container) {
