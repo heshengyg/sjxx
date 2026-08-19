@@ -817,10 +817,21 @@ async function renderQuiz(quiz) {
     }
 
     if (isPassed && historyData && quizResult) {
-        const passThreshold = Math.round(historyData.total * 0.8);
-        quizResult.classList.remove('hidden');
-        quizResult.innerHTML = `✅ 已通过！历史最好成绩：${historyData.correct}/${historyData.total}（达标分 ${passThreshold}）`;
-        quizResult.className = 'msg';
+    // ★★★ 新数据结构：historyData 包含 best 和 last ★★★
+    var best = historyData.best || historyData;
+    var last = historyData.last || historyData;
+    var bestPassed = best.passed;
+    var passThreshold = Math.round(best.total * 0.8);
+    
+    var displayMsg = '';
+    displayMsg += (bestPassed ? '✅ 已通过' : '❌ 未通过') + '<br>';
+    displayMsg += '📊 最后一次成绩：' + last.correct + '/' + last.total + '（达标分 ' + passThreshold + '）<br>';
+    displayMsg += '🏆 历史最好成绩：' + best.correct + '/' + best.total;
+    
+    quizResult.classList.remove('hidden');
+    quizResult.innerHTML = displayMsg;
+    quizResult.className = bestPassed ? 'msg' : 'msg error';
+
         if (submitBtn) {
             submitBtn.textContent = '🔄 重新提交';
             submitBtn.onclick = function() {
@@ -1587,10 +1598,51 @@ async function submitQuiz() {
     var passThreshold = Math.round(totalScore * 0.8);
     var passed = earnedScore >= passThreshold;
 
-    // 获取历史结果
+    // ★★★ 获取或初始化该阶段的成绩数据 ★★★
     var results = currentUser.quiz_results || {};
     var stageKey = 'stage_' + targetStage;
-    var history = results[stageKey] || null;
+    var stageData = results[stageKey] || {};
+
+    // 本次成绩对象
+    var currentResult = {
+        correct: earnedScore,
+        total: totalScore,
+        passed: passed,
+        date: new Date().toISOString()
+    };
+
+    // ★★★ 更新最后一次成绩（每次都更新）★★★
+    stageData.last = currentResult;
+
+    // ★★★ 更新历史最好成绩（只有更好时才更新）★★★
+    var best = stageData.best || null;
+    if (!best || earnedScore > best.correct) {
+        stageData.best = {
+            correct: earnedScore,
+            total: totalScore,
+            passed: passed,
+            date: new Date().toISOString()
+        };
+    }
+
+    // 保存到 Supabase
+    results[stageKey] = stageData;
+    try {
+        await supabaseClient.from('merchants').update({ quiz_results: results }).eq('id', currentUser.id);
+        currentUser.quiz_results = results;
+    } catch (e) {
+        if (quizResult) {
+            quizResult.classList.remove('hidden');
+            quizResult.textContent = '❌ 保存成绩失败：' + e.message;
+            quizResult.className = 'msg error';
+        }
+        return;
+    }
+
+    // ★★★ 获取显示数据 ★★★
+    var bestData = stageData.best;
+    var lastData = stageData.last;
+    var bestPassed = bestData.passed;
 
     // ★★★ 判断是否首次通过（晋级）★★★
     var isFirstPass = passed && !isStagePassed;
@@ -1598,55 +1650,22 @@ async function submitQuiz() {
     // ★★★ 判断是否重考通过 ★★★
     var isRetakePass = passed && isStagePassed;
 
-    // 判断是否应该更新最好成绩
-    var shouldUpdate = false;
-    if (!history || earnedScore > history.correct) {
-        shouldUpdate = true;
-    } else if (passed && !isStagePassed) {
-        shouldUpdate = true;
-    }
-
-    if (shouldUpdate) {
-        results[stageKey] = {
-            correct: earnedScore,
-            total: totalScore,
-            passRate: Math.round((earnedScore / totalScore) * 100),
-            passed: passed,
-            date: new Date().toISOString()
-        };
-        try {
-            await supabaseClient.from('merchants').update({ quiz_results: results }).eq('id', currentUser.id);
-            currentUser.quiz_results = results;
-        } catch (e) {
-            if (quizResult) {
-                quizResult.classList.remove('hidden');
-                quizResult.textContent = '❌ 保存成绩失败：' + e.message;
-                quizResult.className = 'msg error';
-            }
-            return;
-        }
-    }
-
-    // ★★★ 获取最好的成绩（用于显示）★★★
-    var best = results[stageKey] || history || { correct: earnedScore, total: totalScore, passed: passed };
-    var bestPassed = best.passed;
-
     // ★★★ 构建显示消息 ★★★
     var displayMsg = '';
 
     // 判断是否有历史记录（是否重考）
-    var hasHistory = !!(history || results[stageKey]);
+    var hasHistory = !!(stageData.best || stageData.last);
+
+    // ★ 状态（基于最好成绩判断）
+    displayMsg += (bestPassed ? '✅ 已通过' : '❌ 未通过') + '<br>';
 
     if (hasHistory) {
-        // ★ 重考：显示 状态 + 本次成绩 + 历史最好成绩
-        // 状态基于最好成绩判断
-        displayMsg += (bestPassed ? '✅ 已通过' : '❌ 未通过') + '<br>';
-        displayMsg += '📊 本次成绩：' + earnedScore + '/' + totalScore + '（达标分 ' + passThreshold + '）<br>';
-        displayMsg += '🏆 历史最好成绩：' + best.correct + '/' + best.total;
+        // ★ 重考/有历史：显示 本次成绩 + 历史最好成绩
+        displayMsg += '📊 本次成绩：' + lastData.correct + '/' + lastData.total + '（达标分 ' + passThreshold + '）<br>';
+        displayMsg += '🏆 历史最好成绩：' + bestData.correct + '/' + bestData.total;
     } else {
-        // ★ 首次提交：显示 状态 + 成绩
-        displayMsg += (passed ? '✅ 已通过' : '❌ 未通过') + '<br>';
-        displayMsg += '📊 成绩：' + earnedScore + '/' + totalScore + '（达标分 ' + passThreshold + '）';
+        // ★ 首次提交：只显示成绩
+        displayMsg += '📊 成绩：' + lastData.correct + '/' + lastData.total + '（达标分 ' + passThreshold + '）';
     }
 
     // ★★★ 显示结果 ★★★
@@ -1655,13 +1674,6 @@ async function submitQuiz() {
         quizResult.innerHTML = displayMsg;
         quizResult.className = bestPassed ? 'msg' : 'msg error';
     }
-
-    // ★★★ 滚动到结果位置（让用户看到考核结果）★★★
-    setTimeout(function() {
-        if (quizResult) {
-            quizResult.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-    }, 100);
 
     // ★★★ 更新提交按钮状态 ★★★
     var submitBtn = document.getElementById('submitQuizBtn');
@@ -1783,6 +1795,7 @@ async function submitQuiz() {
     }
     // ★ 如果未通过，不做任何跳转，停留在当前页面
 }
+
 // ========== 生成阶段卡片 ==========
 function buildStageCards(container, currentStage, maxUnlocked) {
     if (!container) return;
