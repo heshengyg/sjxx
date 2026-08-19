@@ -430,13 +430,76 @@ async function markResourceCompleted(resourceId) {
     const data = stageData[currentViewStage];
     if (data && data.resources) {
         const allCompleted = data.resources.every(r => progressMap[r.id] && progressMap[r.id].completed);
-        if (allCompleted && learnMsg) {
-            learnMsg.classList.remove('hidden');
-            learnMsg.textContent = '🎉 本阶段所有学习资源已完成，请完成考核以晋级！';
+        if (allCompleted) {
+            // 显示消息
+            if (learnMsg) {
+                learnMsg.classList.remove('hidden');
+                learnMsg.textContent = '🎉 本阶段所有学习资源已完成！';
+            }
+            // ★ 检查该阶段是否有考核
+            const isExamStage = EXAM_STAGES.includes(currentViewStage);
+            if (!isExamStage) {
+                // 无考核阶段，自动晋级
+                await autoAdvanceStage(currentViewStage);
+            } else {
+                // 有考核阶段，显示考核提示
+                if (learnMsg) {
+                    learnMsg.textContent = '🎉 本阶段所有学习资源已完成，请完成考核以晋级！';
+                }
+                // 检查是否已通过该阶段考核
+                const isPassed = currentUser.completed_stages && currentUser.completed_stages.includes(currentViewStage);
+                if (isPassed) {
+                    // 已通过考核，直接晋级
+                    await autoAdvanceStage(currentViewStage);
+                }
+            }
         }
     }
     renderCurrentStageResources();
     updateDetailProgress(resourceId);
+}
+// ========== 自动晋级 ==========
+async function autoAdvanceStage(stageId) {
+    if (!currentUser) return;
+    const stages = currentUser.completed_stages || [];
+    // 如果已经包含该阶段，不再重复添加
+    if (stages.includes(stageId)) {
+        console.log(`阶段 ${stageId} 已通过，无需重复晋级`);
+        return;
+    }
+    const newStages = [...stages, stageId];
+    try {
+        await supabaseClient.from('merchants').update({ completed_stages: newStages }).eq('id', currentUser.id);
+        currentUser.completed_stages = newStages;
+        // 更新等级
+        const newLevel = getLevelFromStages(newStages);
+        if (newLevel.id !== currentUser.level) {
+            await supabaseClient.from('merchants').update({ level: newLevel.id }).eq('id', currentUser.id);
+            currentUser.level = newLevel.id;
+        }
+        // 显示晋级消息
+        if (learnMsg) {
+            learnMsg.classList.remove('hidden');
+            learnMsg.textContent = `🎉 恭喜完成第${stageId}阶段，已自动晋级！`;
+            setTimeout(() => {
+                learnMsg.classList.add('hidden');
+            }, 3000);
+        }
+        // 刷新仪表盘
+        await updateDashboard(currentUser);
+        // 重新加载当前阶段数据（更新阶段卡片状态）
+        const data = await loadStageData(currentViewStage);
+        if (data) {
+            await updateStageUI(data);
+        }
+    } catch (e) {
+        console.warn('自动晋级失败:', e);
+        if (learnMsg) {
+            learnMsg.classList.remove('hidden');
+            learnMsg.textContent = '❌ 晋级失败，请刷新页面重试。';
+            learnMsg.className = 'msg error';
+        }
+    }
 }
 // ========== Render resources ==========
 function renderResources(stage, resources) {
@@ -850,7 +913,7 @@ async function renderQuiz(quiz) {
         if (isPassed && historyData) {
             submitBtn.textContent = '🔄 重新提交';
             submitBtn.onclick = function() {
-    const quizData = stageData[targetStage]?.quiz;
+    const quizData = stageData[currentViewStage]?.quiz;
     if (quizData) {
         questionStates = quizData.map(() => ({ confirmed: false, selected: [] }));
         renderQuiz(quizData);
@@ -1343,7 +1406,7 @@ async function submitQuiz() {
         if (passed || isStagePassed) {
             submitBtn.textContent = '🔄 重新提交';
             submitBtn.onclick = function() {
-                const quizData = stageData[targetStage]?.quiz;
+                const quizData = stageData[currentViewStage]?.quiz;
                 if (quizData) {
                     questionStates = quizData.map(() => ({ confirmed: false, selected: [] }));
                     renderQuiz(quizData);
