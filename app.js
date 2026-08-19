@@ -1071,7 +1071,7 @@ if (type === 'single' && singleScoreEl) {
         }
     }
 
-    // 确保内容标题重新显示
+// 确保内容标题重新显示
 if (quizContentTitle) {
     // 计算总分数和达标分
     let totalQuizScore = 0;
@@ -1088,14 +1088,13 @@ if (quizContentTitle) {
     quizContentTitle.innerHTML = `
         <span>📝 阶段考核</span>
         <span style="font-weight:normal; font-size:0.85em; color:#888;">
-            （共${totalQuizScore}分/<span style="color:#22c55e; font-weight:600;">达标${passScore}分</span>）
+            （共${totalQuizScore}分/<span style="color:#22c55e;">达标${passScore}分</span>）
         </span>
     `;
 }
 if (groups.single.items.length > 0 && quizSingleTitle) quizSingleTitle.style.display = 'block';
 if (groups.multiple.items.length > 0 && quizMultipleTitle) quizMultipleTitle.style.display = 'block';
 if (groups.judge.items.length > 0 && quizJudgeTitle) quizJudgeTitle.style.display = 'block';
-
     // 重置帘头内联样式
     [singleHeader, multipleHeader, judgeHeader, quizTitleHeader].forEach(el => {
         if (el) el.style.display = '';
