@@ -1525,7 +1525,7 @@ function updateStageProgress(stage, resources) {
     if (stageDesc) stageDesc.innerHTML = progressText;
 }
 
-// ========== submitQuiz ==========
+// ========== 替换 submitQuiz 函数 ==========
 async function submitQuiz() {
     if (!currentUser) return;
 
@@ -1540,7 +1540,7 @@ async function submitQuiz() {
         return;
     }
 
-    // 判断该阶段是否已通过
+    // 判断该阶段是否已通过（历史）
     const isStagePassed = currentUser.completed_stages && currentUser.completed_stages.includes(targetStage);
 
     // 未通过时检查资源完成
@@ -1586,10 +1586,16 @@ async function submitQuiz() {
 
     // 获取历史结果
     const results = currentUser.quiz_results || {};
-    const stageKey = `stage_${targetStage}`;
+    const stageKey = 'stage_' + targetStage;
     const history = results[stageKey] || null;
 
-    // 判断是否应该更新成绩
+    // ★★★ 判断是否首次通过（晋级）★★★
+    const isFirstPass = passed && !isStagePassed;
+
+    // ★★★ 判断是否重考通过（已通过该阶段，再次提交通过）★★★
+    const isRetakePass = passed && isStagePassed;
+
+    // 判断是否应该更新最好成绩
     let shouldUpdate = false;
     if (!history || earnedScore > history.correct) {
         shouldUpdate = true;
@@ -1618,62 +1624,57 @@ async function submitQuiz() {
         }
     }
 
-    // 更新晋级状态（首次通过）
-    if (passed && !isStagePassed) {
-        const newStages = [...(currentUser.completed_stages || []), targetStage];
-        await supabaseClient.from('merchants').update({ completed_stages: newStages }).eq('id', currentUser.id);
-        currentUser.completed_stages = newStages;
-        const newLevel = getLevelFromStages(newStages);
-        if (newLevel.id !== currentUser.level) {
-            await supabaseClient.from('merchants').update({ level: newLevel.id }).eq('id', currentUser.id);
-            currentUser.level = newLevel.id;
-        }
-        // 刷新阶段卡片和进度
-        const maxUnlocked = currentUser.completed_stages.length > 0 ? Math.max(...currentUser.completed_stages) : 0;
-        buildStageCards(stageList, currentViewStage, maxUnlocked);
-        buildStageCards(stageListContent, currentViewStage, maxUnlocked);
-        const done = Math.min(currentUser.completed_stages.length, TOTAL_STAGES);
-        const pct = Math.round((done / TOTAL_STAGES) * 100);
-        if (progressFill) progressFill.style.width = pct + '%';
-        if (stepLabel) stepLabel.textContent = `学习进度 ${pct}% (${done}/${TOTAL_STAGES})`;
-        const level = getLevelFromStages(currentUser.completed_stages);
-        if (levelDisplay) levelDisplay.textContent = level.label;
-        const nextLevel = level.next ? getLevelById(level.next) : null;
-        if (nextLevelLabel) nextLevelLabel.textContent = nextLevel ? `下一等级：${nextLevel.label}` : '🏆 已达最高等级';
-        if (statusText) statusText.textContent = `📖 ${done >= TOTAL_STAGES ? '已完成全部阶段' : '当前阶段：' + currentViewStage} · 等级 ${level.label}`;
+    // ★★★ 获取最好的成绩（用于显示）★★★
+    const best = results[stageKey] || history || { correct: earnedScore, total: totalScore, passed: passed };
+    const bestPassed = best.passed;
+
+    // ★★★ 构建显示消息 ★★★
+    let displayMsg = '';
+    
+    // 显示本次成绩（如果有）
+    if (shouldUpdate && history) {
+        displayMsg += '📊 本次得分：' + earnedScore + '/' + totalScore + '（达标分 ' + passThreshold + '）<br>';
+        displayMsg += '🏆 历史最好成绩：' + best.correct + '/' + best.total + '<br>';
+    } else if (shouldUpdate && !history) {
+        displayMsg += '📊 本次得分：' + earnedScore + '/' + totalScore + '（达标分 ' + passThreshold + '）<br>';
+    } else {
+        // 刷新后只显示历史最好成绩
+        displayMsg += '🏆 历史最好成绩：' + best.correct + '/' + best.total + '（达标分 ' + passThreshold + '）<br>';
     }
 
-    // 显示本次成绩和最好成绩
-    const best = results[stageKey] || history || { correct: earnedScore, total: totalScore };
-    let displayMsg = `📊 本次得分：${earnedScore}/${totalScore}（达标分 ${passThreshold}）`;
-    if (history && best.correct > earnedScore) {
-        displayMsg += `<br>🏆 历史最好成绩：${best.correct}/${best.total}`;
-    } else if (history && best.correct === earnedScore && history.correct > 0) {
-        displayMsg += `<br>🏆 当前为历史最好成绩：${best.correct}/${best.total}`;
+    // 显示通过状态（基于最好成绩）
+    if (bestPassed) {
+        displayMsg += '✅ 已通过';
+    } else {
+        displayMsg += '❌ 未达标，请重新作答后提交';
     }
-    displayMsg += `<br>${passed ? '✅ 已通过' : '❌ 未通过'}`;
 
+    // ★★★ 显示结果 ★★★
     if (quizResult) {
         quizResult.classList.remove('hidden');
         quizResult.innerHTML = displayMsg;
-        quizResult.className = passed ? 'msg' : 'msg error';
+        quizResult.className = bestPassed ? 'msg' : 'msg error';
     }
 
-    // ★ 更新提交按钮（移除 confirm 弹窗）
+    // ★★★ 更新提交按钮状态 ★★★
     const submitBtn = document.getElementById('submitQuizBtn');
     if (submitBtn) {
-        if (passed || isStagePassed) {
+        // 只要有历史记录，按钮变为"重新提交"
+        if (history || results[stageKey]) {
             submitBtn.textContent = '🔄 重新提交';
             submitBtn.onclick = function() {
+                // 重置答题状态，允许重新作答
                 const quizData = stageData[currentViewStage]?.quiz;
                 if (quizData) {
-                    questionStates = quizData.map(() => ({ confirmed: false, selected: [] }));
+                    questionStates = quizData.map(function() { return { confirmed: false, selected: [] }; });
                     renderQuiz(quizData);
                     submitBtn.textContent = '✅ 提交考核';
                     submitBtn.onclick = submitQuiz;
                     if (quizResult) {
                         quizResult.classList.add('hidden');
                     }
+                    // 清除保存的答题状态
+                    saveQuizStateToSupabase();
                 }
             };
         } else {
@@ -1682,29 +1683,118 @@ async function submitQuiz() {
         }
     }
 
-    // 控制"进入最新阶段"按钮
+    // ★★★ "进入最新阶段"按钮永远保持常亮可用 ★★★
     const refreshBtn = document.getElementById('refreshBtn');
     if (refreshBtn) {
-        if (passed && !isStagePassed) {
-            refreshBtn.disabled = false;
-            refreshBtn.style.opacity = '1';
-            refreshBtn.textContent = '🚀 进入最新阶段';
-            refreshBtn.onclick = goToLatestStage;
-        } else {
-            refreshBtn.disabled = true;
-            refreshBtn.style.opacity = '0.5';
-            refreshBtn.textContent = '进入最新阶段';
-            refreshBtn.onclick = function() {
-                if (passed) {
-                    alert('您已通过本阶段，如需进入最新阶段请点击"进入最新阶段"按钮（首次通过时可用）');
-                } else {
-                    alert('请先通过考核再进入最新阶段');
-                }
-            };
-        }
+        refreshBtn.disabled = false;
+        refreshBtn.style.opacity = '1';
+        refreshBtn.textContent = '🚀 进入最新阶段';
+        refreshBtn.onclick = goToLatestStage;
     }
-}
 
+    // ★★★ 晋级逻辑 ★★★
+    if (isFirstPass) {
+        // ★ 首次通过：更新 completed_stages，晋级
+        const newStages = [...(currentUser.completed_stages || []), targetStage];
+        await supabaseClient.from('merchants').update({ completed_stages: newStages }).eq('id', currentUser.id);
+        currentUser.completed_stages = newStages;
+
+        const newLevel = getLevelFromStages(newStages);
+        if (newLevel.id !== currentUser.level) {
+            await supabaseClient.from('merchants').update({ level: newLevel.id }).eq('id', currentUser.id);
+            currentUser.level = newLevel.id;
+        }
+
+        // 刷新阶段卡片和进度
+        const maxUnlocked = currentUser.completed_stages.length > 0 ? Math.max(...currentUser.completed_stages) : 0;
+        buildStageCards(stageList, currentViewStage, maxUnlocked);
+        buildStageCards(stageListContent, currentViewStage, maxUnlocked);
+        const done = Math.min(currentUser.completed_stages.length, TOTAL_STAGES);
+        const pct = Math.round((done / TOTAL_STAGES) * 100);
+        if (progressFill) progressFill.style.width = pct + '%';
+        if (stepLabel) stepLabel.textContent = '学习进度 ' + pct + '% (' + done + '/' + TOTAL_STAGES + ')';
+        const level = getLevelFromStages(currentUser.completed_stages);
+        if (levelDisplay) levelDisplay.textContent = level.label;
+        const nextLevel = level.next ? getLevelById(level.next) : null;
+        if (nextLevelLabel) nextLevelLabel.textContent = nextLevel ? '下一等级：' + nextLevel.label : '🏆 已达最高等级';
+        if (statusText) statusText.textContent = '📖 ' + (done >= TOTAL_STAGES ? '已完成全部阶段' : '当前阶段：' + currentViewStage) + ' · 等级 ' + level.label;
+
+        // ★★★ 3秒后自动跳转到最新阶段 ★★★
+        if (quizResult) {
+            var autoMsg = '<br>⏳ 3秒后自动进入最新阶段...';
+            quizResult.innerHTML = displayMsg + autoMsg;
+            quizResult.className = 'msg';
+        }
+
+        var latestStage = getCurrentStage(currentUser.completed_stages || []);
+        if (latestStage > TOTAL_STAGES) latestStage = TOTAL_STAGES;
+
+        setTimeout(function() {
+            // 如果当前阶段没变，跳转到最新阶段
+            if (currentViewStage !== latestStage) {
+                switchStageSync(latestStage);
+            } else {
+                // 如果已经在最新阶段，刷新数据
+                updateDashboard(currentUser);
+            }
+            if (quizResult) {
+                quizResult.classList.add('hidden');
+            }
+        }, 3000);
+
+    } else if (isRetakePass) {
+        // ★ 重考通过：更新 completed_stages（如果还没记录的话），跳转到下一阶段
+        var stageAlreadyRecorded = currentUser.completed_stages && currentUser.completed_stages.includes(targetStage);
+        
+        if (!stageAlreadyRecorded) {
+            var newStagesRetake = [...(currentUser.completed_stages || []), targetStage];
+            await supabaseClient.from('merchants').update({ completed_stages: newStagesRetake }).eq('id', currentUser.id);
+            currentUser.completed_stages = newStagesRetake;
+            
+            var newLevelRetake = getLevelFromStages(newStagesRetake);
+            if (newLevelRetake.id !== currentUser.level) {
+                await supabaseClient.from('merchants').update({ level: newLevelRetake.id }).eq('id', currentUser.id);
+                currentUser.level = newLevelRetake.id;
+            }
+            
+            // 刷新进度
+            var maxUnlockedRetake = currentUser.completed_stages.length > 0 ? Math.max(...currentUser.completed_stages) : 0;
+            buildStageCards(stageList, currentViewStage, maxUnlockedRetake);
+            buildStageCards(stageListContent, currentViewStage, maxUnlockedRetake);
+            var doneRetake = Math.min(currentUser.completed_stages.length, TOTAL_STAGES);
+            var pctRetake = Math.round((doneRetake / TOTAL_STAGES) * 100);
+            if (progressFill) progressFill.style.width = pctRetake + '%';
+            if (stepLabel) stepLabel.textContent = '学习进度 ' + pctRetake + '% (' + doneRetake + '/' + TOTAL_STAGES + ')';
+            var levelRetake = getLevelFromStages(currentUser.completed_stages);
+            if (levelDisplay) levelDisplay.textContent = levelRetake.label;
+            var nextLevelRetake = levelRetake.next ? getLevelById(levelRetake.next) : null;
+            if (nextLevelLabel) nextLevelLabel.textContent = nextLevelRetake ? '下一等级：' + nextLevelRetake.label : '🏆 已达最高等级';
+            if (statusText) statusText.textContent = '📖 ' + (doneRetake >= TOTAL_STAGES ? '已完成全部阶段' : '当前阶段：' + currentViewStage) + ' · 等级 ' + levelRetake.label;
+        }
+
+        // ★★★ 3秒后自动跳转到下一阶段 ★★★
+        if (quizResult) {
+            var autoMsgRetake = '<br>⏳ 3秒后自动进入下一阶段...';
+            quizResult.innerHTML = displayMsg + autoMsgRetake;
+            quizResult.className = 'msg';
+        }
+
+        var nextStageRetake = targetStage + 1;
+        if (nextStageRetake > TOTAL_STAGES) nextStageRetake = TOTAL_STAGES;
+
+        setTimeout(function() {
+            if (currentViewStage !== nextStageRetake) {
+                switchStageSync(nextStageRetake);
+            } else {
+                updateDashboard(currentUser);
+            }
+            if (quizResult) {
+                quizResult.classList.add('hidden');
+            }
+        }, 3000);
+    }
+    // ★ 如果未通过，不做任何跳转，停留在当前页面
+}
 // ========== 生成阶段卡片 ==========
 function buildStageCards(container, currentStage, maxUnlocked) {
     if (!container) return;
