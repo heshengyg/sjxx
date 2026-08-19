@@ -1705,7 +1705,7 @@ async function submitQuiz() {
     }
 }
 
-// ========== 替换 buildStageCards 函数 ==========
+// ========== 生成阶段卡片 ==========
 function buildStageCards(container, currentStage, maxUnlocked) {
     if (!container) return;
     container.innerHTML = '';
@@ -1750,78 +1750,7 @@ function buildStageCards(container, currentStage, maxUnlocked) {
         container.appendChild(card);
     }
 }
-    // ★★★ 滚动到当前阶段卡片（居中显示）★★★
-    setTimeout(() => {
-        scrollToActiveStage(container);
-    }, 50);// ========== 替换 buildStageCards 函数 ==========
-function buildStageCards(container, currentStage, maxUnlocked) {
-    if (!container) return;
-    container.innerHTML = '';
-    for (let i = 1; i <= TOTAL_STAGES; i++) {
-        const card = document.createElement('div');
-        card.className = 'stage-card';
-        if (i === currentStage) card.classList.add('active');
-        const isUnlocked = (i <= maxUnlocked + 1);
-        if (!isUnlocked) {
-            card.classList.add('locked');
-            card.style.cursor = 'not-allowed';
-        } else {
-            card.addEventListener('click', function() {
-                if (i !== currentViewStage) {
-                    if (allStageData[i] || stageData[i]) {
-                        switchStageSync(i);
-                    } else {
-                        currentViewStage = i;
-                        (async () => {
-                            const d = await loadStageData(currentViewStage);
-                            if (d) {
-                                updateStageUI(d);
-                                document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
-                                card.classList.add('active');
-                            }
-                        })();
-                    }
-                }
-            });
-        }
-        const labelSpan = document.createElement('span');
-        labelSpan.className = 'stage-label';
-        const info = STAGE_INFO[i] || { title: `第${i}阶段` };
-        labelSpan.textContent = info.title;
-        card.appendChild(labelSpan);
 
-        const statusSpan = document.createElement('span');
-        statusSpan.className = 'stage-status';
-        statusSpan.textContent = isUnlocked ? (i <= maxUnlocked ? '✅ 已解锁' : '🔓 可学习') : '🔒 未解锁';
-        card.appendChild(statusSpan);
-
-        container.appendChild(card);
-    }
-    // ★★★ 滚动到当前阶段卡片（居中显示）★★★
-    setTimeout(function() {
-        scrollToActiveStage(container);
-    }, 50);
-}
-
-// ========== 替换 scrollToActiveStage 函数 ==========
-function scrollToActiveStage(container) {
-    if (!container) return;
-    // 等待 DOM 渲染完成
-    setTimeout(() => {
-        const activeCard = container.querySelector('.stage-card.active');
-        if (!activeCard) return;
-        if (container.scrollWidth <= container.clientWidth) return;
-        
-        const containerWidth = container.offsetWidth;
-        const cardOffsetLeft = activeCard.offsetLeft;
-        const cardWidth = activeCard.offsetWidth;
-        const scrollPosition = cardOffsetLeft - (containerWidth / 2) + (cardWidth / 2);
-        container.scrollTo({
-            left: Math.max(0, scrollPosition),
-            behavior: 'smooth'
-        });
-    }, 50);
-}
 // ========== 更新阶段 UI ==========
 async function updateStageUI(data) {
     if (!data) return;
@@ -1836,13 +1765,14 @@ async function updateStageUI(data) {
     await renderQuiz(data.quiz);
     updateStageProgress(currentViewStage, data.resources);
 }
-// ========== 替换 switchStageSync 函数 ==========
+// ========== 快速切换阶段 ==========
 async function switchStageSync(stageId) {
     if (isSwitching) return;
     isSwitching = true;
 
     let data = allStageData[stageId] || stageData[stageId];
     if (!data) {
+        // 尝试重新加载该阶段数据
         console.warn(`阶段 ${stageId} 数据不存在，尝试重新加载...`);
         data = await loadStageData(stageId);
         if (!data) {
@@ -1864,18 +1794,13 @@ async function switchStageSync(stageId) {
 
     isSwitching = false;
 
-    // ★★★ 只滚动帘头中的阶段列表 ★★★
-    setTimeout(() => {
-        const stageList = document.querySelector('#stageList');
-        if (stageList) scrollToActiveStage(stageList);
-    }, 100);
-
     // 重置帘头滚动控制
     setTimeout(() => {
         isHeaderInitialized = false;
         initStickyHeaders();
     }, 100);
 }
+
 // ========== Dashboard ==========
 async function updateDashboard(user) {
     if (!user) return;
@@ -1920,7 +1845,7 @@ currentViewStage = actualStage > TOTAL_STAGES ? TOTAL_STAGES : actualStage;
         setTimeout(preloadAllStages, 800);
     }
 
-initStickyControl();
+    initStickyControl();
 
     // ========== ★ 新增：权益弹窗逻辑 ==========
     // 仅在未全部解锁时弹出（每次登录都弹出）
