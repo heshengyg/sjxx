@@ -1072,7 +1072,7 @@ if (type === 'single' && singleScoreEl) {
     }
 
     // 确保内容标题重新显示
-    if (quizContentTitle) {
+if (quizContentTitle) {
     // 计算总分数和达标分
     let totalQuizScore = 0;
     ['single', 'multiple', 'judge'].forEach(key => {
@@ -1081,11 +1081,20 @@ if (type === 'single' && singleScoreEl) {
     const passScore = Math.round(totalQuizScore * 0.8);
     
     quizContentTitle.style.display = 'block';
-    quizContentTitle.textContent = `📝 阶段考核  共${totalQuizScore}分/达标${passScore}分`;
+    quizContentTitle.style.display = 'flex';
+    quizContentTitle.style.justifyContent = 'space-between';
+    quizContentTitle.style.alignItems = 'center';
+    quizContentTitle.style.width = '100%';
+    quizContentTitle.innerHTML = `
+        <span>📝 阶段考核</span>
+        <span style="font-weight:normal; font-size:0.85em; color:#888;">
+            （共${totalQuizScore}分/<span style="color:#22c55e; font-weight:600;">达标${passScore}分</span>）
+        </span>
+    `;
 }
-    if (groups.single.items.length > 0 && quizSingleTitle) quizSingleTitle.style.display = 'block';
-    if (groups.multiple.items.length > 0 && quizMultipleTitle) quizMultipleTitle.style.display = 'block';
-    if (groups.judge.items.length > 0 && quizJudgeTitle) quizJudgeTitle.style.display = 'block';
+if (groups.single.items.length > 0 && quizSingleTitle) quizSingleTitle.style.display = 'block';
+if (groups.multiple.items.length > 0 && quizMultipleTitle) quizMultipleTitle.style.display = 'block';
+if (groups.judge.items.length > 0 && quizJudgeTitle) quizJudgeTitle.style.display = 'block';
 
     // 重置帘头内联样式
     [singleHeader, multipleHeader, judgeHeader, quizTitleHeader].forEach(el => {
