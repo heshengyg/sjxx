@@ -441,6 +441,8 @@ async function markResourceCompleted(resourceId) {
             if (!isExamStage) {
                 // 无考核阶段，自动晋级
                 await autoAdvanceStage(currentViewStage);
+                // ★ 晋级后不再继续执行下面的 renderCurrentStageResources，避免覆盖
+                return;
             } else {
                 // 有考核阶段，显示考核提示
                 if (learnMsg) {
@@ -451,10 +453,12 @@ async function markResourceCompleted(resourceId) {
                 if (isPassed) {
                     // 已通过考核，直接晋级
                     await autoAdvanceStage(currentViewStage);
+                    return;
                 }
             }
         }
     }
+    // 未全部完成时，正常刷新资源列表
     renderCurrentStageResources();
     updateDetailProgress(resourceId);
 }
@@ -488,21 +492,47 @@ async function autoAdvanceStage(stageId) {
         if (learnMsg) {
             learnMsg.classList.remove('hidden');
             learnMsg.textContent = `🎉 恭喜完成第${stageId}阶段，已自动晋级至第${nextStage}阶段！`;
-            setTimeout(() => {
+        }
+        
+        // ★ 直接切换并刷新界面（不调用 updateDashboard，避免循环）
+        // 1. 加载新阶段数据
+        const newData = await loadStageData(currentViewStage);
+        if (newData) {
+            // 2. 更新界面到新阶段
+            await updateStageUI(newData);
+        }
+        
+        // 3. 更新阶段卡片状态（内容区和帘头）
+        const maxUnlocked = currentUser.completed_stages.length > 0 ? Math.max(...currentUser.completed_stages) : 0;
+        buildStageCards(stageList, currentViewStage, maxUnlocked);
+        buildStageCards(stageListContent, currentViewStage, maxUnlocked);
+        
+        // 4. 更新顶部进度
+        const done = Math.min(currentUser.completed_stages.length, TOTAL_STAGES);
+        const pct = Math.round((done / TOTAL_STAGES) * 100);
+        if (progressFill) progressFill.style.width = pct + '%';
+        if (stepLabel) stepLabel.textContent = `学习进度 ${pct}% (${done}/${TOTAL_STAGES})`;
+        const level = getLevelFromStages(currentUser.completed_stages);
+        if (levelDisplay) levelDisplay.textContent = level.label;
+        const nextLevel = level.next ? getLevelById(level.next) : null;
+        if (nextLevelLabel) nextLevelLabel.textContent = nextLevel ? `下一等级：${nextLevel.label}` : '🏆 已达最高等级';
+        if (statusText) statusText.textContent = `📖 ${done >= TOTAL_STAGES ? '已完成全部阶段' : '当前阶段：' + currentViewStage} · 等级 ${level.label}`;
+        
+        // 5. 更新头像
+        updateAvatar(currentUser);
+        
+        // 6. 隐藏学习提示（3秒后）
+        setTimeout(() => {
+            if (learnMsg) {
                 learnMsg.classList.add('hidden');
-            }, 3000);
-        }
-        
-        // ★ 刷新仪表盘（会重新加载当前阶段数据）
-        await updateDashboard(currentUser);
-        
-        // ★ 如果晋级后当前视图阶段已变化，重新加载数据
-        if (currentViewStage !== stageId) {
-            const data = await loadStageData(currentViewStage);
-            if (data) {
-                await updateStageUI(data);
             }
+        }, 3000);
+        
+        // 7. 清除任何可能残留的 quizResult
+        if (quizResult) {
+            quizResult.classList.add('hidden');
         }
+        
     } catch (e) {
         console.warn('自动晋级失败:', e);
         if (learnMsg) {
@@ -512,7 +542,6 @@ async function autoAdvanceStage(stageId) {
         }
     }
 }
-
 // ========== Render resources ==========
 function renderResources(stage, resources) {
     if (!resourcesContainer) return;
