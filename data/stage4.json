@@ -6,17 +6,11 @@
     {
       "id": "r1",
       "type": "video",
-      "title": "新视频",
-      "file": "video/stage4_intro1.mp4"
-    },
-    {
-      "id": "r2",
-      "type": "video",
       "title": "销售区域设置",
       "file": "video/stage4_intro2.mp4"
     },
     {
-      "id": "r3",
+      "id": "r2",
       "type": "article",
       "title": "服务本社区、便利本邻里",
       "content": "<p style=\"text-align: left;\"><span style=\"font-family: Arial;\">松鼠逛逛是专属社区的本地化生活服务平台，聚焦“服务本社区、便利本邻里”，打造全方位、轻量化的社区新零售服务体系，三大核心板块赋能商家全方位增收：</span></p><p style=\"text-align: left;\"><strong>4.1 平台次日达供应链服务（零成本增收）</strong></p><p style=\"text-indent: 2em; text-align: left;\"><span style=\"font-family: Arial;\">平台全权负责商品选品、仓储、采购、统一配送，无需商家备货、无需商家承担物流成本、无库存压力、无资金风险。商家仅需开通门店作为社区线下自提点，依托自身社区人脉和微信群资源推广平台商品，即可赚取稳定佣金。模式轻、风险低、收益稳，让纯实体门店无需额外投入，即可新增线上商品营收渠道。</span></p><p style=\"text-align: left;\"><strong>4.2 商家自营服务（盘活门店原有业务）</strong></p><p style=\"text-indent: 2em; text-align: left;\"><span style=\"font-family: Arial;\">商家可免费入驻开通线上自营店铺，自主上架门店原有商品、特色产品、本地生活服务（家政、维修、洗护、生鲜、零售等）。打破线下门店地域、时间限制，24小时线上展示、接单、售卖，让门店原有业务覆盖全社区，提升原有产品/服务的销量与曝光，最大化盘活门店现有经营资源。</span></p><p style=\"text-align: left;\"><strong>4.3 邻里信息资源共享（增强社区粘性、拓展服务场景）</strong></p><p style=\"text-indent: 2em; text-align: left;\"><span style=\"font-family: Arial;\">平台搭建社区专属信息服务板块，涵盖求职招聘、家电维修、二手交易、宠物服务、邻里娱乐、生活求助、本地资讯等全品类社区资源。商家可借助该板块打造社区便民服务IP，不仅局限于卖货卖服务，更成为社区邻里的信息枢纽、服务中心，大幅提升邻里信任度与客户粘性，同时挖掘多元化的轻服务增收机会。</span></p>"

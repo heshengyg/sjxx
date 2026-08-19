@@ -1114,184 +1114,246 @@ function openResourceDetail(resource, allResources) {
     detailBody.innerHTML = '';
     detailProgress.textContent = '';
 
-        if (resource.type === 'video') {
-    const video = document.createElement('video');
-    video.src = resource.file;
-    video.controls = true;
-    video.playsInline = true;
-    video.style.width = '100%';
-    video.style.borderRadius = '12px';
-    video.preload = 'metadata';
+    // ★ 视频类型
+    if (resource.type === 'video') {
+        // 创建视频容器，让视频自适应居中
+        const videoWrapper = document.createElement('div');
+        videoWrapper.style.cssText = 'width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#000; border-radius:12px; overflow:hidden;';
+        
+        const video = document.createElement('video');
+        video.src = resource.file;
+        video.controls = true;
+        video.playsInline = true;
+        video.style.cssText = 'width:100%; height:100%; max-height:100%; object-fit:contain; display:block;';
+        video.preload = 'metadata';
 
-    let savedPosition = 0;
-    const prog = progressMap[resource.id];
-    if (prog && prog.last_position && !prog.completed) {
-        savedPosition = prog.last_position;
-    }
-
-    let lastValidTime = savedPosition;
-    let initialSeek = false;
-    let correctionPending = false;
-    let isCorrecting = false;
-
-    video.addEventListener('loadedmetadata', function() {
-        if (savedPosition > 0 && savedPosition < video.duration - 0.5) {
-            initialSeek = true;
-            video.currentTime = savedPosition;
-            const onSeeked = function() {
-                initialSeek = false;
-                video.removeEventListener('seeked', onSeeked);
-            };
-            video.addEventListener('seeked', onSeeked);
-            lastValidTime = savedPosition;
-            this._lastValidTime = savedPosition;
-        }
-        updateDetailProgress(resource.id);
-    });
-
-    let saveTimer = null;
-    function updateAndSave() {
-        if (!video.duration) return;
-        const pos = lastValidTime;
-        const pct = Math.round((pos / video.duration) * 100);
-        updateResourceProgress(resource.id, pct, pos);
-        updateDetailProgress(resource.id);
-    }
-
-    video.addEventListener('timeupdate', function() {
-        if (initialSeek || isCorrecting) return;
-
-        // 最终防线：只要越界就修正
-        if (lastValidTime > 0 && video.currentTime > lastValidTime + 0.5) {
-            isCorrecting = true;
-            video.currentTime = lastValidTime;
-            video.pause();
-            isCorrecting = false;
-            return;
+        let savedPosition = 0;
+        const prog = progressMap[resource.id];
+        if (prog && prog.last_position && !prog.completed) {
+            savedPosition = prog.last_position;
         }
 
-        if (video.currentTime > lastValidTime) {
-            lastValidTime = video.currentTime;
-        }
-        this._lastValidTime = lastValidTime;
+        let lastValidTime = savedPosition;
+        let initialSeek = false;
+        let correctionPending = false;
+        let isCorrecting = false;
 
-        const pct = Math.round((video.currentTime / video.duration) * 100);
-        if (detailProgress) detailProgress.textContent = `学习进度：${pct}%`;
+        video.addEventListener('loadedmetadata', function() {
+            if (savedPosition > 0 && savedPosition < video.duration - 0.5) {
+                initialSeek = true;
+                video.currentTime = savedPosition;
+                const onSeeked = function() {
+                    initialSeek = false;
+                    video.removeEventListener('seeked', onSeeked);
+                };
+                video.addEventListener('seeked', onSeeked);
+                lastValidTime = savedPosition;
+                this._lastValidTime = savedPosition;
+            }
+            updateDetailProgress(resource.id);
+        });
 
-        if (!saveTimer) {
-            saveTimer = setTimeout(() => {
-                updateAndSave();
-                saveTimer = null;
-            }, 3000);
+        let saveTimer = null;
+        function updateAndSave() {
+            if (!video.duration) return;
+            const pos = lastValidTime;
+            const pct = Math.round((pos / video.duration) * 100);
+            updateResourceProgress(resource.id, pct, pos);
+            updateDetailProgress(resource.id);
         }
-    });
 
-    video.addEventListener('seeking', function() {
-        if (initialSeek) return;
-        if (progressMap[resource.id] && progressMap[resource.id].completed) {
-            lastValidTime = video.duration;
-            this._lastValidTime = video.duration;
-            return;
-        }
-        if (video.currentTime > lastValidTime + 0.5) {
-            correctionPending = true;
-            // 在下一帧修正，避免冲突
-            requestAnimationFrame(() => {
-                if (correctionPending) {
-                    isCorrecting = true;
-                    video.currentTime = lastValidTime;
-                    video.pause();
-                    isCorrecting = false;
-                    correctionPending = false;
-                }
-            });
-        }
-    });
+        video.addEventListener('timeupdate', function() {
+            if (initialSeek || isCorrecting) return;
 
-    video.addEventListener('seeked', function() {
-        if (initialSeek) return;
-        if (progressMap[resource.id] && progressMap[resource.id].completed) {
-            lastValidTime = video.duration;
-            this._lastValidTime = video.duration;
+            if (lastValidTime > 0 && video.currentTime > lastValidTime + 0.5) {
+                isCorrecting = true;
+                video.currentTime = lastValidTime;
+                video.pause();
+                isCorrecting = false;
+                return;
+            }
+
+            if (video.currentTime > lastValidTime) {
+                lastValidTime = video.currentTime;
+            }
+            this._lastValidTime = lastValidTime;
+
+            const pct = Math.round((video.currentTime / video.duration) * 100);
+            if (detailProgress) detailProgress.textContent = `学习进度：${pct}%`;
+
+            if (!saveTimer) {
+                saveTimer = setTimeout(() => {
+                    updateAndSave();
+                    saveTimer = null;
+                }, 3000);
+            }
+        });
+
+        video.addEventListener('seeking', function() {
+            if (initialSeek) return;
+            if (progressMap[resource.id] && progressMap[resource.id].completed) {
+                lastValidTime = video.duration;
+                this._lastValidTime = video.duration;
+                return;
+            }
+            if (video.currentTime > lastValidTime + 0.5) {
+                correctionPending = true;
+                requestAnimationFrame(() => {
+                    if (correctionPending) {
+                        isCorrecting = true;
+                        video.currentTime = lastValidTime;
+                        video.pause();
+                        isCorrecting = false;
+                        correctionPending = false;
+                    }
+                });
+            }
+        });
+
+        video.addEventListener('seeked', function() {
+            if (initialSeek) return;
+            if (progressMap[resource.id] && progressMap[resource.id].completed) {
+                lastValidTime = video.duration;
+                this._lastValidTime = video.duration;
+                correctionPending = false;
+                return;
+            }
+            if (video.currentTime > lastValidTime + 0.5) {
+                isCorrecting = true;
+                video.currentTime = lastValidTime;
+                video.pause();
+                isCorrecting = false;
+            }
             correctionPending = false;
-            return;
-        }
-        // 如果越界，立即修正
-        if (video.currentTime > lastValidTime + 0.5) {
-            isCorrecting = true;
-            video.currentTime = lastValidTime;
-            video.pause();
-            isCorrecting = false;
-        }
-        correctionPending = false;
-    });
+        });
 
-    video.addEventListener('ended', function() {
-        if (this._lastValidTime < video.duration - 1) {
-            video.currentTime = this._lastValidTime;
-            video.pause();
-            return;
-        }
-        this._lastValidTime = video.duration;
-        lastValidTime = video.duration;
-        if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
-        markResourceCompleted(resource.id);
-    });
+        video.addEventListener('ended', function() {
+            if (this._lastValidTime < video.duration - 1) {
+                video.currentTime = this._lastValidTime;
+                video.pause();
+                return;
+            }
+            this._lastValidTime = video.duration;
+            lastValidTime = video.duration;
+            if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+            markResourceCompleted(resource.id);
+        });
 
-    video.addEventListener('click', function() {
-        if (video.paused) {
-            video.play();
-        } else {
-            video.pause();
-        }
-    });
-
-    detailBody.appendChild(video);
-    currentVideoElement = video;
-    video.play().catch(e => {
-        if (e.name !== 'AbortError') console.warn('视频自动播放被阻止:', e);
-    });
-    activeResourceId = resource.id;
-}
- else if (resource.type === 'image') {
+        videoWrapper.appendChild(video);
+        detailBody.appendChild(videoWrapper);
+        currentVideoElement = video;
+        video.play().catch(e => {
+            if (e.name !== 'AbortError') console.warn('视频自动播放被阻止:', e);
+        });
+        activeResourceId = resource.id;
+    }
+    
+    // ★ 图片类型
+    else if (resource.type === 'image') {
+        const container = document.createElement('div');
+        container.style.cssText = 'width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; overflow:hidden; position:relative;';
+        
         const img = document.createElement('img');
         img.src = resource.file;
-        img.style.width = '100%';
-        img.style.borderRadius = '12px';
-        detailBody.appendChild(img);
+        img.alt = resource.title;
+        img.draggable = false;
+        img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; border-radius:12px; cursor:pointer; transition:transform 0.3s ease; display:block;';
+        container.appendChild(img);
+        
+        // ★ 点击图片全屏/退出全屏
+        let isFullscreen = false;
+        img.addEventListener('click', function(e) {
+            e.stopPropagation();
+            isFullscreen = !isFullscreen;
+            if (isFullscreen) {
+                this.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; max-width:100vw; max-height:100vh; object-fit:contain; z-index:9999; background:rgba(0,0,0,0.92); border-radius:0; cursor:zoom-out; padding:20px; box-sizing:border-box;';
+                document.body.style.overflow = 'hidden';
+            } else {
+                this.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; border-radius:12px; cursor:pointer; transition:transform 0.3s ease; display:block;';
+                document.body.style.overflow = '';
+            }
+        });
+        
+        // ★ 点击蒙层退出全屏
+        const closeFullscreen = function(e) {
+            if (isFullscreen && !e.target.closest('img')) {
+                img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; border-radius:12px; cursor:pointer; transition:transform 0.3s ease; display:block;';
+                document.body.style.overflow = '';
+                isFullscreen = false;
+            }
+        };
+        document.addEventListener('click', closeFullscreen);
+        
+        // ★ 图片导航
         if (currentImageResources.length > 1) {
             const nav = document.createElement('div');
-            nav.className = 'img-nav';
+            nav.style.cssText = 'flex-shrink:0; display:flex; justify-content:center; gap:16px; padding:10px 0 4px 0; width:100%;';
             const prev = document.createElement('button');
             prev.textContent = '◀ 上一张';
-            prev.addEventListener('click', () => navigateImage(-1));
+            prev.style.cssText = 'padding:6px 20px; border:1px solid #dce3eb; border-radius:30px; background:#fff; cursor:pointer; font-size:15px; transition:0.2s;';
+            prev.addEventListener('mouseenter', function() { this.style.borderColor = '#1f7b4d'; this.style.background = '#eef5fa'; });
+            prev.addEventListener('mouseleave', function() { this.style.borderColor = '#dce3eb'; this.style.background = '#fff'; });
+            prev.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (isFullscreen) {
+                    img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; border-radius:12px; cursor:pointer; transition:transform 0.3s ease; display:block;';
+                    document.body.style.overflow = '';
+                    isFullscreen = false;
+                }
+                navigateImage(-1);
+            });
             const next = document.createElement('button');
             next.textContent = '下一张 ▶';
-            next.addEventListener('click', () => navigateImage(1));
+            next.style.cssText = 'padding:6px 20px; border:1px solid #dce3eb; border-radius:30px; background:#fff; cursor:pointer; font-size:15px; transition:0.2s;';
+            next.addEventListener('mouseenter', function() { this.style.borderColor = '#1f7b4d'; this.style.background = '#eef5fa'; });
+            next.addEventListener('mouseleave', function() { this.style.borderColor = '#dce3eb'; this.style.background = '#fff'; });
+            next.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (isFullscreen) {
+                    img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; border-radius:12px; cursor:pointer; transition:transform 0.3s ease; display:block;';
+                    document.body.style.overflow = '';
+                    isFullscreen = false;
+                }
+                navigateImage(1);
+            });
             nav.appendChild(prev);
             nav.appendChild(next);
-            detailBody.appendChild(nav);
+            container.appendChild(nav);
         }
+        
+        // 保存引用以便 navigateImage 更新
+        container._img = img;
+        detailBody.appendChild(container);
         activeResourceId = resource.id;
         startTimer(resource.id, resource.duration);
-        updateDetailProgress(resource.id); // ★ 立即显示当前进度
-    } else if (resource.type === 'article') {
+        updateDetailProgress(resource.id);
+    }
+    
+    // ★ 文章类型
+    else if (resource.type === 'article') {
         const div = document.createElement('div');
         div.className = 'article-content';
+        div.style.cssText = 'width:100%; height:100%; overflow-y:auto; padding:12px 16px; background:#fff; border-radius:12px; font-size:17px; line-height:1.8; word-wrap:break-word; box-sizing:border-box;';
         div.innerHTML = resource.content || '暂无内容';
         detailBody.appendChild(div);
         activeResourceId = resource.id;
         startTimer(resource.id, resource.duration);
-        updateDetailProgress(resource.id); // ★ 立即显示当前进度
+        updateDetailProgress(resource.id);
     }
 
     detailModal.classList.add('open');
     updateDetailProgress(resource.id);
 }
-
 function closeDetailModal() {
     if (!detailModal) return;
     detailModal.classList.remove('open');
+    
+    // 退出全屏状态
+    const fullImg = document.querySelector('#detailBody .image-container img');
+    if (fullImg && fullImg.style.position === 'fixed') {
+        fullImg.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; border-radius:12px; cursor:pointer; transition:transform 0.3s ease; display:block;';
+        document.body.style.overflow = '';
+    }
 
     if (currentVideoElement) {
         const safePos = Math.floor(currentVideoElement._lastValidTime || 0);
@@ -1313,14 +1375,26 @@ function navigateImage(delta) {
     currentImageIdx = newIdx;
     const newRes = currentImageResources[newIdx];
     if (detailTitle) detailTitle.textContent = newRes.title;
-    const img = detailBody ? detailBody.querySelector('img') : null;
-    if (img) img.src = newRes.file;
+    
+    // 更新图片
+    const container = detailBody ? detailBody.querySelector('.image-container') : null;
+    if (container) {
+        const img = container.querySelector('img');
+        if (img) {
+            img.src = newRes.file;
+            // 如果有全屏状态，退出
+            if (img.style.position === 'fixed') {
+                img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; border-radius:12px; cursor:pointer; transition:transform 0.3s ease; display:block;';
+                document.body.style.overflow = '';
+            }
+        }
+    }
+    
     if (activeResourceId) stopTimer(activeResourceId);
     activeResourceId = newRes.id;
     startTimer(newRes.id, newRes.duration);
     updateDetailProgress(newRes.id);
 }
-
 // ========== Timer ==========
 function startTimer(resourceId, duration) {
     if (timerIntervals[resourceId]) {
