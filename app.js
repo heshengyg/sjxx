@@ -408,13 +408,26 @@ async function updateResourceProgress(resourceId, progress, position = 0) {
     updateDetailProgress(resourceId);
 }
 // ========== 完整替换 markResourceCompleted ==========
+// ========== 完整替换 markResourceCompleted ==========
 async function markResourceCompleted(resourceId) {
     if (!currentUser) {
         console.error('❌ currentUser 为空');
         return;
     }
-    if (progressMap[resourceId] && progressMap[resourceId].completed) {
-        console.log(`⏭️ 资源 ${resourceId} 已完成，跳过`);
+    
+    // ★ 关键修复：即使资源已标记完成，也要检查是否全部完成
+    const isAlreadyCompleted = progressMap[resourceId] && progressMap[resourceId].completed;
+    if (isAlreadyCompleted) {
+        console.log(`⏭️ 资源 ${resourceId} 已完成，检查是否全部完成...`);
+        // ★ 继续执行检查逻辑
+        const data = stageData[currentViewStage];
+        if (data && data.resources) {
+            const allCompleted = data.resources.every(r => progressMap[r.id] && progressMap[r.id].completed);
+            console.log(`📊 资源完成情况: ${allCompleted ? '全部完成 ✅' : '未全部完成'}`);
+            if (allCompleted) {
+                await handleAllResourcesCompleted(data);
+            }
+        }
         return;
     }
     
@@ -440,47 +453,12 @@ async function markResourceCompleted(resourceId) {
     
     // ★ 检查是否全部完成
     const data = stageData[currentViewStage];
-    if (!data || !data.resources) {
-        console.warn('⚠️ 阶段数据不存在');
-        renderCurrentStageResources();
-        return;
-    }
-    
-    const allCompleted = data.resources.every(r => progressMap[r.id] && progressMap[r.id].completed);
-    console.log(`📊 资源完成情况: ${allCompleted ? '全部完成 ✅' : '未全部完成'}`);
-    
-    if (allCompleted) {
-        console.log(`🎉 阶段 ${currentViewStage} 所有资源已完成！`);
-        
-        if (learnMsg) {
-            learnMsg.classList.remove('hidden');
-            learnMsg.textContent = '🎉 本阶段所有学习资源已完成！';
-        }
-        
-        const isExamStage = EXAM_STAGES.includes(currentViewStage);
-        console.log(`📌 阶段 ${currentViewStage}, 是否有考核: ${isExamStage}`);
-        
-        if (!isExamStage) {
-            // ★ 无考核阶段，自动晋级
-            console.log(`🚀 触发自动晋级 (阶段 ${currentViewStage})...`);
-            await autoAdvanceStage(currentViewStage);
-            // ★ 晋级后 autoAdvanceStage 内部会刷新，这里不再重复刷新
+    if (data && data.resources) {
+        const allCompleted = data.resources.every(r => progressMap[r.id] && progressMap[r.id].completed);
+        console.log(`📊 资源完成情况: ${allCompleted ? '全部完成 ✅' : '未全部完成'}`);
+        if (allCompleted) {
+            await handleAllResourcesCompleted(data);
             return;
-        } else {
-            // 有考核阶段
-            const isPassed = currentUser.completed_stages && currentUser.completed_stages.includes(currentViewStage);
-            if (isPassed) {
-                console.log(`📌 阶段 ${currentViewStage} 已通过考核，自动晋级`);
-                await autoAdvanceStage(currentViewStage);
-                return;
-            } else {
-                if (learnMsg) {
-                    learnMsg.textContent = '🎉 本阶段所有学习资源已完成，请完成考核以晋级！';
-                }
-                // 显示考核
-                renderCurrentStageResources();
-                return;
-            }
         }
     }
     
@@ -489,6 +467,37 @@ async function markResourceCompleted(resourceId) {
     updateDetailProgress(resourceId);
 }
 
+// ========== 提取晋级逻辑为独立函数 ==========
+async function handleAllResourcesCompleted(data) {
+    console.log(`🎉 阶段 ${currentViewStage} 所有资源已完成！`);
+    
+    if (learnMsg) {
+        learnMsg.classList.remove('hidden');
+        learnMsg.textContent = '🎉 本阶段所有学习资源已完成！';
+    }
+    
+    const isExamStage = EXAM_STAGES.includes(currentViewStage);
+    console.log(`📌 阶段 ${currentViewStage}, 是否有考核: ${isExamStage}`);
+    
+    if (!isExamStage) {
+        // ★ 无考核阶段，自动晋级
+        console.log(`🚀 触发自动晋级 (阶段 ${currentViewStage})...`);
+        await autoAdvanceStage(currentViewStage);
+    } else {
+        // 有考核阶段
+        const isPassed = currentUser.completed_stages && currentUser.completed_stages.includes(currentViewStage);
+        if (isPassed) {
+            console.log(`📌 阶段 ${currentViewStage} 已通过考核，自动晋级`);
+            await autoAdvanceStage(currentViewStage);
+        } else {
+            if (learnMsg) {
+                learnMsg.textContent = '🎉 本阶段所有学习资源已完成，请完成考核以晋级！';
+            }
+            // 显示考核
+            renderCurrentStageResources();
+        }
+    }
+}
 // ========== 完整替换 autoAdvanceStage ==========
 async function autoAdvanceStage(stageId) {
     if (!currentUser) {
@@ -509,31 +518,52 @@ async function autoAdvanceStage(stageId) {
     console.log(`🚀 准备更新 completed_stages 为:`, newStages);
     
     try {
-        // ★ 更新数据库
-        const { data: updatedUser, error: updateError } = await supabaseClient
+        // ★ 更新数据库 - 使用更可靠的方式
+        console.log('📤 发送更新请求到 Supabase...');
+        
+        // 先更新 completed_stages
+        const { error: updateError } = await supabaseClient
             .from('merchants')
-            .update({ 
-                completed_stages: newStages,
-                level: getLevelFromStages(newStages).id
-            })
-            .eq('id', currentUser.id)
-            .select()
-            .single();
+            .update({ completed_stages: newStages })
+            .eq('id', currentUser.id);
         
         if (updateError) {
             console.error('❌ 更新失败:', updateError);
             throw updateError;
         }
+        console.log('✅ completed_stages 更新成功');
         
-        console.log('✅ 数据库更新成功');
-        console.log('📦 返回的用户数据:', updatedUser);
+        // 更新等级
+        const newLevel = getLevelFromStages(newStages);
+        if (newLevel.id !== currentUser.level) {
+            const { error: levelError } = await supabaseClient
+                .from('merchants')
+                .update({ level: newLevel.id })
+                .eq('id', currentUser.id);
+            if (levelError) {
+                console.warn('更新等级失败:', levelError);
+            } else {
+                console.log(`✅ 等级更新为: ${newLevel.id}`);
+            }
+        }
         
-        // ★ 更新 currentUser
-        currentUser = updatedUser;
-        console.log(`✅ completed_stages 现在为:`, currentUser.completed_stages);
+        // ★ 重新加载用户数据
+        const { data: refreshedUser, error: refreshError } = await supabaseClient
+            .from('merchants')
+            .select('*')
+            .eq('id', currentUser.id)
+            .single();
         
-        // ★ 验证
-        console.log(`🔍 验证: completed_stages 长度 = ${currentUser.completed_stages?.length || 0}`);
+        if (refreshError) {
+            console.error('刷新用户数据失败:', refreshError);
+            // 手动更新内存
+            currentUser.completed_stages = newStages;
+            currentUser.level = newLevel.id;
+        } else {
+            currentUser = refreshedUser;
+            console.log('✅ 用户数据已刷新');
+            console.log(`✅ completed_stages 现在为:`, currentUser.completed_stages);
+        }
         
         // ★ 计算下一阶段
         const nextStage = getCurrentStage(currentUser.completed_stages || []);
@@ -577,7 +607,7 @@ async function autoAdvanceStage(stageId) {
             quizResult.classList.add('hidden');
         }
         
-        console.log(`✅ 晋级完成！`);
+        console.log(`✅ 晋级完成！当前阶段: ${currentViewStage}`);
         
     } catch (e) {
         console.error('❌ 自动晋级失败:', e);
@@ -588,7 +618,6 @@ async function autoAdvanceStage(stageId) {
         }
     }
 }
-
 // ========== Render resources ==========
 function renderResources(stage, resources) {
     if (!resourcesContainer) return;
