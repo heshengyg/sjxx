@@ -466,78 +466,74 @@ async function markResourceCompleted(resourceId) {
 async function autoAdvanceStage(stageId) {
     if (!currentUser) return;
     const stages = currentUser.completed_stages || [];
-    // 如果已经包含该阶段，不再重复添加
     if (stages.includes(stageId)) {
         console.log(`阶段 ${stageId} 已通过，无需重复晋级`);
         return;
     }
     const newStages = [...stages, stageId];
     try {
+        console.log(`🚀 开始晋级: 阶段 ${stageId} -> ${JSON.stringify(newStages)}`);
+        
+        // 1. 更新 Supabase
         await supabaseClient.from('merchants').update({ completed_stages: newStages }).eq('id', currentUser.id);
         currentUser.completed_stages = newStages;
-        // 更新等级
+        console.log('✅ Supabase 更新成功');
+        
+        // 2. 更新等级
         const newLevel = getLevelFromStages(newStages);
         if (newLevel.id !== currentUser.level) {
             await supabaseClient.from('merchants').update({ level: newLevel.id }).eq('id', currentUser.id);
             currentUser.level = newLevel.id;
+            console.log(`✅ 等级更新为: ${newLevel.id}`);
         }
         
-        // ★ 计算下一阶段
+        // 3. 计算下一阶段
         const nextStage = getCurrentStage(newStages);
         if (nextStage <= TOTAL_STAGES) {
             currentViewStage = nextStage;
+            console.log(`✅ 当前视图阶段更新为: ${nextStage}`);
+        } else {
+            console.log('🎉 已完成全部阶段');
+            if (learnMsg) {
+                learnMsg.classList.remove('hidden');
+                learnMsg.textContent = '🎉 恭喜您已完成全部阶段！';
+            }
+            return;
         }
         
-        // 显示晋级消息
+        // 4. 显示晋级消息
         if (learnMsg) {
             learnMsg.classList.remove('hidden');
             learnMsg.textContent = `🎉 恭喜完成第${stageId}阶段，已自动晋级至第${nextStage}阶段！`;
         }
         
-        // ★ 直接切换并刷新界面（不调用 updateDashboard，避免循环）
-        // 1. 加载新阶段数据
-        const newData = await loadStageData(currentViewStage);
-        if (newData) {
-            // 2. 更新界面到新阶段
-            await updateStageUI(newData);
-        }
+        // 5. ★ 直接刷新整个仪表盘（最稳妥的方式）
+        await updateDashboard(currentUser);
         
-        // 3. 更新阶段卡片状态（内容区和帘头）
+        // 6. 额外确保阶段卡片状态正确
         const maxUnlocked = currentUser.completed_stages.length > 0 ? Math.max(...currentUser.completed_stages) : 0;
         buildStageCards(stageList, currentViewStage, maxUnlocked);
         buildStageCards(stageListContent, currentViewStage, maxUnlocked);
         
-        // 4. 更新顶部进度
-        const done = Math.min(currentUser.completed_stages.length, TOTAL_STAGES);
-        const pct = Math.round((done / TOTAL_STAGES) * 100);
-        if (progressFill) progressFill.style.width = pct + '%';
-        if (stepLabel) stepLabel.textContent = `学习进度 ${pct}% (${done}/${TOTAL_STAGES})`;
-        const level = getLevelFromStages(currentUser.completed_stages);
-        if (levelDisplay) levelDisplay.textContent = level.label;
-        const nextLevel = level.next ? getLevelById(level.next) : null;
-        if (nextLevelLabel) nextLevelLabel.textContent = nextLevel ? `下一等级：${nextLevel.label}` : '🏆 已达最高等级';
-        if (statusText) statusText.textContent = `📖 ${done >= TOTAL_STAGES ? '已完成全部阶段' : '当前阶段：' + currentViewStage} · 等级 ${level.label}`;
-        
-        // 5. 更新头像
-        updateAvatar(currentUser);
-        
-        // 6. 隐藏学习提示（3秒后）
+        // 7. 隐藏学习提示（3秒后）
         setTimeout(() => {
             if (learnMsg) {
                 learnMsg.classList.add('hidden');
             }
         }, 3000);
         
-        // 7. 清除任何可能残留的 quizResult
+        // 8. 清除 quizResult
         if (quizResult) {
             quizResult.classList.add('hidden');
         }
         
+        console.log(`✅ 晋级完成，当前阶段: ${currentViewStage}`);
+        
     } catch (e) {
-        console.warn('自动晋级失败:', e);
+        console.error('自动晋级失败:', e);
         if (learnMsg) {
             learnMsg.classList.remove('hidden');
-            learnMsg.textContent = '❌ 晋级失败，请刷新页面重试。';
+            learnMsg.textContent = '❌ 晋级失败: ' + e.message;
             learnMsg.className = 'msg error';
         }
     }
