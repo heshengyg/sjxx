@@ -1634,20 +1634,19 @@ async function submitQuiz() {
     // ★★★ 构建显示消息 ★★★
     var displayMsg = '';
 
-    // 如果有历史记录，显示本次成绩 + 历史最好成绩
-    if (history) {
-        displayMsg += '📊 本次得分：' + earnedScore + '/' + totalScore + '（达标分 ' + passThreshold + '）<br>';
-        displayMsg += '🏆 历史最好成绩：' + best.correct + '/' + best.total + '<br>';
-    } else {
-        // 首次提交，只显示本次成绩
-        displayMsg += '📊 本次得分：' + earnedScore + '/' + totalScore + '（达标分 ' + passThreshold + '）<br>';
-    }
+    // 判断是否有历史记录（是否重考）
+    var hasHistory = !!(history || results[stageKey]);
 
-    // 显示通过状态（基于最好成绩）
-    if (bestPassed) {
-        displayMsg += '✅ 已通过';
+    if (hasHistory) {
+        // ★ 重考：显示 状态 + 本次成绩 + 历史最好成绩
+        // 状态基于最好成绩判断
+        displayMsg += (bestPassed ? '✅ 已通过' : '❌ 未通过') + '<br>';
+        displayMsg += '📊 本次成绩：' + earnedScore + '/' + totalScore + '（达标分 ' + passThreshold + '）<br>';
+        displayMsg += '🏆 历史最好成绩：' + best.correct + '/' + best.total;
     } else {
-        displayMsg += '❌ 未达标，请重新作答后提交';
+        // ★ 首次提交：显示 状态 + 成绩
+        displayMsg += (passed ? '✅ 已通过' : '❌ 未通过') + '<br>';
+        displayMsg += '📊 成绩：' + earnedScore + '/' + totalScore + '（达标分 ' + passThreshold + '）';
     }
 
     // ★★★ 显示结果 ★★★
@@ -1657,17 +1656,23 @@ async function submitQuiz() {
         quizResult.className = bestPassed ? 'msg' : 'msg error';
     }
 
+    // ★★★ 滚动到结果位置（让用户看到考核结果）★★★
+    setTimeout(function() {
+        if (quizResult) {
+            quizResult.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, 100);
+
     // ★★★ 更新提交按钮状态 ★★★
     var submitBtn = document.getElementById('submitQuizBtn');
     if (submitBtn) {
-        // 只要有历史记录，按钮变为"重新提交"
-        if (history || results[stageKey]) {
+        // ★ 只要提交过（有历史记录），按钮变为"重新提交"
+        if (hasHistory) {
             submitBtn.textContent = '🔄 重新提交';
-            submitBtn.onclick = submitQuiz; // 直接调用 submitQuiz，不清除答案
         } else {
             submitBtn.textContent = '✅ 提交考核';
-            submitBtn.onclick = submitQuiz;
         }
+        submitBtn.onclick = submitQuiz;
     }
 
     // ★★★ "进入最新阶段"按钮永远保持常亮可用 ★★★
@@ -1706,9 +1711,9 @@ async function submitQuiz() {
         if (nextLevelLabel) nextLevelLabel.textContent = nextLevel ? '下一等级：' + nextLevel.label : '🏆 已达最高等级';
         if (statusText) statusText.textContent = '📖 ' + (done >= TOTAL_STAGES ? '已完成全部阶段' : '当前阶段：' + currentViewStage) + ' · 等级 ' + level.label;
 
-        // ★★★ 3秒后自动跳转到最新阶段 ★★★
+        // ★★★ 5秒后自动跳转到最新阶段 ★★★
         if (quizResult) {
-            quizResult.innerHTML = displayMsg + '<br>⏳ 3秒后自动进入最新阶段...';
+            quizResult.innerHTML = displayMsg + '<br>⏳ 5秒后自动进入最新阶段...';
             quizResult.className = 'msg';
         }
 
@@ -1724,7 +1729,7 @@ async function submitQuiz() {
             if (quizResult) {
                 quizResult.classList.add('hidden');
             }
-        }, 3000);
+        }, 5000);
 
     } else if (isRetakePass) {
         // ★ 重考通过：如果该阶段还没记录，更新 completed_stages
@@ -1756,9 +1761,9 @@ async function submitQuiz() {
             if (statusText) statusText.textContent = '📖 ' + (doneRetake >= TOTAL_STAGES ? '已完成全部阶段' : '当前阶段：' + currentViewStage) + ' · 等级 ' + levelRetake.label;
         }
 
-        // ★★★ 3秒后自动跳转到下一阶段 ★★★
+        // ★★★ 5秒后自动跳转到下一阶段 ★★★
         if (quizResult) {
-            quizResult.innerHTML = displayMsg + '<br>⏳ 3秒后自动进入下一阶段...';
+            quizResult.innerHTML = displayMsg + '<br>⏳ 5秒后自动进入下一阶段...';
             quizResult.className = 'msg';
         }
 
@@ -1774,7 +1779,7 @@ async function submitQuiz() {
             if (quizResult) {
                 quizResult.classList.add('hidden');
             }
-        }, 3000);
+        }, 5000);
     }
     // ★ 如果未通过，不做任何跳转，停留在当前页面
 }
