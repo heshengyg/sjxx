@@ -1754,7 +1754,6 @@ function buildStageCards(container, currentStage, maxUnlocked) {
     setTimeout(() => {
         scrollToActiveStage(container);
     }, 50);
-}
 
 // ========== 替换 scrollToActiveStage 函数 ==========
 function scrollToActiveStage(container) {
