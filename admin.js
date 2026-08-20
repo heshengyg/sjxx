@@ -1,5 +1,5 @@
 // =====================================================
-// admin.js - 管理后台
+// admin.js - 管理后台（移除修复等级按钮）
 // =====================================================
 
 const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
@@ -105,40 +105,6 @@ async function resetPassword(userId, phone) {
 
     } catch (e) {
         alert('❌ 重置失败：' + e.message);
-        console.error(e);
-    }
-}
-
-// ========== 修复等级 ==========
-async function fixUserLevel(userId) {
-    try {
-        var { data: user, error } = await supabaseClient
-            .from('merchants')
-            .select('id, phone, name, completed_stages')
-            .eq('id', userId)
-            .single();
-
-        if (error) throw error;
-
-        var stages = user.completed_stages || [];
-        var maxStage = stages.length > 0 ? Math.max.apply(null, stages) : 0;
-        var levelMap = { 6: 'elite', 5: 'senior', 4: 'advanced', 3: 'advanced', 2: 'beginner', 1: 'beginner' };
-        var correctLevel = levelMap[maxStage] || 'beginner';
-
-        if (correctLevel !== user.level) {
-            var { error: updateError } = await supabaseClient
-                .from('merchants')
-                .update({ level: correctLevel })
-                .eq('id', userId);
-
-            if (updateError) throw updateError;
-            alert('✅ 用户 ' + user.phone + ' 等级已修复为：' + correctLevel);
-            loadAllUsers();
-        } else {
-            alert('ℹ️ 用户 ' + user.phone + ' 等级正确，无需修复');
-        }
-    } catch (e) {
-        alert('❌ 修复失败：' + e.message);
         console.error(e);
     }
 }
@@ -249,10 +215,7 @@ function renderTable(users) {
         html += '<td>' + quizCount + ' 次</td>';
         html += '<td>' + created + '</td>';
         html += '<td style="font-size:11px; color:#888;">' + lastLogin + '</td>';
-        html += '<td><div class="action-btns">';
-        html += '<button onclick="resetPassword(' + u.id + ', \'' + u.phone + '\')" class="reset-btn">🔑 重置密码</button>';
-        html += '<button onclick="fixUserLevel(' + u.id + ')" class="fix-level-btn">📊 修复等级</button>';
-        html += '</div></td>';
+        html += '<td><button onclick="resetPassword(' + u.id + ', \'' + u.phone + '\')" class="reset-btn">🔑 重置密码</button></td>';
         html += '</tr>';
     });
 

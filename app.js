@@ -1810,6 +1810,15 @@ async function updateDashboard(user) {
     currentUser = user;
     const stages = user.completed_stages || [];
     const level = getLevelFromStages(stages);
+    // ★★★ 如果数据库中的等级与计算不符，自动修复 ★★★
+if (level.id !== user.level) {
+    await supabaseClient
+        .from('merchants')
+        .update({ level: level.id })
+        .eq('id', user.id);
+    user.level = level.id;
+}
+
     const actualStage = getCurrentStage(stages);
     currentViewStage = actualStage > TOTAL_STAGES ? TOTAL_STAGES : actualStage;
     if (shopNameDisplay) shopNameDisplay.textContent = user.name || '商家';
@@ -1912,6 +1921,13 @@ async function handleAuth() {
             saveRememberMe(phone, password);
             showAuthMsg(`欢迎回来，${existing.name}`, false);
 
+            // ★★★ 添加这行 ★★★
+    await supabaseClient
+        .from('merchants')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', currentUser.id);
+
+
             setTimeout(preloadAllStages, 500);
 
             updateLoginProgress(100);
@@ -1949,6 +1965,12 @@ async function handleAuth() {
             await updateDashboard(currentUser);
             saveRememberMe(phone, password);
             showAuthMsg(`🎉 注册成功，${name}！`, false);
+
+           // ★★★ 添加这行 ★★★
+    await supabaseClient
+        .from('merchants')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', currentUser.id);
 
             setTimeout(preloadAllStages, 500);
 
