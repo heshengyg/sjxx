@@ -20,23 +20,23 @@ const loginMsg = document.getElementById('adminLoginMsg');
 const logoutBtn = document.getElementById('adminLogoutBtn');
 const content = document.getElementById('adminContent');
 
-// 搜索相关
-const searchType = document.getElementById('searchType');
-const searchKeyword = document.getElementById('searchKeyword');
+// ★★★ 搜索相关 ★★★
+const searchPhone = document.getElementById('searchPhone');     // 手机号搜索框
+const searchName = document.getElementById('searchName');       // 店铺名搜索框
 const searchLevel = document.getElementById('searchLevel');
 const searchStage = document.getElementById('searchStage');
 const searchDateFrom = document.getElementById('searchDateFrom');
 const searchDateTo = document.getElementById('searchDateTo');
-const searchBtn = document.getElementById('searchBtn');
 const clearSearchBtn = document.getElementById('clearSearchBtn');
 const totalCountEl = document.getElementById('totalCount');
 const filteredCountEl = document.getElementById('filteredCount');
 
 // 全局数据
-let allUsers = [];
-let filteredUsers = [];
+var allUsers = [];
+var filteredUsers = [];
 
-function showMsg(text, isError = true) {
+function showMsg(text, isError) {
+    if (isError === undefined) isError = true;
     loginMsg.classList.remove('hidden');
     loginMsg.textContent = text;
     loginMsg.className = 'msg' + (isError ? ' error' : '');
@@ -44,15 +44,15 @@ function showMsg(text, isError = true) {
 
 // ========== 登录 ==========
 loginBtn.addEventListener('click', async function() {
-    const username = adminUser.value.trim();
-    const password = adminPass.value.trim();
+    var username = adminUser.value.trim();
+    var password = adminPass.value.trim();
 
     if (!username || !password) {
         showMsg('请输入用户名和密码');
         return;
     }
 
-    const { data, error } = await supabaseClient
+    var { data, error } = await supabaseClient
         .from('shop_account')
         .select('id, username, password, shop_name')
         .eq('username', username)
@@ -69,7 +69,7 @@ loginBtn.addEventListener('click', async function() {
         return;
     }
 
-    const hashedInput = hashPassword(password);
+    var hashedInput = hashPassword(password);
     if (data.password !== hashedInput) {
         showMsg('密码错误');
         return;
@@ -88,10 +88,10 @@ async function resetPassword(userId, phone) {
     }
 
     try {
-        const defaultPassword = '123456';
-        const hashedPassword = hashPassword(defaultPassword);
+        var defaultPassword = '123456';
+        var hashedPassword = hashPassword(defaultPassword);
 
-        const { error } = await supabaseClient
+        var { error } = await supabaseClient
             .from('merchants')
             .update({ password: hashedPassword })
             .eq('id', userId);
@@ -110,30 +110,26 @@ async function resetPassword(userId, phone) {
     }
 }
 
-// ========== 搜索过滤 ==========
+// ========== ★★★ 搜索过滤（实时）★★★ ==========
 function applyFilters() {
-    const keyword = searchKeyword.value.trim().toLowerCase();
-    const type = searchType.value;
-    const level = searchLevel.value;
-    const stage = searchStage.value;
-    const dateFrom = searchDateFrom.value;
-    const dateTo = searchDateTo.value;
+    var phoneKeyword = searchPhone.value.trim().toLowerCase();
+    var nameKeyword = searchName.value.trim().toLowerCase();
+    var level = searchLevel.value;
+    var stage = searchStage.value;
+    var dateFrom = searchDateFrom.value;
+    var dateTo = searchDateTo.value;
 
     filteredUsers = allUsers.filter(function(u) {
-        // ★★★ 关键词搜索（根据搜索类型）★★★
-        if (keyword) {
-            if (type === 'phone') {
-                // 只搜索手机号
-                if (!(u.phone || '').toLowerCase().includes(keyword)) return false;
-            } else if (type === 'name') {
-                // 只搜索店铺名
-                if (!(u.name || '').toLowerCase().includes(keyword)) return false;
-            } else {
-                // 全部：搜索手机号或店铺名
-                var phoneMatch = (u.phone || '').toLowerCase().includes(keyword);
-                var nameMatch = (u.name || '').toLowerCase().includes(keyword);
-                if (!phoneMatch && !nameMatch) return false;
-            }
+        // ★★★ 手机号搜索（模糊匹配）★★★
+        if (phoneKeyword) {
+            var phone = (u.phone || '').toLowerCase();
+            if (phone.indexOf(phoneKeyword) === -1) return false;
+        }
+
+        // ★★★ 店铺名搜索（模糊匹配）★★★
+        if (nameKeyword) {
+            var name = (u.name || '').toLowerCase();
+            if (name.indexOf(nameKeyword) === -1) return false;
         }
 
         // 等级过滤
@@ -142,7 +138,7 @@ function applyFilters() {
         // 阶段过滤
         if (stage) {
             var stages = u.completed_stages || [];
-            if (!stages.includes(parseInt(stage))) return false;
+            if (stages.indexOf(parseInt(stage)) === -1) return false;
         }
 
         // 日期范围过滤
@@ -168,9 +164,10 @@ function applyFilters() {
     renderTable(filteredUsers);
 }
 
+// ========== 清空筛选 ==========
 function clearSearch() {
-    searchKeyword.value = '';
-    searchType.value = 'all';
+    searchPhone.value = '';
+    searchName.value = '';
     searchLevel.value = '';
     searchStage.value = '';
     searchDateFrom.value = '';
@@ -198,7 +195,7 @@ function renderTable(users) {
     html += '<th>学习进度</th>';
     html += '<th>考核记录</th>';
     html += '<th>注册时间</th>';
-    html += '<th>最后登录</th>';  // ★★★ 新增列 ★★★
+    html += '<th>最后登录</th>';
     html += '<th>操作</th>';
     html += '</tr></thead><tbody>';
 
@@ -220,7 +217,7 @@ function renderTable(users) {
         html += '<td>' + progressText + '</td>';
         html += '<td>' + quizCount + ' 次</td>';
         html += '<td>' + created + '</td>';
-        html += '<td style="font-size:12px; color:#888;">' + lastLogin + '</td>';  // ★★★ 显示最后登录 ★★★
+        html += '<td style="font-size:12px; color:#888;">' + lastLogin + '</td>';
         html += '<td><button onclick="resetPassword(' + u.id + ', \'' + u.phone + '\')" class="reset-btn">🔑 重置密码</button></td>';
         html += '</tr>';
     });
@@ -233,7 +230,6 @@ function renderTable(users) {
 async function loadAllUsers() {
     content.innerHTML = '<p>📊 加载中...</p>';
     try {
-        // ★★★ 查询时包含 last_login ★★★
         var { data: users, error } = await supabaseClient
             .from('merchants')
             .select('*')
@@ -288,17 +284,18 @@ async function loadAllUsers() {
     }
 }
 
-// ========== 事件绑定 ==========
-searchBtn.addEventListener('click', applyFilters);
-searchKeyword.addEventListener('keyup', function(e) {
-    if (e.key === 'Enter') applyFilters();
-});
-clearSearchBtn.addEventListener('click', clearSearch);
-searchType.addEventListener('change', applyFilters);
+// ========== ★★★ 事件绑定（实时搜索）★★★ ==========
+// 手机号搜索 - 输入即搜索
+searchPhone.addEventListener('input', applyFilters);
+// 店铺名搜索 - 输入即搜索
+searchName.addEventListener('input', applyFilters);
+// 下拉选择变化时自动搜索
 searchLevel.addEventListener('change', applyFilters);
 searchStage.addEventListener('change', applyFilters);
 searchDateFrom.addEventListener('change', applyFilters);
 searchDateTo.addEventListener('change', applyFilters);
+// 清空按钮
+clearSearchBtn.addEventListener('click', clearSearch);
 
 // ========== 退出 ==========
 logoutBtn.addEventListener('click', function() {
