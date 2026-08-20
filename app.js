@@ -1681,27 +1681,7 @@ async function submitQuiz() {
             }
         }, 5000);
 
-    } else if (isRetakePass) {
-        // ★ 重考通过且成绩高于历史最好 → 跳转到下一阶段
-        if (quizResult) {
-            quizResult.innerHTML = displayMsg + '<br>⏳ 5秒后自动进入下一阶段...';
-            quizResult.className = 'msg';
-        }
-
-        var nextStageRetake = targetStage + 1;
-        if (nextStageRetake > TOTAL_STAGES) nextStageRetake = TOTAL_STAGES;
-
-        setTimeout(function() {
-            if (currentViewStage !== nextStageRetake) {
-                switchStageSync(nextStageRetake);
-            } else {
-                updateDashboard(currentUser);
-            }
-            if (quizResult) {
-                quizResult.classList.add('hidden');
-            }
-        }, 5000);
-    } else {
+    }  else {
         // ★★★ 重考通过但成绩不高于历史最好 → 不跳转 ★★★
         console.log('📝 重考通过但未超过历史最好成绩，停留在当前页面');
         if (quizResult) {
