@@ -1506,6 +1506,14 @@ async function submitQuiz() {
 
     // ★★★ 判断该阶段是否已通过（历史）★★★
     var isStagePassed = currentUser.completed_stages && currentUser.completed_stages.indexOf(targetStage) !== -1;
+// ★★★ 添加调试日志 ★★★
+console.log('=== submitQuiz 调试 ===');
+console.log('targetStage:', targetStage);
+console.log('completed_stages:', currentUser.completed_stages);
+console.log('isStagePassed:', isStagePassed);
+console.log('passed:', passed);
+console.log('isFirstPass:', passed && !isStagePassed);
+console.log('isRetakePass:', passed && isStagePassed);
 
     // 未通过时检查资源完成
     if (!isStagePassed) {
