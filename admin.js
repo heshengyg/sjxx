@@ -324,6 +324,32 @@ searchStage.addEventListener('change', applyFilters);
 searchDateFrom.addEventListener('change', applyFilters);
 searchDateTo.addEventListener('change', applyFilters);
 clearSearchBtn.addEventListener('click', clearSearch);
+// ========== 刷新列表 ==========
+var refreshBtn = document.getElementById('refreshListBtn');
+if (refreshBtn) {
+    refreshBtn.addEventListener('click', function() {
+        var originalText = this.innerHTML;
+        this.innerHTML = '⏳ 刷新中...';
+        this.disabled = true;
+        this.style.opacity = '0.7';
+        
+        loadAllUsers().then(function() {
+            refreshBtn.innerHTML = '✅ 已刷新';
+            refreshBtn.disabled = false;
+            refreshBtn.style.opacity = '1';
+            setTimeout(function() {
+                refreshBtn.innerHTML = originalText;
+            }, 2000);
+        }).catch(function() {
+            refreshBtn.innerHTML = '❌ 失败';
+            refreshBtn.disabled = false;
+            refreshBtn.style.opacity = '1';
+            setTimeout(function() {
+                refreshBtn.innerHTML = originalText;
+            }, 2000);
+        });
+    });
+}
 
 // ========== 退出 ==========
 logoutBtn.addEventListener('click', function() {

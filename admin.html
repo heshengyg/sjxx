@@ -291,12 +291,14 @@
         </div>
     </div>
 
-    <!-- ★★★ 后台界面 ★★★ -->
-    <div id="adminDashboard" class="hidden admin-container">
-        <div class="admin-header">
-            <h1>📊 商家学习总览</h1>
-            <button id="adminLogoutBtn" class="btn-outline">退出</button>
-        </div>
+    <!-- ★★★ 修改 admin-header 部分 ★★★ -->
+<div class="admin-header">
+    <h1>📊 商家学习总览</h1>
+    <div style="display:flex; gap:8px; align-items:center;">
+        <button id="refreshListBtn" style="background:#1f7b4d; color:white; border:none; padding:6px 18px; border-radius:30px; cursor:pointer; font-size:14px; transition:0.2s;">🔄 刷新列表</button>
+        <button id="adminLogoutBtn" class="btn-outline">退出</button>
+    </div>
+</div>
         
         <div class="search-bar">
             <div class="search-row">
