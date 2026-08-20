@@ -1681,52 +1681,13 @@ async function submitQuiz() {
             }
         }, 5000);
 
-    }  else {
-        // ★★★ 重考通过但成绩不高于历史最好 → 不跳转 ★★★
-        console.log('📝 重考通过但未超过历史最好成绩，停留在当前页面');
+    } else if (isRetakePass) {
+        // ★ 重考通过且成绩高于历史最好 → 跳转到下一阶段
         if (quizResult) {
-            quizResult.innerHTML = displayMsg + '<br>✅ 已通过（未超过历史最好成绩，可继续挑战更高分）';
-            quizResult.className = 'msg';
-        }
-    }
-}
-else if (isRetakePass) {
-        // ★ 重考通过：如果该阶段还没记录，更新 completed_stages，跳转到下一阶段（不是最新阶段）
-        var stageAlreadyRecorded = currentUser.completed_stages && currentUser.completed_stages.indexOf(targetStage) !== -1;
-
-        if (!stageAlreadyRecorded) {
-            var newStagesRetake = (currentUser.completed_stages || []).concat([targetStage]);
-            await supabaseClient.from('merchants').update({ completed_stages: newStagesRetake }).eq('id', currentUser.id);
-            currentUser.completed_stages = newStagesRetake;
-
-            var newLevelRetake = getLevelFromStages(newStagesRetake);
-            if (newLevelRetake.id !== currentUser.level) {
-                await supabaseClient.from('merchants').update({ level: newLevelRetake.id }).eq('id', currentUser.id);
-                currentUser.level = newLevelRetake.id;
-            }
-
-            // 刷新进度
-            var maxUnlockedRetake = currentUser.completed_stages.length > 0 ? Math.max.apply(null, currentUser.completed_stages) : 0;
-            buildStageCards(stageList, currentViewStage, maxUnlockedRetake);
-            buildStageCards(stageListContent, currentViewStage, maxUnlockedRetake);
-            var doneRetake = Math.min(currentUser.completed_stages.length, TOTAL_STAGES);
-            var pctRetake = Math.round((doneRetake / TOTAL_STAGES) * 100);
-            if (progressFill) progressFill.style.width = pctRetake + '%';
-            if (stepLabel) stepLabel.textContent = '学习进度 ' + pctRetake + '% (' + doneRetake + '/' + TOTAL_STAGES + ')';
-            var levelRetake = getLevelFromStages(currentUser.completed_stages);
-            if (levelDisplay) levelDisplay.textContent = levelRetake.label;
-            var nextLevelRetake = levelRetake.next ? getLevelById(levelRetake.next) : null;
-            if (nextLevelLabel) nextLevelLabel.textContent = nextLevelRetake ? '下一等级：' + nextLevelRetake.label : '🏆 已达最高等级';
-            if (statusText) statusText.textContent = '📖 ' + (doneRetake >= TOTAL_STAGES ? '已完成全部阶段' : '当前阶段：' + currentViewStage) + ' · 等级 ' + levelRetake.label;
-        }
-
-        if (quizResult) {
-            // ★★★ 显示"下一阶段"，不是"最新阶段" ★★★
             quizResult.innerHTML = displayMsg + '<br>⏳ 5秒后自动进入下一阶段...';
             quizResult.className = 'msg';
         }
 
-        // ★★★ 下一阶段 = 当前阶段 + 1，不是 getCurrentStage() ★★★
         var nextStageRetake = targetStage + 1;
         if (nextStageRetake > TOTAL_STAGES) nextStageRetake = TOTAL_STAGES;
 
@@ -1740,8 +1701,14 @@ else if (isRetakePass) {
                 quizResult.classList.add('hidden');
             }
         }, 5000);
+    } else {
+        // ★★★ 重考通过但成绩不高于历史最好 → 不跳转 ★★★
+        console.log('📝 重考通过但未超过历史最好成绩，停留在当前页面');
+        if (quizResult) {
+            quizResult.innerHTML = displayMsg + '<br>✅ 已通过（未超过历史最好成绩，可继续挑战更高分）';
+            quizResult.className = 'msg';
+        }
     }
-    // ★ 如果未通过，不做任何跳转，停留在当前页面
 }
 // ========== 生成阶段卡片 ==========
 function buildStageCards(container, currentStage, maxUnlocked) {
