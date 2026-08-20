@@ -57,7 +57,6 @@ async function loadBenefits() {
         return data;
     } catch (e) {
         console.warn('权益数据加载失败，使用默认数据', e);
-        // 默认数据（防止页面空白）
         benefitsData = {
             total_value: 2883,
             stages: [
@@ -96,7 +95,6 @@ function showBenefitsPopup() {
     const body = document.getElementById('benefitsModalBody');
     if (!modal || !body) return;
 
-    // 若全部解锁，不再弹出（由调用处控制）
     const stages = currentUser ? currentUser.completed_stages || [] : [];
     const allUnlocked = stages.length >= TOTAL_STAGES;
     if (allUnlocked) {
@@ -139,7 +137,7 @@ function showBenefitsPopup() {
 function closeBenefitsPopup() {
     document.getElementById('benefitsModal').classList.remove('open');
 }
-// ========== 记住密码保存 ==========
+
 function saveRememberMe(phone, password) {
     const rememberMe = document.getElementById('rememberMe');
     if (rememberMe && rememberMe.checked) {
@@ -150,7 +148,6 @@ function saveRememberMe(phone, password) {
         localStorage.removeItem('squirrel_pass');
     }
 }
-// ========== ★ 新增结束 ==========
 
 // DOM helpers
 const $ = id => document.getElementById(id);
@@ -383,7 +380,6 @@ async function updateResourceProgress(resourceId, progress, position = 0) {
     if (progress > progressMap[resourceId].progress) {
         progressMap[resourceId].progress = Math.min(100, progress);
     }
-    // ★ 确保 position 为整数
     const intPos = Math.floor(position);
     if (intPos > progressMap[resourceId].last_position) {
         progressMap[resourceId].last_position = intPos;
@@ -407,19 +403,17 @@ async function updateResourceProgress(resourceId, progress, position = 0) {
     renderCurrentStageResources();
     updateDetailProgress(resourceId);
 }
-// ========== 完整替换 markResourceCompleted ==========
-// ========== 完整替换 markResourceCompleted ==========
+
+// ========== markResourceCompleted ==========
 async function markResourceCompleted(resourceId) {
     if (!currentUser) {
         console.error('❌ currentUser 为空');
         return;
     }
     
-    // ★ 关键修复：即使资源已标记完成，也要检查是否全部完成
     const isAlreadyCompleted = progressMap[resourceId] && progressMap[resourceId].completed;
     if (isAlreadyCompleted) {
         console.log(`⏭️ 资源 ${resourceId} 已完成，检查是否全部完成...`);
-        // ★ 继续执行检查逻辑
         const data = stageData[currentViewStage];
         if (data && data.resources) {
             const allCompleted = data.resources.every(r => progressMap[r.id] && progressMap[r.id].completed);
@@ -451,7 +445,6 @@ async function markResourceCompleted(resourceId) {
         console.warn('标记资源完成失败:', e);
     }
     
-    // ★ 检查是否全部完成
     const data = stageData[currentViewStage];
     if (data && data.resources) {
         const allCompleted = data.resources.every(r => progressMap[r.id] && progressMap[r.id].completed);
@@ -462,12 +455,11 @@ async function markResourceCompleted(resourceId) {
         }
     }
     
-    // 未全部完成，刷新资源列表
     renderCurrentStageResources();
     updateDetailProgress(resourceId);
 }
 
-// ========== 提取晋级逻辑为独立函数 ==========
+// ========== handleAllResourcesCompleted ==========
 async function handleAllResourcesCompleted(data) {
     console.log(`🎉 阶段 ${currentViewStage} 所有资源已完成！`);
     
@@ -480,11 +472,9 @@ async function handleAllResourcesCompleted(data) {
     console.log(`📌 阶段 ${currentViewStage}, 是否有考核: ${isExamStage}`);
     
     if (!isExamStage) {
-        // ★ 无考核阶段，自动晋级
         console.log(`🚀 触发自动晋级 (阶段 ${currentViewStage})...`);
         await autoAdvanceStage(currentViewStage);
     } else {
-        // 有考核阶段
         const isPassed = currentUser.completed_stages && currentUser.completed_stages.includes(currentViewStage);
         if (isPassed) {
             console.log(`📌 阶段 ${currentViewStage} 已通过考核，自动晋级`);
@@ -493,12 +483,12 @@ async function handleAllResourcesCompleted(data) {
             if (learnMsg) {
                 learnMsg.textContent = '🎉 本阶段所有学习资源已完成，请完成考核以晋级！';
             }
-            // 显示考核
             renderCurrentStageResources();
         }
     }
 }
-// ========== 完整替换 autoAdvanceStage ==========
+
+// ========== autoAdvanceStage ==========
 async function autoAdvanceStage(stageId) {
     if (!currentUser) {
         console.error('❌ currentUser 为空');
@@ -518,10 +508,8 @@ async function autoAdvanceStage(stageId) {
     console.log(`🚀 准备更新 completed_stages 为:`, newStages);
     
     try {
-        // ★ 更新数据库 - 使用更可靠的方式
         console.log('📤 发送更新请求到 Supabase...');
         
-        // 先更新 completed_stages
         const { error: updateError } = await supabaseClient
             .from('merchants')
             .update({ completed_stages: newStages })
@@ -533,7 +521,6 @@ async function autoAdvanceStage(stageId) {
         }
         console.log('✅ completed_stages 更新成功');
         
-        // 更新等级
         const newLevel = getLevelFromStages(newStages);
         if (newLevel.id !== currentUser.level) {
             const { error: levelError } = await supabaseClient
@@ -547,7 +534,6 @@ async function autoAdvanceStage(stageId) {
             }
         }
         
-        // ★ 重新加载用户数据
         const { data: refreshedUser, error: refreshError } = await supabaseClient
             .from('merchants')
             .select('*')
@@ -556,7 +542,6 @@ async function autoAdvanceStage(stageId) {
         
         if (refreshError) {
             console.error('刷新用户数据失败:', refreshError);
-            // 手动更新内存
             currentUser.completed_stages = newStages;
             currentUser.level = newLevel.id;
         } else {
@@ -565,7 +550,6 @@ async function autoAdvanceStage(stageId) {
             console.log(`✅ completed_stages 现在为:`, currentUser.completed_stages);
         }
         
-        // ★ 计算下一阶段
         const nextStage = getCurrentStage(currentUser.completed_stages || []);
         console.log(`📌 下一阶段: ${nextStage}`);
         
@@ -579,24 +563,18 @@ async function autoAdvanceStage(stageId) {
             return;
         }
         
-        // ★ 更新当前视图
         currentViewStage = nextStage;
         console.log(`✅ 当前视图阶段更新为: ${nextStage}`);
         
-        // ★ 显示消息
         if (learnMsg) {
             learnMsg.classList.remove('hidden');
             learnMsg.textContent = `🎉 恭喜完成第${stageId}阶段，已自动晋级至第${nextStage}阶段！`;
             learnMsg.className = 'msg';
         }
         
-        // ★ 重新加载进度
         await loadUserProgress();
-        
-        // ★ 刷新界面
         await updateDashboard(currentUser);
         
-        // ★ 隐藏消息
         setTimeout(() => {
             if (learnMsg) {
                 learnMsg.classList.add('hidden');
@@ -618,6 +596,7 @@ async function autoAdvanceStage(stageId) {
         }
     }
 }
+
 // ========== Render resources ==========
 function renderResources(stage, resources) {
     if (!resourcesContainer) return;
@@ -769,7 +748,7 @@ async function loadQuizStateFromSupabase(stageId) {
     return null;
 }
 
-// ========== 替换 renderQuiz 函数 ==========
+// ========== renderQuiz 函数 ==========
 async function renderQuiz(quiz) {
     const isExamStage = EXAM_STAGES.includes(currentViewStage);
 
@@ -806,7 +785,7 @@ async function renderQuiz(quiz) {
         if (el) el.style.display = 'none';
     });
 
-    // 检查当前阶段是否已通过
+    // ★★★ 检查当前阶段是否已通过（用于显示历史成绩）★★★
     const stageId = currentViewStage;
     const isPassed = currentUser && currentUser.completed_stages && currentUser.completed_stages.includes(stageId);
     let historyData = null;
@@ -816,37 +795,24 @@ async function renderQuiz(quiz) {
         historyData = results[stageKey] || null;
     }
 
+    // ★★★ 显示历史成绩（如果有）★★★
     if (isPassed && historyData && quizResult) {
-    // ★★★ 新数据结构：historyData 包含 best 和 last ★★★
-    var best = historyData.best || historyData;
-    var last = historyData.last || historyData;
-    var bestPassed = best.passed;
-    var passThreshold = Math.round(best.total * 0.8);
-    
-    var displayMsg = '';
-    displayMsg += (bestPassed ? '✅ 已通过' : '❌ 未通过') + '<br>';
-    displayMsg += '📊 最后一次成绩：' + last.correct + '/' + last.total + '（达标分 ' + passThreshold + '）<br>';
-    displayMsg += '🏆 历史最好成绩：' + best.correct + '/' + best.total;
-    
-    quizResult.classList.remove('hidden');
-    quizResult.innerHTML = displayMsg;
-    quizResult.className = bestPassed ? 'msg' : 'msg error';
-
-        if (submitBtn) {
-            submitBtn.textContent = '🔄 重新提交';
-            submitBtn.onclick = function() {
-                const quizData = stageData[currentViewStage]?.quiz;
-                if (quizData) {
-                    questionStates = quizData.map(() => ({ confirmed: false, selected: [] }));
-                    renderQuiz(quizData);
-                    submitBtn.textContent = '✅ 提交考核';
-                    submitBtn.onclick = submitQuiz;
-                    if (quizResult) {
-                        quizResult.classList.add('hidden');
-                    }
-                }
-            };
-        }
+        // 兼容新旧数据格式
+        var rawData = historyData;
+        var best = rawData.best || rawData;
+        var last = rawData.last || rawData;
+        var bestPassed = best.passed;
+        var passThreshold = Math.round(best.total * 0.8);
+        
+        var displayMsg = '';
+        displayMsg += (bestPassed ? '✅ 已通过' : '❌ 未通过') + '<br>';
+        displayMsg += '📊 最后一次成绩：' + last.correct + '/' + last.total + '（达标分 ' + passThreshold + '）<br>';
+        displayMsg += '🏆 历史最好成绩：' + best.correct + '/' + best.total;
+        
+        quizResult.classList.remove('hidden');
+        quizResult.innerHTML = displayMsg;
+        quizResult.className = bestPassed ? 'msg' : 'msg error';
+        // ★★★ 注意：这里不设置按钮文字，由 submitQuiz 统一控制 ★★★
     }
 
     if (!isExamStage || !quiz || quiz.length === 0) {
@@ -883,11 +849,8 @@ async function renderQuiz(quiz) {
     // ★★★ 显示考核总标题（含总分和达标分）★★★
     if (quizContentTitle) {
         quizContentTitle.style.display = 'block';
-        // 查找标题文本元素，如果没有则使用整个元素
         const titleTextEl = quizContentTitle.querySelector('.title-text') || quizContentTitle;
-        // 如果元素是 span 或 div，直接设置 textContent
         if (titleTextEl) {
-            // 检查是否已经包含分数信息
             if (!titleTextEl.textContent.includes('共')) {
                 titleTextEl.textContent = `阶段考核  共${totalQuizScore}分/达标${passScore}分`;
             }
@@ -912,41 +875,38 @@ async function renderQuiz(quiz) {
     for (const [type, group] of Object.entries(groups)) {
         if (group.items.length === 0) continue;
 
-        // ★★★ 分数显示用括号括起来 ★★★
         const perScore = group.totalScore / group.items.length;
-const scoreText = `（每题${perScore}分，共${group.totalScore}分）`;
+        const scoreText = `（每题${perScore}分，共${group.totalScore}分）`;
 
         // 显示内容标题
-if (group.titleEl) {
-    group.titleEl.style.display = 'block';
-    if (group.scoreTextEl) {
-        group.scoreTextEl.textContent = scoreText;  // scoreText 已带括号
-        group.scoreTextEl.style.textAlign = 'right';
-        group.scoreTextEl.style.float = 'right';
-    }
-}
+        if (group.titleEl) {
+            group.titleEl.style.display = 'block';
+            if (group.scoreTextEl) {
+                group.scoreTextEl.textContent = scoreText;
+                group.scoreTextEl.style.textAlign = 'right';
+                group.scoreTextEl.style.float = 'right';
+            }
+        }
 
-// 更新对应的帘头分数
-if (type === 'single' && singleScoreEl) {
-    singleScoreEl.textContent = scoreText;  // scoreText 已带括号
-    singleScoreEl.style.textAlign = 'right';
-    singleScoreEl.style.float = 'right';
-} else if (type === 'multiple' && multipleScoreEl) {
-    multipleScoreEl.textContent = scoreText;  // scoreText 已带括号
-    multipleScoreEl.style.textAlign = 'right';
-    multipleScoreEl.style.float = 'right';
-} else if (type === 'judge' && judgeScoreEl) {
-    judgeScoreEl.textContent = scoreText;  // scoreText 已带括号
-    judgeScoreEl.style.textAlign = 'right';
-    judgeScoreEl.style.float = 'right';
-}
+        // 更新对应的帘头分数
+        if (type === 'single' && singleScoreEl) {
+            singleScoreEl.textContent = scoreText;
+            singleScoreEl.style.textAlign = 'right';
+            singleScoreEl.style.float = 'right';
+        } else if (type === 'multiple' && multipleScoreEl) {
+            multipleScoreEl.textContent = scoreText;
+            multipleScoreEl.style.textAlign = 'right';
+            multipleScoreEl.style.float = 'right';
+        } else if (type === 'judge' && judgeScoreEl) {
+            judgeScoreEl.textContent = scoreText;
+            judgeScoreEl.style.textAlign = 'right';
+            judgeScoreEl.style.float = 'right';
+        }
 
-        // 显示题型容器
         const container = group.container;
         if (!container) continue;
         container.style.display = 'block';
 
-        // 渲染题目
         group.items.forEach((q, localIdx) => {
             const globalIdx = quiz.indexOf(q);
             const wrapper = document.createElement('div');
@@ -1059,60 +1019,55 @@ if (type === 'single' && singleScoreEl) {
     });
     if (quizFooterGlobal) quizFooterGlobal.style.display = 'block';
 
-    // 设置提交按钮
+    // ★★★ 设置提交按钮（由 submitQuiz 统一控制，这里不设置 onclick）★★★
     if (submitBtn) {
+        // 如果有历史记录，显示"重新提交"，否则显示"提交考核"
+        var hasHistory = false;
+        if (currentUser && currentUser.quiz_results) {
+            var stageKey = 'stage_' + currentViewStage;
+            var stageData = currentUser.quiz_results[stageKey] || {};
+            hasHistory = !!(stageData.best || stageData.last);
+        }
         if (isPassed && historyData) {
             submitBtn.textContent = '🔄 重新提交';
-            submitBtn.onclick = function() {
-                const quizData = stageData[currentViewStage]?.quiz;
-                if (quizData) {
-                    questionStates = quizData.map(() => ({ confirmed: false, selected: [] }));
-                    renderQuiz(quizData);
-                    submitBtn.textContent = '✅ 提交考核';
-                    submitBtn.onclick = submitQuiz;
-                    if (quizResult) {
-                        quizResult.classList.add('hidden');
-                    }
-                }
-            };
         } else {
-            submitBtn.disabled = false;
             submitBtn.textContent = '✅ 提交考核';
-            submitBtn.onclick = submitQuiz;
         }
+        submitBtn.disabled = false;
+        submitBtn.onclick = submitQuiz;
     }
 
-// 确保内容标题重新显示
-if (quizContentTitle) {
-    // 计算总分数和达标分
-    let totalQuizScore = 0;
-    ['single', 'multiple', 'judge'].forEach(key => {
-        totalQuizScore += groups[key]?.totalScore || 0;
-    });
-    const passScore = Math.round(totalQuizScore * 0.8);
+    // 确保内容标题重新显示
+    if (quizContentTitle) {
+        let totalQuizScore = 0;
+        ['single', 'multiple', 'judge'].forEach(key => {
+            totalQuizScore += groups[key]?.totalScore || 0;
+        });
+        const passScore = Math.round(totalQuizScore * 0.8);
+        
+        quizContentTitle.style.display = 'block';
+        quizContentTitle.style.display = 'flex';
+        quizContentTitle.style.justifyContent = 'space-between';
+        quizContentTitle.style.alignItems = 'center';
+        quizContentTitle.style.width = '100%';
+        quizContentTitle.innerHTML = `
+            <span>📝 阶段考核</span>
+            <span style="font-weight:normal; font-size:0.85em; color:#888;">
+                （共${totalQuizScore}分/<span style="color:#22c55e;">达标${passScore}分</span>）
+            </span>
+        `;
+    }
+    if (groups.single.items.length > 0 && quizSingleTitle) quizSingleTitle.style.display = 'block';
+    if (groups.multiple.items.length > 0 && quizMultipleTitle) quizMultipleTitle.style.display = 'block';
+    if (groups.judge.items.length > 0 && quizJudgeTitle) quizJudgeTitle.style.display = 'block';
     
-    quizContentTitle.style.display = 'block';
-    quizContentTitle.style.display = 'flex';
-    quizContentTitle.style.justifyContent = 'space-between';
-    quizContentTitle.style.alignItems = 'center';
-    quizContentTitle.style.width = '100%';
-    quizContentTitle.innerHTML = `
-        <span>📝 阶段考核</span>
-        <span style="font-weight:normal; font-size:0.85em; color:#888;">
-            （共${totalQuizScore}分/<span style="color:#22c55e;">达标${passScore}分</span>）
-        </span>
-    `;
-}
-if (groups.single.items.length > 0 && quizSingleTitle) quizSingleTitle.style.display = 'block';
-if (groups.multiple.items.length > 0 && quizMultipleTitle) quizMultipleTitle.style.display = 'block';
-if (groups.judge.items.length > 0 && quizJudgeTitle) quizJudgeTitle.style.display = 'block';
-    // 重置帘头内联样式
     [singleHeader, multipleHeader, judgeHeader, quizTitleHeader].forEach(el => {
         if (el) el.style.display = '';
     });
 
     updateSubmitButtonState();
 }
+
 // ========== Resource Detail Modal ==========
 let currentVideoElement = null;
 
@@ -1125,9 +1080,7 @@ function openResourceDetail(resource, allResources) {
     detailBody.innerHTML = '';
     detailProgress.textContent = '';
 
-    // ★ 视频类型
     if (resource.type === 'video') {
-        // 创建视频容器，让视频自适应居中
         const videoWrapper = document.createElement('div');
         videoWrapper.style.cssText = 'width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#000; border-radius:12px; overflow:hidden;';
         
@@ -1257,10 +1210,7 @@ function openResourceDetail(resource, allResources) {
             if (e.name !== 'AbortError') console.warn('视频自动播放被阻止:', e);
         });
         activeResourceId = resource.id;
-    }
-    
-    // ★ 图片类型
-    else if (resource.type === 'image') {
+    } else if (resource.type === 'image') {
         const container = document.createElement('div');
         container.style.cssText = 'width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; overflow:hidden; position:relative;';
         
@@ -1271,7 +1221,6 @@ function openResourceDetail(resource, allResources) {
         img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; border-radius:12px; cursor:pointer; transition:transform 0.3s ease; display:block;';
         container.appendChild(img);
         
-        // ★ 点击图片全屏/退出全屏
         let isFullscreen = false;
         img.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -1285,7 +1234,6 @@ function openResourceDetail(resource, allResources) {
             }
         });
         
-        // ★ 点击蒙层退出全屏
         const closeFullscreen = function(e) {
             if (isFullscreen && !e.target.closest('img')) {
                 img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; border-radius:12px; cursor:pointer; transition:transform 0.3s ease; display:block;';
@@ -1295,7 +1243,6 @@ function openResourceDetail(resource, allResources) {
         };
         document.addEventListener('click', closeFullscreen);
         
-        // ★ 图片导航
         if (currentImageResources.length > 1) {
             const nav = document.createElement('div');
             nav.style.cssText = 'flex-shrink:0; display:flex; justify-content:center; gap:16px; padding:10px 0 4px 0; width:100%;';
@@ -1332,16 +1279,12 @@ function openResourceDetail(resource, allResources) {
             container.appendChild(nav);
         }
         
-        // 保存引用以便 navigateImage 更新
         container._img = img;
         detailBody.appendChild(container);
         activeResourceId = resource.id;
         startTimer(resource.id, resource.duration);
         updateDetailProgress(resource.id);
-    }
-    
-    // ★ 文章类型
-    else if (resource.type === 'article') {
+    } else if (resource.type === 'article') {
         const div = document.createElement('div');
         div.className = 'article-content';
         div.style.cssText = 'width:100%; height:100%; overflow-y:auto; padding:12px 16px; background:#fff; border-radius:12px; font-size:17px; line-height:1.8; word-wrap:break-word; box-sizing:border-box;';
@@ -1355,11 +1298,11 @@ function openResourceDetail(resource, allResources) {
     detailModal.classList.add('open');
     updateDetailProgress(resource.id);
 }
+
 function closeDetailModal() {
     if (!detailModal) return;
     detailModal.classList.remove('open');
     
-    // 退出全屏状态
     const fullImg = document.querySelector('#detailBody .image-container img');
     if (fullImg && fullImg.style.position === 'fixed') {
         fullImg.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; border-radius:12px; cursor:pointer; transition:transform 0.3s ease; display:block;';
@@ -1380,6 +1323,7 @@ function closeDetailModal() {
         activeResourceId = null;
     }
 }
+
 function navigateImage(delta) {
     const newIdx = currentImageIdx + delta;
     if (newIdx < 0 || newIdx >= currentImageResources.length) return;
@@ -1387,13 +1331,11 @@ function navigateImage(delta) {
     const newRes = currentImageResources[newIdx];
     if (detailTitle) detailTitle.textContent = newRes.title;
     
-    // 更新图片
     const container = detailBody ? detailBody.querySelector('.image-container') : null;
     if (container) {
         const img = container.querySelector('img');
         if (img) {
             img.src = newRes.file;
-            // 如果有全屏状态，退出
             if (img.style.position === 'fixed') {
                 img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; border-radius:12px; cursor:pointer; transition:transform 0.3s ease; display:block;';
                 document.body.style.overflow = '';
@@ -1406,6 +1348,7 @@ function navigateImage(delta) {
     startTimer(newRes.id, newRes.duration);
     updateDetailProgress(newRes.id);
 }
+
 // ========== Timer ==========
 function startTimer(resourceId, duration) {
     if (timerIntervals[resourceId]) {
@@ -1442,7 +1385,6 @@ function startTimer(resourceId, duration) {
             stopTimer(resourceId);
             await markResourceCompleted(resourceId);
             
-            // ★★★ 核心修复：直接在这里检查并晋级 ★★★
             const data = stageData[currentViewStage];
             if (data && data.resources) {
                 const allCompleted = data.resources.every(r => progressMap[r.id] && progressMap[r.id].completed);
@@ -1453,11 +1395,9 @@ function startTimer(resourceId, duration) {
                     console.log(`📌 阶段 ${currentViewStage}, 有考核: ${isExamStage}`);
                     
                     if (!isExamStage) {
-                        // 无考核，直接晋级
                         console.log(`🚀 无考核，自动晋级...`);
                         await autoAdvanceStage(currentViewStage);
                     } else {
-                        // 有考核，检查是否已通过
                         const isPassed = currentUser.completed_stages && currentUser.completed_stages.includes(currentViewStage);
                         if (isPassed) {
                             console.log(`✅ 考核已通过，自动晋级...`);
@@ -1536,12 +1476,12 @@ function updateStageProgress(stage, resources) {
     if (stageDesc) stageDesc.innerHTML = progressText;
 }
 
-// ========== 替换 submitQuiz 函数 ==========
+// ========== submitQuiz 函数 ==========
 async function submitQuiz() {
     if (!currentUser) return;
 
-    const targetStage = currentViewStage;
-    const data = stageData[targetStage];
+    var targetStage = currentViewStage;
+    var data = stageData[targetStage];
     if (!data || !data.quiz || data.quiz.length === 0) {
         if (quizResult) {
             quizResult.classList.remove('hidden');
@@ -1551,13 +1491,11 @@ async function submitQuiz() {
         return;
     }
 
-    // 判断该阶段是否已通过（历史）
-    const isStagePassed = currentUser.completed_stages && currentUser.completed_stages.includes(targetStage);
+    var isStagePassed = currentUser.completed_stages && currentUser.completed_stages.indexOf(targetStage) !== -1;
 
-    // 未通过时检查资源完成
     if (!isStagePassed) {
-        const resources = data.resources || [];
-        const allCompleted = resources.every(function(r) { return progressMap[r.id] && progressMap[r.id].completed; });
+        var resources = data.resources || [];
+        var allCompleted = resources.every(function(r) { return progressMap[r.id] && progressMap[r.id].completed; });
         if (!allCompleted) {
             if (quizResult) {
                 quizResult.classList.remove('hidden');
@@ -1568,7 +1506,6 @@ async function submitQuiz() {
         }
     }
 
-    // 检查所有题目已确认
     var allConfirmed = questionStates.every(function(s) { return s && s.confirmed === true; });
     if (!allConfirmed) {
         if (quizResult) {
@@ -1579,10 +1516,8 @@ async function submitQuiz() {
         return;
     }
 
-    // ★★★ 保存本次答案到 Supabase ★★★
     await saveQuizStateToSupabase();
 
-    // 计算本次成绩
     var totalScore = 0;
     var earnedScore = 0;
     data.quiz.forEach(function(q, idx) {
@@ -1598,12 +1533,10 @@ async function submitQuiz() {
     var passThreshold = Math.round(totalScore * 0.8);
     var passed = earnedScore >= passThreshold;
 
-    // ★★★ 获取或初始化该阶段的成绩数据 ★★★
     var results = currentUser.quiz_results || {};
     var stageKey = 'stage_' + targetStage;
-    var stageData = results[stageKey] || {};
+    var stageDataObj = results[stageKey] || {};
 
-    // 本次成绩对象
     var currentResult = {
         correct: earnedScore,
         total: totalScore,
@@ -1611,13 +1544,13 @@ async function submitQuiz() {
         date: new Date().toISOString()
     };
 
-    // ★★★ 更新最后一次成绩（每次都更新）★★★
-    stageData.last = currentResult;
+    var hasHistory = !!(stageDataObj.best || stageDataObj.last);
 
-    // ★★★ 更新历史最好成绩（只有更好时才更新）★★★
-    var best = stageData.best || null;
+    stageDataObj.last = currentResult;
+
+    var best = stageDataObj.best || null;
     if (!best || earnedScore > best.correct) {
-        stageData.best = {
+        stageDataObj.best = {
             correct: earnedScore,
             total: totalScore,
             passed: passed,
@@ -1625,8 +1558,7 @@ async function submitQuiz() {
         };
     }
 
-    // 保存到 Supabase
-    results[stageKey] = stageData;
+    results[stageKey] = stageDataObj;
     try {
         await supabaseClient.from('merchants').update({ quiz_results: results }).eq('id', currentUser.id);
         currentUser.quiz_results = results;
@@ -1639,46 +1571,28 @@ async function submitQuiz() {
         return;
     }
 
-    // ★★★ 获取显示数据 ★★★
-    var bestData = stageData.best;
-    var lastData = stageData.last;
+    var bestData = stageDataObj.best;
+    var lastData = stageDataObj.last;
     var bestPassed = bestData.passed;
 
-    // ★★★ 判断是否首次通过（晋级）★★★
-    var isFirstPass = passed && !isStagePassed;
-
-    // ★★★ 判断是否重考通过 ★★★
-    var isRetakePass = passed && isStagePassed;
-
-    // ★★★ 构建显示消息 ★★★
     var displayMsg = '';
-
-    // 判断是否有历史记录（是否重考）
-    var hasHistory = !!(stageData.best || stageData.last);
-
-    // ★ 状态（基于最好成绩判断）
     displayMsg += (bestPassed ? '✅ 已通过' : '❌ 未通过') + '<br>';
-
+    
     if (hasHistory) {
-        // ★ 重考/有历史：显示 本次成绩 + 历史最好成绩
         displayMsg += '📊 本次成绩：' + lastData.correct + '/' + lastData.total + '（达标分 ' + passThreshold + '）<br>';
         displayMsg += '🏆 历史最好成绩：' + bestData.correct + '/' + bestData.total;
     } else {
-        // ★ 首次提交：只显示成绩
         displayMsg += '📊 成绩：' + lastData.correct + '/' + lastData.total + '（达标分 ' + passThreshold + '）';
     }
 
-    // ★★★ 显示结果 ★★★
     if (quizResult) {
         quizResult.classList.remove('hidden');
         quizResult.innerHTML = displayMsg;
         quizResult.className = bestPassed ? 'msg' : 'msg error';
     }
 
-    // ★★★ 更新提交按钮状态 ★★★
     var submitBtn = document.getElementById('submitQuizBtn');
     if (submitBtn) {
-        // ★ 只要提交过（有历史记录），按钮变为"重新提交"
         if (hasHistory) {
             submitBtn.textContent = '🔄 重新提交';
         } else {
@@ -1687,7 +1601,6 @@ async function submitQuiz() {
         submitBtn.onclick = submitQuiz;
     }
 
-    // ★★★ "进入最新阶段"按钮永远保持常亮可用 ★★★
     var refreshBtn = document.getElementById('refreshBtn');
     if (refreshBtn) {
         refreshBtn.disabled = false;
@@ -1696,9 +1609,10 @@ async function submitQuiz() {
         refreshBtn.onclick = goToLatestStage;
     }
 
-    // ★★★ 晋级逻辑 ★★★
+    var isFirstPass = passed && !isStagePassed;
+    var isRetakePass = passed && isStagePassed;
+
     if (isFirstPass) {
-        // ★ 首次通过：更新 completed_stages，晋级
         var newStages = (currentUser.completed_stages || []).concat([targetStage]);
         await supabaseClient.from('merchants').update({ completed_stages: newStages }).eq('id', currentUser.id);
         currentUser.completed_stages = newStages;
@@ -1709,7 +1623,6 @@ async function submitQuiz() {
             currentUser.level = newLevel.id;
         }
 
-        // 刷新阶段卡片和进度
         var maxUnlocked = currentUser.completed_stages.length > 0 ? Math.max.apply(null, currentUser.completed_stages) : 0;
         buildStageCards(stageList, currentViewStage, maxUnlocked);
         buildStageCards(stageListContent, currentViewStage, maxUnlocked);
@@ -1723,7 +1636,6 @@ async function submitQuiz() {
         if (nextLevelLabel) nextLevelLabel.textContent = nextLevel ? '下一等级：' + nextLevel.label : '🏆 已达最高等级';
         if (statusText) statusText.textContent = '📖 ' + (done >= TOTAL_STAGES ? '已完成全部阶段' : '当前阶段：' + currentViewStage) + ' · 等级 ' + level.label;
 
-        // ★★★ 5秒后自动跳转到最新阶段 ★★★
         if (quizResult) {
             quizResult.innerHTML = displayMsg + '<br>⏳ 5秒后自动进入最新阶段...';
             quizResult.className = 'msg';
@@ -1744,7 +1656,6 @@ async function submitQuiz() {
         }, 5000);
 
     } else if (isRetakePass) {
-        // ★ 重考通过：如果该阶段还没记录，更新 completed_stages
         var stageAlreadyRecorded = currentUser.completed_stages && currentUser.completed_stages.indexOf(targetStage) !== -1;
 
         if (!stageAlreadyRecorded) {
@@ -1758,7 +1669,6 @@ async function submitQuiz() {
                 currentUser.level = newLevelRetake.id;
             }
 
-            // 刷新进度
             var maxUnlockedRetake = currentUser.completed_stages.length > 0 ? Math.max.apply(null, currentUser.completed_stages) : 0;
             buildStageCards(stageList, currentViewStage, maxUnlockedRetake);
             buildStageCards(stageListContent, currentViewStage, maxUnlockedRetake);
@@ -1773,7 +1683,6 @@ async function submitQuiz() {
             if (statusText) statusText.textContent = '📖 ' + (doneRetake >= TOTAL_STAGES ? '已完成全部阶段' : '当前阶段：' + currentViewStage) + ' · 等级 ' + levelRetake.label;
         }
 
-        // ★★★ 5秒后自动跳转到下一阶段 ★★★
         if (quizResult) {
             quizResult.innerHTML = displayMsg + '<br>⏳ 5秒后自动进入下一阶段...';
             quizResult.className = 'msg';
@@ -1856,6 +1765,7 @@ async function updateStageUI(data) {
     await renderQuiz(data.quiz);
     updateStageProgress(currentViewStage, data.resources);
 }
+
 // ========== 快速切换阶段 ==========
 async function switchStageSync(stageId) {
     if (isSwitching) return;
@@ -1863,7 +1773,6 @@ async function switchStageSync(stageId) {
 
     let data = allStageData[stageId] || stageData[stageId];
     if (!data) {
-        // 尝试重新加载该阶段数据
         console.warn(`阶段 ${stageId} 数据不存在，尝试重新加载...`);
         data = await loadStageData(stageId);
         if (!data) {
@@ -1876,7 +1785,6 @@ async function switchStageSync(stageId) {
     currentViewStage = stageId;
     await updateStageUI(data);
 
-    // 更新所有阶段卡片的激活状态（帘头和内容区）
     document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
     const cards = document.querySelectorAll('.stage-card');
     if (cards[stageId - 1]) cards[stageId - 1].classList.add('active');
@@ -1885,7 +1793,6 @@ async function switchStageSync(stageId) {
 
     isSwitching = false;
 
-    // 重置帘头滚动控制
     setTimeout(() => {
         isHeaderInitialized = false;
         initStickyHeaders();
@@ -1899,8 +1806,7 @@ async function updateDashboard(user) {
     const stages = user.completed_stages || [];
     const level = getLevelFromStages(stages);
     const actualStage = getCurrentStage(stages);
-    // ★ 始终更新到最新阶段
-currentViewStage = actualStage > TOTAL_STAGES ? TOTAL_STAGES : actualStage;
+    currentViewStage = actualStage > TOTAL_STAGES ? TOTAL_STAGES : actualStage;
     if (shopNameDisplay) shopNameDisplay.textContent = user.name || '商家';
     if (levelDisplay) levelDisplay.textContent = level.label;
     const done = Math.min(stages.length, TOTAL_STAGES);
@@ -1938,8 +1844,6 @@ currentViewStage = actualStage > TOTAL_STAGES ? TOTAL_STAGES : actualStage;
 
     initStickyControl();
 
-    // ========== ★ 新增：权益弹窗逻辑 ==========
-    // 仅在未全部解锁时弹出（每次登录都弹出）
     if (stages.length < TOTAL_STAGES) {
         setTimeout(() => {
             showBenefitsPopup();
@@ -2085,7 +1989,7 @@ function showAuthMsg(text, isError = true) {
     authMsg.className = 'msg' + (isError ? ' error' : '');
 }
 
-// 跳转到最新阶段（原“刷新状态”）
+// 跳转到最新阶段
 async function goToLatestStage() {
     if (!currentUser) return;
     try {
@@ -2110,6 +2014,7 @@ async function goToLatestStage() {
         alert('跳转失败: ' + e.message);
     }
 }
+
 // ========== Avatar Upload ==========
 let selectedFile = null;
 function openAvatarModal() {
@@ -2167,11 +2072,12 @@ async function saveAvatar() {
         if (avatarModalMsg) { avatarModalMsg.classList.remove('hidden'); avatarModalMsg.textContent = '❌ ' + e.message; avatarModalMsg.className = 'msg error'; }
     }
 }
+
 // ========== 更改店铺名 ==========
 function openShopNameModal() {
     if (!currentUser) return;
     const newName = prompt('请输入新的店铺名称：', currentUser.name);
-    if (newName === null) return; // 用户取消
+    if (newName === null) return;
     const trimmed = newName.trim();
     if (!trimmed) {
         alert('店铺名不能为空');
@@ -2181,7 +2087,6 @@ function openShopNameModal() {
         alert('新名称与当前名称相同');
         return;
     }
-    // 更新 Supabase
     supabaseClient
         .from('merchants')
         .update({ name: trimmed })
@@ -2197,6 +2102,7 @@ function openShopNameModal() {
         })
         .catch(e => alert('错误：' + e.message));
 }
+
 // ========== Change Password ==========
 function openPasswordModal() {
     if (!passwordModal) return;
@@ -2272,7 +2178,6 @@ function initStickyHeaders() {
     const scrollY = window.pageYOffset || document.documentElement.scrollTop;
     const headerList = [];
 
-    // 收集每个帘头及其对应的触发元素（不检查可见性）
     const items = [];
     headers.forEach(header => {
         const selector = triggerMap[header.id];
@@ -2286,7 +2191,6 @@ function initStickyHeaders() {
     for (let i = 0; i < items.length; i++) {
         const item = items[i];
         if (!item.triggerEl) {
-            // 没有触发元素，永不触发
             headerList.push({
                 el: item.header,
                 start: Infinity,
@@ -2297,10 +2201,8 @@ function initStickyHeaders() {
         }
 
         const rect = item.triggerEl.getBoundingClientRect();
-        // 提前量：标题高度 + 50px 余量（可根据需要调整）
-        const start = rect.top + scrollY - rect.height ;
+        const start = rect.top + scrollY - rect.height;
 
-        // 结束位置：下一个触发元素的顶部，或 dashboard 底部
         let end = dashboard.scrollHeight;
         for (let j = i + 1; j < items.length; j++) {
             const next = items[j];
@@ -2361,6 +2263,7 @@ function handleScroll() {
         }
     });
 }
+
 function initStickyControl() {
     setTimeout(() => {
         initStickyHeaders();
@@ -2428,12 +2331,10 @@ if (phoneInput) phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Ent
 if (passwordInput) passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 if (nameInput) nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 
-// ★ 提交考核按钮事件绑定
 document.getElementById('submitQuizBtn').addEventListener('click', submitQuiz);
 
 console.log('🐿️ 松鼠逛逛商家学堂');
 
-// ========== ★ 新增：权益弹窗关闭事件绑定 ==========
 document.getElementById('benefitsModalCloseBtn').addEventListener('click', closeBenefitsPopup);
 document.getElementById('benefitsModal').addEventListener('click', function(e) {
     if (e.target === this) closeBenefitsPopup();
@@ -2490,34 +2391,30 @@ function initFloatNav() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // ★ 清除所有进度缓存（仅执行一次，之后不会再产生新缓存）
     Object.keys(localStorage).forEach(key => {
         if (key.startsWith('progress_')) {
             localStorage.removeItem(key);
             console.log('已清除缓存:', key);
         }
     });
-    // ★ 记住密码自动填充
     const savedPhone = localStorage.getItem('squirrel_phone');
     const savedPass = localStorage.getItem('squirrel_pass');
     if (savedPhone && savedPass && phoneInput && passwordInput) {
         phoneInput.value = savedPhone;
-        passwordInput.value = atob(savedPass); // Base64 解码
+        passwordInput.value = atob(savedPass);
         document.getElementById('rememberMe').checked = true;
     }
 
     initFloatNav();
     renderBenefitsTable();
-    // 密码显示/隐藏切换
-const togglePassword = document.getElementById('togglePassword');
-if (togglePassword && passwordInput) {
-    togglePassword.addEventListener('click', function() {
-        const isPassword = passwordInput.type === 'password';
-        passwordInput.type = isPassword ? 'text' : 'password';
-        this.textContent = isPassword ? '🙈' : '👁️';
-    });
-}
-    // ========== ★ 新增：权益表格折叠切换 ==========
+    const togglePassword = document.getElementById('togglePassword');
+    if (togglePassword && passwordInput) {
+        togglePassword.addEventListener('click', function() {
+            const isPassword = passwordInput.type === 'password';
+            passwordInput.type = isPassword ? 'text' : 'password';
+            this.textContent = isPassword ? '🙈' : '👁️';
+        });
+    }
     const toggleBtn = document.getElementById('benefitsToggleBtn');
     const tableWrap = document.getElementById('benefitsTableWrap');
     if (toggleBtn && tableWrap) {
@@ -2527,7 +2424,6 @@ if (togglePassword && passwordInput) {
             tableWrap.classList.toggle('expanded', expanded);
             toggleBtn.textContent = expanded ? '▼ 收起权益详情' : '▶ 展开权益详情';
 
-            // ★ 重新计算帘头位置（页面高度变化）
             isHeaderInitialized = false;
             setTimeout(function() {
                 initStickyHeaders();
