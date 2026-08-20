@@ -52,34 +52,47 @@ async function loadBenefits() {
         const resp = await fetch('benefits.json');
         if (!resp.ok) throw new Error('加载权益数据失败');
         const data = await resp.json();
+        // ★★★ 自动计算总价值 ★★★
+        var total = 0;
+        if (data.stages && Array.isArray(data.stages)) {
+            data.stages.forEach(function(s) {
+                total += (s.value || 0);
+            });
+        }
+        data.total_value = total;
         benefitsData = data;
         benefitsLoaded = true;
         return data;
     } catch (e) {
         console.warn('权益数据加载失败，使用默认数据', e);
+        var defaultStages = [
+            { stage: 1, title: '第一阶段：认知破局', benefit: '解锁专属课程', value: 199 },
+            { stage: 2, title: '第二阶段：方向定位', benefit: '等级标识+流量扶持', value: 299 },
+            { stage: 3, title: '第三阶段：资源深挖', benefit: '资源对接+专属社群', value: 399 },
+            { stage: 4, title: '第四阶段：平台认知', benefit: '进阶标识+数据分析', value: 499 },
+            { stage: 5, title: '第五阶段：商家实操', benefit: '实操工具包+运营指导', value: 599 },
+            { stage: 6, title: '第六阶段：运营进阶', benefit: '精英标识+学习礼包', value: 888 }
+        ];
+        var defaultTotal = 0;
+        defaultStages.forEach(function(s) { defaultTotal += s.value; });
         benefitsData = {
-            total_value: 2883,
-            stages: [
-                { stage: 1, title: '第一阶段：认知破局', benefit: '解锁专属课程', value: 199 },
-                { stage: 2, title: '第二阶段：方向定位', benefit: '等级标识+流量扶持', value: 299 },
-                { stage: 3, title: '第三阶段：资源深挖', benefit: '资源对接+专属社群', value: 399 },
-                { stage: 4, title: '第四阶段：平台认知', benefit: '进阶标识+数据分析', value: 499 },
-                { stage: 5, title: '第五阶段：商家实操', benefit: '实操工具包+运营指导', value: 599 },
-                { stage: 6, title: '第六阶段：运营进阶', benefit: '精英标识+学习礼包', value: 888 }
-            ]
+            total_value: defaultTotal,
+            stages: defaultStages
         };
         benefitsLoaded = true;
         return benefitsData;
     }
 }
-
 async function renderBenefitsTable() {
     const data = await loadBenefits();
     const tbody = document.getElementById('benefitsBody');
     if (!tbody) return;
     tbody.innerHTML = '';
-    data.stages.forEach(s => {
-        const tr = document.createElement('tr');
+    // ★★★ 重新计算总价值 ★★★
+    var total = 0;
+    data.stages.forEach(function(s) {
+        total += (s.value || 0);
+        var tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${s.title}</td>
             <td>${s.benefit}</td>
@@ -87,9 +100,8 @@ async function renderBenefitsTable() {
         `;
         tbody.appendChild(tr);
     });
-    document.getElementById('totalValue').textContent = `¥${data.total_value}`;
+    document.getElementById('totalValue').textContent = '¥' + total;
 }
-
 function showBenefitsPopup() {
     const modal = document.getElementById('benefitsModal');
     const body = document.getElementById('benefitsModalBody');
