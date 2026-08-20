@@ -1504,10 +1504,8 @@ async function submitQuiz() {
         return;
     }
 
-    // 判断该阶段是否已通过（历史）
     var isStagePassed = currentUser.completed_stages && currentUser.completed_stages.indexOf(targetStage) !== -1;
 
-    // 未通过时检查资源完成
     if (!isStagePassed) {
         var resources = data.resources || [];
         var allCompleted = resources.every(function(r) { return progressMap[r.id] && progressMap[r.id].completed; });
@@ -1521,7 +1519,6 @@ async function submitQuiz() {
         }
     }
 
-    // 检查所有题目已确认
     var allConfirmed = questionStates.every(function(s) { return s && s.confirmed === true; });
     if (!allConfirmed) {
         if (quizResult) {
@@ -1532,10 +1529,8 @@ async function submitQuiz() {
         return;
     }
 
-    // 保存本次答案
     await saveQuizStateToSupabase();
 
-    // 计算本次成绩
     var totalScore = 0;
     var earnedScore = 0;
     data.quiz.forEach(function(q, idx) {
@@ -1551,7 +1546,6 @@ async function submitQuiz() {
     var passThreshold = Math.round(totalScore * 0.8);
     var passed = earnedScore >= passThreshold;
 
-    // 获取或初始化该阶段的成绩数据
     var results = currentUser.quiz_results || {};
     var stageKey = 'stage_' + targetStage;
     var stageDataObj = results[stageKey] || {};
@@ -1563,13 +1557,10 @@ async function submitQuiz() {
         date: new Date().toISOString()
     };
 
-    // 检查是否有历史记录
     var hasHistory = !!(stageDataObj.best || stageDataObj.last);
 
-    // 更新最后一次成绩（每次都更新）
     stageDataObj.last = currentResult;
 
-    // 更新历史最好成绩（只有更好时才更新）
     var best = stageDataObj.best || null;
     if (!best || earnedScore > best.correct) {
         stageDataObj.best = {
@@ -1597,7 +1588,6 @@ async function submitQuiz() {
     var lastData = stageDataObj.last;
     var bestPassed = bestData.passed;
 
-    // 构建显示消息
     var displayMsg = '';
     displayMsg += (bestPassed ? '✅ 已通过' : '❌ 未通过') + '<br>';
     
@@ -1608,14 +1598,12 @@ async function submitQuiz() {
         displayMsg += '📊 成绩：' + lastData.correct + '/' + lastData.total + '（达标分 ' + passThreshold + '）';
     }
 
-    // 显示结果
     if (quizResult) {
         quizResult.classList.remove('hidden');
         quizResult.innerHTML = displayMsg;
         quizResult.className = bestPassed ? 'msg' : 'msg error';
     }
 
-    // 按钮逻辑：有历史记录就显示"重新提交"
     var submitBtn = document.getElementById('submitQuizBtn');
     if (submitBtn) {
         if (hasHistory) {
@@ -1626,7 +1614,6 @@ async function submitQuiz() {
         submitBtn.onclick = submitQuiz;
     }
 
-    // "进入最新阶段"按钮永远保持常亮
     var refreshBtn = document.getElementById('refreshBtn');
     if (refreshBtn) {
         refreshBtn.disabled = false;
@@ -1646,9 +1633,7 @@ async function submitQuiz() {
     }
 
     // ★★★ 判断晋级类型 ★★★
-    var isFirstPass = passed && !isStagePassed;  // 首次通过（晋级）
-    
-    // ★★★ 重考通过：本次成绩 > 历史最好成绩 才跳转 ★★★
+    var isFirstPass = passed && !isStagePassed;
     var bestScore = best ? best.correct : 0;
     var isRetakePass = passed && isStagePassed && (earnedScore > bestScore);
 
@@ -1664,7 +1649,6 @@ async function submitQuiz() {
             currentUser.level = newLevel.id;
         }
 
-        // 刷新进度
         var maxUnlocked = currentUser.completed_stages.length > 0 ? Math.max.apply(null, currentUser.completed_stages) : 0;
         buildStageCards(stageList, currentViewStage, maxUnlocked);
         buildStageCards(stageListContent, currentViewStage, maxUnlocked);
