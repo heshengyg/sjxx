@@ -20,9 +20,9 @@ const loginMsg = document.getElementById('adminLoginMsg');
 const logoutBtn = document.getElementById('adminLogoutBtn');
 const content = document.getElementById('adminContent');
 
-// ★★★ 搜索相关 ★★★
-const searchPhone = document.getElementById('searchPhone');     // 手机号搜索框
-const searchName = document.getElementById('searchName');       // 店铺名搜索框
+// 搜索相关
+const searchPhone = document.getElementById('searchPhone');
+const searchName = document.getElementById('searchName');
 const searchLevel = document.getElementById('searchLevel');
 const searchStage = document.getElementById('searchStage');
 const searchDateFrom = document.getElementById('searchDateFrom');
@@ -31,7 +31,9 @@ const clearSearchBtn = document.getElementById('clearSearchBtn');
 const totalCountEl = document.getElementById('totalCount');
 const filteredCountEl = document.getElementById('filteredCount');
 
-// 全局数据
+// ★★★ 分页变量 ★★★
+var currentPage = 1;
+var pageSize = 10;
 var allUsers = [];
 var filteredUsers = [];
 
@@ -110,7 +112,49 @@ async function resetPassword(userId, phone) {
     }
 }
 
-// ========== ★★★ 搜索过滤（实时）★★★ ==========
+// ========== ★★★ 修复等级 ★★★ ==========
+async function fixUserLevel(userId) {
+    try {
+        var { data: user, error } = await supabaseClient
+            .from('merchants')
+            .select('id, phone, name, completed_stages')
+            .eq('id', userId)
+            .single();
+
+        if (error) throw error;
+
+        var stages = user.completed_stages || [];
+        var levelMap = {
+            6: 'elite',
+            5: 'senior',
+            4: 'advanced',
+            3: 'advanced',
+            2: 'beginner',
+            1: 'beginner'
+        };
+        // 根据最大阶段判断等级
+        var maxStage = stages.length > 0 ? Math.max.apply(null, stages) : 0;
+        var correctLevel = levelMap[maxStage] || 'beginner';
+
+        if (correctLevel !== user.level) {
+            var { error: updateError } = await supabaseClient
+                .from('merchants')
+                .update({ level: correctLevel })
+                .eq('id', userId);
+
+            if (updateError) throw updateError;
+            alert('✅ 用户 ' + user.phone + ' 等级已修复为：' + correctLevel);
+            loadAllUsers();
+        } else {
+            alert('ℹ️ 用户 ' + user.phone + ' 等级正确，无需修复');
+        }
+    } catch (e) {
+        alert('❌ 修复失败：' + e.message);
+        console.error(e);
+    }
+}
+
+// ========== ★★★ 搜索过滤 ★★★ ==========
 function applyFilters() {
     var phoneKeyword = searchPhone.value.trim().toLowerCase();
     var nameKeyword = searchName.value.trim().toLowerCase();
@@ -120,28 +164,19 @@ function applyFilters() {
     var dateTo = searchDateTo.value;
 
     filteredUsers = allUsers.filter(function(u) {
-        // ★★★ 手机号搜索（模糊匹配）★★★
         if (phoneKeyword) {
             var phone = (u.phone || '').toLowerCase();
             if (phone.indexOf(phoneKeyword) === -1) return false;
         }
-
-        // ★★★ 店铺名搜索（模糊匹配）★★★
         if (nameKeyword) {
             var name = (u.name || '').toLowerCase();
             if (name.indexOf(nameKeyword) === -1) return false;
         }
-
-        // 等级过滤
         if (level && u.level !== level) return false;
-
-        // 阶段过滤
         if (stage) {
             var stages = u.completed_stages || [];
             if (stages.indexOf(parseInt(stage)) === -1) return false;
         }
-
-        // 日期范围过滤
         if (dateFrom && u.created_at) {
             var regDate = new Date(u.created_at);
             var fromDate = new Date(dateFrom);
@@ -153,14 +188,14 @@ function applyFilters() {
             toDate.setHours(23, 59, 59, 999);
             if (regDate2 > toDate) return false;
         }
-
         return true;
     });
 
-    // 更新统计
     totalCountEl.textContent = allUsers.length;
     filteredCountEl.textContent = filteredUsers.length;
 
+    // 重置到第一页
+    currentPage = 1;
     renderTable(filteredUsers);
 }
 
@@ -175,16 +210,28 @@ function clearSearch() {
     applyFilters();
 }
 
-// ========== 渲染表格 ==========
+// ========== ★★★ 渲染表格（含分页）★★★ ==========
 function renderTable(users) {
     if (!users || users.length === 0) {
         content.innerHTML = '<p style="padding:20px; text-align:center; color:#888;">📭 没有匹配的数据</p>';
         return;
     }
 
+    // 计算分页
+    var totalPages = Math.ceil(users.length / pageSize);
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    var startIndex = (currentPage - 1) * pageSize;
+    var endIndex = Math.min(startIndex + pageSize, users.length);
+    var pageUsers = users.slice(startIndex, endIndex);
+
     var levelMap = { beginner: '入门', advanced: '进阶', senior: '资深', elite: '精英' };
 
     var html = '';
+
+    // ★★★ 表格容器 ★★★
+    html += '<div class="table-wrapper">';
     html += '<table class="admin-table">';
     html += '<thead><tr>';
     html += '<th style="width:40px;">#</th>';
@@ -199,12 +246,12 @@ function renderTable(users) {
     html += '<th>操作</th>';
     html += '</tr></thead><tbody>';
 
-    users.forEach(function(u, index) {
+    pageUsers.forEach(function(u, index) {
         var stages = u.completed_stages || [];
         var quizCount = u.quiz_results ? Object.keys(u.quiz_results).length : 0;
         var created = u.created_at ? new Date(u.created_at).toLocaleDateString() : '-';
         var lastLogin = u.last_login ? new Date(u.last_login).toLocaleString() : '从未登录';
-        var rowNum = index + 1;
+        var rowNum = startIndex + index + 1;
         var prog = u._progress || { completed: 0, total: 0 };
         var progressText = prog.total > 0 ? Math.round((prog.completed / prog.total) * 100) + '% (' + prog.completed + '/' + prog.total + ')' : '0% (0/0)';
 
@@ -218,12 +265,54 @@ function renderTable(users) {
         html += '<td>' + quizCount + ' 次</td>';
         html += '<td>' + created + '</td>';
         html += '<td style="font-size:12px; color:#888;">' + lastLogin + '</td>';
-        html += '<td><button onclick="resetPassword(' + u.id + ', \'' + u.phone + '\')" class="reset-btn">🔑 重置密码</button></td>';
+        html += '<td style="display:flex; gap:4px; flex-wrap:wrap;">';
+        html += '<button onclick="resetPassword(' + u.id + ', \'' + u.phone + '\')" class="reset-btn">🔑 重置密码</button>';
+        html += '<button onclick="fixUserLevel(' + u.id + ')" style="background:#d4a017; color:white; border:none; padding:4px 10px; border-radius:20px; cursor:pointer; font-size:12px;">修复等级</button>';
+        html += '</td>';
         html += '</tr>';
     });
 
     html += '</tbody></table>';
+    html += '</div>';
+
+    // ★★★ 分页栏 ★★★
+    html += '<div class="pagination-bar">';
+    html += '<div class="page-info">共 <strong>' + users.length + '</strong> 条，当前第 <strong>' + currentPage + '/' + totalPages + '</strong> 页</div>';
+    html += '<div class="page-controls">';
+    html += '<button onclick="goToPage(1)" ' + (currentPage <= 1 ? 'disabled' : '') + '>首页</button>';
+    html += '<button onclick="goToPage(' + (currentPage - 1) + ')" ' + (currentPage <= 1 ? 'disabled' : '') + '>上一页</button>';
+
+    // 页码按钮
+    var startPage = Math.max(1, currentPage - 2);
+    var endPage = Math.min(totalPages, currentPage + 2);
+    for (var p = startPage; p <= endPage; p++) {
+        html += '<span class="page-num ' + (p === currentPage ? 'active' : '') + '" onclick="goToPage(' + p + ')">' + p + '</span>';
+    }
+
+    html += '<button onclick="goToPage(' + (currentPage + 1) + ')" ' + (currentPage >= totalPages ? 'disabled' : '') + '>下一页</button>';
+    html += '<button onclick="goToPage(' + totalPages + ')" ' + (currentPage >= totalPages ? 'disabled' : '') + '>末页</button>';
+    html += '<select id="pageSizeSelect" onchange="changePageSize(this.value)">';
+    html += '<option value="10" ' + (pageSize === 10 ? 'selected' : '') + '>10条/页</option>';
+    html += '<option value="20" ' + (pageSize === 20 ? 'selected' : '') + '>20条/页</option>';
+    html += '<option value="50" ' + (pageSize === 50 ? 'selected' : '') + '>50条/页</option>';
+    html += '</select>';
+    html += '</div></div>';
+
     content.innerHTML = html;
+}
+
+// ========== ★★★ 分页函数 ★★★ ==========
+function goToPage(page) {
+    var totalPages = Math.ceil(filteredUsers.length / pageSize);
+    if (page < 1 || page > totalPages) return;
+    currentPage = page;
+    renderTable(filteredUsers);
+}
+
+function changePageSize(size) {
+    pageSize = parseInt(size);
+    currentPage = 1;
+    renderTable(filteredUsers);
 }
 
 // ========== 加载所有用户数据 ==========
@@ -284,17 +373,13 @@ async function loadAllUsers() {
     }
 }
 
-// ========== ★★★ 事件绑定（实时搜索）★★★ ==========
-// 手机号搜索 - 输入即搜索
+// ========== 事件绑定 ==========
 searchPhone.addEventListener('input', applyFilters);
-// 店铺名搜索 - 输入即搜索
 searchName.addEventListener('input', applyFilters);
-// 下拉选择变化时自动搜索
 searchLevel.addEventListener('change', applyFilters);
 searchStage.addEventListener('change', applyFilters);
 searchDateFrom.addEventListener('change', applyFilters);
 searchDateTo.addEventListener('change', applyFilters);
-// 清空按钮
 clearSearchBtn.addEventListener('click', clearSearch);
 
 // ========== 退出 ==========
