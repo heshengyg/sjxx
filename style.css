@@ -49,8 +49,10 @@ body {
 .user-info {
     display: flex;
     justify-content: space-between;
-    align-items: center;  /* ★★★ 垂直居中 ★★★ */
-    margin-bottom: 6px;
+    align-items: center;
+    margin-bottom: 4px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #eef2f6;
 }
 .shop-name { font-weight:600; font-size:22px; }
 .level-tag {
@@ -64,8 +66,12 @@ body {
     display: inline-flex;
     align-items: center;
 }
-.status { font-size:18px; color:#1f2e3a; margin:8px 0 4px; font-weight:700; }
-
+.status {
+    font-size: 18px;
+    color: #1f2e3a;
+    margin: 12px 0 4px;
+    font-weight: 700;
+}
 /* ============================================================
    ===== 核心：接力式帘头置顶（JS 控制 fixed，默认隐藏） =====
    ============================================================ */
