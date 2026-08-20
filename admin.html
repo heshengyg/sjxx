@@ -19,7 +19,6 @@
             flex-direction: column;
         }
 
-        /* ★★★ 登录页面 - 居中显示 ★★★ */
         #adminLogin {
             flex: 1;
             display: flex;
@@ -41,7 +40,6 @@
             margin-bottom: 20px;
         }
 
-        /* ★★★ 后台主体 ★★★ */
         .admin-container { 
             max-width: 1200px; 
             margin: 0 auto; 
@@ -262,8 +260,6 @@
         .input-field:focus { border-color: #1f7b4d; }
         .reset-btn { background: #1f7b4d; color: white; border: none; padding: 4px 12px; border-radius: 20px; cursor: pointer; font-size: 12px; transition: 0.2s; height: 28px; }
         .reset-btn:hover { background: #16633b; }
-        .fix-level-btn { background: #d4a017; color: white; border: none; padding: 4px 12px; border-radius: 20px; cursor: pointer; font-size: 12px; transition: 0.2s; height: 28px; }
-        .fix-level-btn:hover { background: #b8890f; }
         .flex-1 { flex: 1; min-width: 140px; }
         .flex-1 input { width: 100%; }
         .action-btns { display: flex; gap: 4px; flex-wrap: wrap; }
@@ -291,14 +287,15 @@
         </div>
     </div>
 
-    <!-- ★★★ 修改 admin-header 部分 ★★★ -->
-<div class="admin-header">
-    <h1>📊 商家学习总览</h1>
-    <div style="display:flex; gap:8px; align-items:center;">
-        <button id="refreshListBtn" style="background:#1f7b4d; color:white; border:none; padding:6px 18px; border-radius:30px; cursor:pointer; font-size:14px; transition:0.2s;">🔄 刷新列表</button>
-        <button id="adminLogoutBtn" class="btn-outline">退出</button>
-    </div>
-</div>
+    <!-- ★★★ 后台界面 ★★★ -->
+    <div id="adminDashboard" class="hidden admin-container">
+        <div class="admin-header">
+            <h1>📊 商家学习总览</h1>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <button id="refreshListBtn" style="background:#1f7b4d; color:white; border:none; padding:6px 18px; border-radius:30px; cursor:pointer; font-size:14px; transition:0.2s;">🔄 刷新列表</button>
+                <button id="adminLogoutBtn" class="btn-outline">退出</button>
+            </div>
+        </div>
         
         <div class="search-bar">
             <div class="search-row">

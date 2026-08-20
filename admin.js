@@ -77,9 +77,10 @@ loginBtn.addEventListener('click', async function() {
     loginBox.classList.add('hidden');
     dashboard.classList.remove('hidden');
     showMsg('✅ 欢迎回来，' + data.shop_name, false);
-    loadAllUsers();
+    
+    // ★★★ 关键修复：添加 await ★★★
+    await loadAllUsers();
 });
-
 // ========== 重置密码 ==========
 async function resetPassword(userId, phone) {
     if (!confirm('确定要重置用户 ' + phone + ' 的密码吗？\n重置后密码为：123456')) {
