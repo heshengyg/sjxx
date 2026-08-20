@@ -11,13 +11,19 @@
         .admin-header h1 { font-size: 24px; }
         .search-bar { 
             display: flex; 
-            flex-wrap: wrap; 
+            flex-direction: column;
             gap: 10px; 
             background: #f8faff; 
             padding: 16px 18px; 
             border-radius: 16px; 
             border: 1px solid #eef2f6; 
             margin-bottom: 16px;
+        }
+        .search-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            width: 100%;
             align-items: center;
         }
         .search-bar input, .search-bar select {
@@ -44,19 +50,6 @@
             font-weight: 500;
             white-space: nowrap;
         }
-        .search-bar .search-btn {
-            background: #1f7b4d;
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 30px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: 0.2s;
-        }
-        .search-bar .search-btn:hover {
-            background: #16633b;
-        }
         .search-bar .clear-btn {
             background: #eef2f6;
             color: #1a2e3b;
@@ -73,7 +66,6 @@
         .search-stats {
             font-size: 14px;
             color: #5e6f7d;
-            margin-bottom: 12px;
             padding: 6px 14px;
             background: #f0f5fa;
             border-radius: 20px;
@@ -101,6 +93,8 @@
         .input-field { width: 100%; padding: 14px 16px; border-radius: 40px; border: 1px solid #dce3eb; font-size: 16px; margin-bottom: 12px; outline: none; display: block; }
         .reset-btn { background: #1f7b4d; color: white; border: none; padding: 4px 12px; border-radius: 20px; cursor: pointer; font-size: 13px; transition: 0.2s; }
         .reset-btn:hover { background: #16633b; }
+        .flex-1 { flex: 1; min-width: 160px; }
+        .flex-1 input { width: 100%; }
         @media (max-width: 768px) {
             .search-bar { flex-direction: column; align-items: stretch; }
             .search-bar .search-input-group { flex-wrap: wrap; }
@@ -127,56 +121,60 @@
         </div>
         
         <!-- 搜索栏 -->
-<div class="search-bar">
-    <div class="search-row" style="display:flex; flex-wrap:wrap; gap:10px; width:100%; align-items:center;">
-        <!-- 手机号搜索 -->
-        <div class="search-input-group" style="flex:1; min-width:180px;">
-            <label>📱 手机号</label>
-            <input id="searchPhone" type="text" placeholder="输入手机号搜索..." style="padding:8px 14px; border-radius:30px; border:1px solid #dce3eb; font-size:14px; outline:none; width:100%;">
+        <div class="search-bar">
+            <div class="search-row">
+                <!-- 手机号搜索 -->
+                <div class="search-input-group flex-1">
+                    <label>📱 手机号</label>
+                    <input id="searchPhone" type="text" placeholder="输入手机号搜索...">
+                </div>
+                <!-- 店铺名搜索 -->
+                <div class="search-input-group flex-1">
+                    <label>🏪 店铺名</label>
+                    <input id="searchName" type="text" placeholder="输入店铺名搜索...">
+                </div>
+                <!-- 等级过滤 -->
+                <div class="search-input-group">
+                    <label>等级</label>
+                    <select id="searchLevel">
+                        <option value="">全部</option>
+                        <option value="beginner">入门</option>
+                        <option value="advanced">进阶</option>
+                        <option value="senior">资深</option>
+                        <option value="elite">精英</option>
+                    </select>
+                </div>
+                <!-- 阶段过滤 -->
+                <div class="search-input-group">
+                    <label>阶段</label>
+                    <select id="searchStage">
+                        <option value="">全部</option>
+                        <option value="1">第一阶段</option>
+                        <option value="2">第二阶段</option>
+                        <option value="3">第三阶段</option>
+                        <option value="4">第四阶段</option>
+                        <option value="5">第五阶段</option>
+                        <option value="6">第六阶段</option>
+                    </select>
+                </div>
+                <!-- 清空按钮 -->
+                <button class="clear-btn" id="clearSearchBtn">清空筛选</button>
+            </div>
+            <div class="search-row" style="border-top:1px solid #eef2f6; padding-top:8px;">
+                <div class="search-input-group">
+                    <label>注册从</label>
+                    <input id="searchDateFrom" type="date">
+                </div>
+                <div class="search-input-group">
+                    <label>到</label>
+                    <input id="searchDateTo" type="date">
+                </div>
+                <span style="font-size:13px; color:#888; margin-left:auto;" id="searchStats">共 <strong id="totalCount">0</strong> 条，当前筛选 <strong id="filteredCount">0</strong> 条</span>
+            </div>
         </div>
-        <!-- 店铺名搜索 -->
-        <div class="search-input-group" style="flex:1; min-width:180px;">
-            <label>🏪 店铺名</label>
-            <input id="searchName" type="text" placeholder="输入店铺名搜索..." style="padding:8px 14px; border-radius:30px; border:1px solid #dce3eb; font-size:14px; outline:none; width:100%;">
-        </div>
-        <!-- 等级过滤 -->
-        <div class="search-input-group">
-            <label>等级</label>
-            <select id="searchLevel" style="padding:8px 14px; border-radius:30px; border:1px solid #dce3eb; font-size:14px; outline:none; background:white;">
-                <option value="">全部</option>
-                <option value="beginner">入门</option>
-                <option value="advanced">进阶</option>
-                <option value="senior">资深</option>
-                <option value="elite">精英</option>
-            </select>
-        </div>
-        <!-- 阶段过滤 -->
-        <div class="search-input-group">
-            <label>阶段</label>
-            <select id="searchStage" style="padding:8px 14px; border-radius:30px; border:1px solid #dce3eb; font-size:14px; outline:none; background:white;">
-                <option value="">全部</option>
-                <option value="1">第一阶段</option>
-                <option value="2">第二阶段</option>
-                <option value="3">第三阶段</option>
-                <option value="4">第四阶段</option>
-                <option value="5">第五阶段</option>
-                <option value="6">第六阶段</option>
-            </select>
-        </div>
-        <!-- 清空按钮 -->
-        <button class="clear-btn" id="clearSearchBtn" style="background:#eef2f6; color:#1a2e3b; border:none; padding:8px 16px; border-radius:30px; cursor:pointer; font-size:14px;">清空筛选</button>
-    </div>
-    <!-- 日期范围（第二行） -->
-    <div class="search-row" style="display:flex; flex-wrap:wrap; gap:10px; width:100%; align-items:center; margin-top:8px; padding-top:8px; border-top:1px solid #eef2f6;">
-        <div class="search-input-group">
-            <label>注册从</label>
-            <input id="searchDateFrom" type="date" style="padding:8px 14px; border-radius:30px; border:1px solid #dce3eb; font-size:14px; outline:none;">
-        </div>
-        <div class="search-input-group">
-            <label>到</label>
-            <input id="searchDateTo" type="date" style="padding:8px 14px; border-radius:30px; border:1px solid #dce3eb; font-size:14px; outline:none;">
-        </div>
-        <span style="font-size:13px; color:#888; margin-left:auto;" id="searchStats">共 <strong id="totalCount">0</strong> 条，当前筛选 <strong id="filteredCount">0</strong> 条</span>
+
+        <!-- 内容区域 -->
+        <div id="adminContent"></div>
     </div>
 </div>
 
