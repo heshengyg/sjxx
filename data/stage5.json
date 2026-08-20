@@ -1,0 +1,321 @@
+{
+  "stage": 5,
+  "title": "第五阶段：商家实操",
+  "description": "松鼠逛逛商家端全功能精细化教学",
+  "resources": [
+    {
+      "id": "r1",
+      "type": "article",
+      "title": "实操手册",
+      "content": "<p style=\"text-align: left;\"><span style=\"font-family: Arial;\">本阶段聚焦商家端后台实操，零基础适配，手把手教会商家玩转平台所有经营功能，实现自主运营：</span></p><p style=\"text-align: left;\"><strong>5.1 基础入驻与店铺搭建</strong></p><p style=\"text-indent: 2em; text-align: left;\"><span style=\"font-family: Arial;\">账号注册、店铺认证、门店信息完善、头像简介设置、自提点开通、店铺装修基础操作，快速搭建标准化线上门店。</span></p><p style=\"text-align: left;\"><strong>5.2 自营店铺核心操作</strong></p><p style=\"text-indent: 2em; text-align: left;\"><span style=\"font-family: Arial;\">商品/服务上架、价格设置、库存管理、订单接收、接单核销、售后处理、评价管理，熟练掌握线上交易全流程。</span></p><p style=\"text-align: left;\"><strong>5.3 平台供应链运营操作</strong></p><p style=\"text-indent: 2em; text-align: left;\"><span style=\"font-family: Arial;\">次日达商品推广素材获取、佣金查看、订单数据查询、自提核销流程、收益提现规则，轻松实现无货源增收。</span></p><p style=\"text-align: left;\"><strong>5.4 客户私域管理功能</strong></p><p style=\"text-indent: 2em; text-align: left;\"><span style=\"font-family: Arial;\">平台客户数据沉淀、邻里粉丝管理、客户消费标签查看、精准客户维护，把社区客流转化为专属私域资产。</span></p><p style=\"text-align: left;\"><strong>5.5 平台工具赋能使用</strong><span style=\"font-family: Arial;\">官方营销素材、社区推广工具、活动报名入口、店铺数据复盘、收益数据统计等功能实操。</span></p>"
+    }
+  ],
+  "quiz": [
+    {
+      "id": "q1",
+      "question": "商家入驻松鼠逛逛、开通线上店铺完全免费。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "judge",
+      "score": 4
+    },
+    {
+      "id": "q2",
+      "question": "次日达供应链商品需要商家自行备货、发货。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "judge",
+      "score": 4
+    },
+    {
+      "id": "q3",
+      "question": "商家自营店铺可以24小时线上接单售卖。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "judge",
+      "score": 4
+    },
+    {
+      "id": "q4",
+      "question": "平台可以沉淀客户消费数据，方便商家精细化运营。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "judge",
+      "score": 4
+    },
+    {
+      "id": "q5",
+      "question": "微信群推广的平台商品佣金可在后台自主查询、提现。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "judge",
+      "score": 4
+    },
+    {
+      "id": "q6",
+      "question": "店铺完善信息、开通自提点是进阶商家必做实操。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "judge",
+      "score": 4
+    },
+    {
+      "id": "q7",
+      "question": "自营商品上架后无法修改价格和库存。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "judge",
+      "score": 4
+    },
+    {
+      "id": "q8",
+      "question": "商家可以使用平台官方营销素材开展推广。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "judge",
+      "score": 4
+    },
+    {
+      "id": "q9",
+      "question": "线上订单核销、售后处理是商家基础实操能力。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "judge",
+      "score": 4
+    },
+    {
+      "id": "q10",
+      "question": "无违规操作是商家晋级资深、精英商家的基础条件。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "judge",
+      "score": 4
+    },
+    {
+      "id": "q11",
+      "question": "商家开通次日达服务的核心权益是？（ ）",
+      "options": [
+        "A、自行囤货售卖",
+        "B、推广平台商品赚取佣金，门店作为自提点",
+        "C、承担物流配送",
+        "D、缴纳入驻费用"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q12",
+      "question": "自营店铺商家必须完成的基础实操是？（ ）",
+      "options": [
+        "A、上架至少3款商品/服务",
+        "B、开通直播带货",
+        "C、大规模线下地推",
+        "D、充值推广费用"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q13",
+      "question": "商家后台无法实现的功能是？（ ）",
+      "options": [
+        "A、订单管理、核销售后",
+        "B、佣金查询、收益提现",
+        "C、客户数据沉淀",
+        "D、恶意修改平台数据"
+      ],
+      "correct": [
+        3
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q14",
+      "question": "店铺线上装修、信息完善的目的是？（ ）",
+      "options": [
+        "A、提升门店线上形象，增强邻里信任",
+        "B、满足平台形式要求",
+        "C、无实际经营意义",
+        "D、仅用于装饰展示"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q15",
+      "question": "平台客户管理功能的核心价值是？（ ）",
+      "options": [
+        "A、随意删除客户数据",
+        "B、沉淀私域粉丝，实现精准维护与复购",
+        "C、公开客户隐私信息",
+        "D、统计无效数据"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q16",
+      "question": "商家实操考核的核心标准是？（ ）",
+      "options": [
+        "A、仅看完课程即可",
+        "B、店铺搭建完成、功能熟练、实操落地无违规",
+        "C、无需上架商品",
+        "D、无需熟悉订单流程"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q17",
+      "question": "属于商家自营店铺操作的有？（ ）",
+      "options": [
+        "A、商品上架",
+        "B、订单核销",
+        "C、售后处理",
+        "D、修改商品价格库存"
+      ],
+      "correct": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "type": "multiple",
+      "score": 6
+    },
+    {
+      "id": "q18",
+      "question": "次日达供应链商家可以在后台做哪些操作？（ ）",
+      "options": [
+        "A、获取推广素材",
+        "B、查询佣金收益",
+        "C、自提点订单核销",
+        "D、平台商品采购备货"
+      ],
+      "correct": [
+        0,
+        1,
+        2
+      ],
+      "type": "multiple",
+      "score": 6
+    },
+    {
+      "id": "q19",
+      "question": "商家端后台的数据统计可以查看哪些信息？（ ）",
+      "options": [
+        "A、订单记录",
+        "B、佣金收益",
+        "C、客户相关数据",
+        "D、修改平台规则"
+      ],
+      "correct": [
+        0,
+        1,
+        2
+      ],
+      "type": "multiple",
+      "score": 6
+    },
+    {
+      "id": "q20",
+      "question": "下面哪些行为属于商家违规行为？（ ）",
+      "options": [
+        "A、虚假上架商品",
+        "B、拒不处理售后客诉",
+        "C、恶意修改订单数据",
+        "D、正常上架门店服务"
+      ],
+      "correct": [
+        0,
+        1,
+        2
+      ],
+      "type": "multiple",
+      "score": 6
+    },
+    {
+      "id": "q21",
+      "question": "开通自提点给商家带来的好处包含？（ ）",
+      "options": [
+        "A、获得平台商品推广佣金",
+        "B、增加门店到店客流",
+        "C、提升门店在社区曝光",
+        "D、必须承担商品仓储成本"
+      ],
+      "correct": [
+        0,
+        1,
+        2
+      ],
+      "type": "multiple",
+      "score": 6
+    }
+  ]
+}

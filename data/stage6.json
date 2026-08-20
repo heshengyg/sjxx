@@ -1,0 +1,320 @@
+{
+  "stage": 6,
+  "title": "第六阶段：运营进阶",
+  "description": "社区商家日常落地营销技巧",
+  "resources": [
+    {
+      "id": "r1",
+      "type": "article",
+      "title": "运营技巧",
+      "content": "<p style=\"text-align: left;\"><span style=\"font-family: Arial;\">结合社区场景、微信群私域、平台功能，落地简单、高效、零成本的常态化营销方法，适配中小社区商家，易上手、高转化：</span></p><p style=\"text-align: left;\"><strong>6.1 微信群私域精细化运营技巧</strong></p><p style=\"text-indent: 2em; text-align: left;\"><span style=\"font-family: Arial;\">社群日常维护方法，杜绝硬广刷屏，通过便民信息、邻里互动、福利推送提升社群活跃度；精准触达客户，根据社区居民需求适时推送自营服务、平台次日达好物；社群粉丝转化技巧，引导群友入驻平台、关注店铺，实现私域流量长效沉淀。</span></p><p style=\"text-align: left;\"><strong>6.2 社区本地化引流技巧</strong></p><p style=\"text-indent: 2em; text-align: left;\"><span style=\"font-family: Arial;\">依托门店线下客流，引导到店客户线上关注店铺、进入社群、使用平台服务；借助邻里信息板块，主动发布便民服务、本地资讯，打造个人商家IP，提升社区知名度；利用社区地缘优势，开展邻里专属优惠、到店自提福利，打通线上线下双向引流。</span></p><p style=\"text-align: left;\"><strong>6.3 常态化复购锁客营销技巧</strong></p><p style=\"text-indent: 2em; text-align: left;\"><span style=\"font-family: Arial;\">会员简单维护、老客福利、节日轻营销、新品/新服务精准推送；结合平台活动，借力官方扶持政策开展店铺促销，降低营销成本；通过优质的即时社区服务、售后保障，积累邻里口碑，实现老客带新客、口碑裂变。</span></p><p style=\"text-align: left;\"><strong>6.4 轻量化增收运营思维</strong></p><p style=\"text-indent: 2em; text-align: left;\"><span style=\"font-family: Arial;\">坚持“便民为先、服务为本”的社区经营核心，不做过度营销，以服务留住客户、以口碑沉淀客源；兼顾自营业务增收与平台供应链佣金增收，实现双渠道盈利；长期深耕社区，依托平台持续积累客户资产，实现门店稳定增收、长效经营。</span></p>"
+    }
+  ],
+  "quiz": [
+    {
+      "id": "q1",
+      "question": "社区社群运营的核心原则是？（ ）",
+      "options": [
+        "A、频繁硬广刷屏",
+        "B、便民服务为主、营销为辅，保持社群活跃",
+        "C、长期不发言、不互动",
+        "D、只发广告不维护"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q2",
+      "question": "社区商家引流的核心优势是？（ ）",
+      "options": [
+        "A、低价内卷",
+        "B、本地地缘信任、近距离服务、邻里口碑",
+        "C、线上流量更广",
+        "D、商品种类更多"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q3",
+      "question": "复购锁客的核心关键是？（ ）",
+      "options": [
+        "A、低价促销",
+        "B、优质服务+邻里口碑+精准维护",
+        "C、频繁刷屏营销",
+        "D、夸大宣传引流"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q4",
+      "question": "商家打造社区IP的核心渠道是？（ ）",
+      "options": [
+        "A、邻里信息板块发布便民服务与本地资讯",
+        "B、仅线下发传单",
+        "C、社群疯狂发广告",
+        "D、无渠道运营"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q5",
+      "question": "社区新零售长期经营的核心是？（ ）",
+      "options": [
+        "A、过度营销、快速获利",
+        "B、服务为本、口碑沉淀、长期深耕",
+        "C、三天打鱼两天晒网",
+        "D、只做佣金不做自营"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q6",
+      "question": "精英商家保级的核心要求不包括？（ ）",
+      "options": [
+        "A、店铺常态化运营",
+        "B、社群保持活跃、月度有成交",
+        "C、大量虚假宣传引流",
+        "D、零重大客诉违规"
+      ],
+      "correct": [
+        2
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q7",
+      "question": "线上线下双向引流的方式是？（ ）",
+      "options": [
+        "A、线下客流引导线上关注，线上流量承接线下服务",
+        "B、只做线下、不做线上",
+        "C、只做线上、放弃线下",
+        "D、无任何引流动作"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q8",
+      "question": "平台活动的核心价值是？（ ）",
+      "options": [
+        "A、增加商家营销成本",
+        "B、官方扶持，降低营销成本、提升转化",
+        "C、无任何作用",
+        "D、限制商家运营"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q9",
+      "question": "私域转化的核心目的是？（ ）",
+      "options": [
+        "A、把社群零散流量沉淀为店铺专属粉丝，实现长效复购",
+        "B、单纯增加群人数",
+        "C、提升广告曝光量",
+        "D、完成平台任务"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q10",
+      "question": "双渠道增收指的是？（ ）",
+      "options": [
+        "A、仅靠线下门店盈利",
+        "B、自营业务盈利+平台供应链佣金增收",
+        "C、仅靠平台佣金",
+        "D、无多元增收渠道"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "single",
+      "score": 5
+    },
+    {
+      "id": "q11",
+      "question": "微信群精细化运营技巧包含？（ ）",
+      "options": [
+        "A、便民互动提升活跃度",
+        "B、精准适时推送产品与服务",
+        "C、引导群友入驻平台沉淀粉丝",
+        "D、杜绝硬广刷屏扰民"
+      ],
+      "correct": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "type": "multiple",
+      "score": 6
+    },
+    {
+      "id": "q12",
+      "question": "社区本地化引流的方法有？（ ）",
+      "options": [
+        "A、线下到店客户引导线上关注",
+        "B、邻里板块发布便民服务打造IP",
+        "C、推出邻里专属优惠、自提福利",
+        "D、线上线下双向互相导流"
+      ],
+      "correct": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "type": "multiple",
+      "score": 6
+    },
+    {
+      "id": "q13",
+      "question": "常态化锁客复购的方式有？（ ）",
+      "options": [
+        "A、老客福利、节日轻营销",
+        "B、新品新服务精准推送",
+        "C、依托平台活动借力引流",
+        "D、优质服务积累口碑裂变"
+      ],
+      "correct": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "type": "multiple",
+      "score": 6
+    },
+    {
+      "id": "q14",
+      "question": "精英商家专属权益有？（ ）",
+      "options": [
+        "A、平台流量倾斜扶持",
+        "B、一对一官方运营指导",
+        "C、节日专属活动权益",
+        "D、优秀商家评优曝光"
+      ],
+      "correct": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "type": "multiple",
+      "score": 6
+    },
+    {
+      "id": "q15",
+      "question": "轻量化增收运营思维包含？（ ）",
+      "options": [
+        "A、便民为先、服务为本",
+        "B、自营+佣金双渠道盈利",
+        "C、长期深耕社区沉淀口碑",
+        "D、拒绝过度营销、诚信经营"
+      ],
+      "correct": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "type": "multiple",
+      "score": 6
+    },
+    {
+      "id": "q16",
+      "question": "微信群运营应该以广告刷屏为主，多多发商品链接。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "judge",
+      "score": 4
+    },
+    {
+      "id": "q17",
+      "question": "社区商家可以利用邻里信息板块发布便民内容提升自身影响力。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "judge",
+      "score": 4
+    },
+    {
+      "id": "q18",
+      "question": "做好售后服务，有利于社区商家实现口碑裂变。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "judge",
+      "score": 4
+    },
+    {
+      "id": "q19",
+      "question": "精英商家不需要维护社群，只要上架商品就可以保级。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "judge",
+      "score": 4
+    },
+    {
+      "id": "q20",
+      "question": "社区新零售要坚持服务优先，而不是过度营销。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "judge",
+      "score": 4
+    }
+  ]
+}
