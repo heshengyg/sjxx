@@ -1,5 +1,5 @@
 // =====================================================
-// admin.js - 管理后台（从 shop_account 表查询）
+// admin.js - 管理后台
 // =====================================================
 
 const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
@@ -21,6 +21,7 @@ const logoutBtn = document.getElementById('adminLogoutBtn');
 const content = document.getElementById('adminContent');
 
 // 搜索相关
+const searchType = document.getElementById('searchType');
 const searchKeyword = document.getElementById('searchKeyword');
 const searchLevel = document.getElementById('searchLevel');
 const searchStage = document.getElementById('searchStage');
@@ -112,17 +113,27 @@ async function resetPassword(userId, phone) {
 // ========== 搜索过滤 ==========
 function applyFilters() {
     const keyword = searchKeyword.value.trim().toLowerCase();
+    const type = searchType.value;
     const level = searchLevel.value;
     const stage = searchStage.value;
     const dateFrom = searchDateFrom.value;
     const dateTo = searchDateTo.value;
 
     filteredUsers = allUsers.filter(function(u) {
-        // 关键词搜索（手机号、店铺名）
+        // ★★★ 关键词搜索（根据搜索类型）★★★
         if (keyword) {
-            const phoneMatch = (u.phone || '').toLowerCase().includes(keyword);
-            const nameMatch = (u.name || '').toLowerCase().includes(keyword);
-            if (!phoneMatch && !nameMatch) return false;
+            if (type === 'phone') {
+                // 只搜索手机号
+                if (!(u.phone || '').toLowerCase().includes(keyword)) return false;
+            } else if (type === 'name') {
+                // 只搜索店铺名
+                if (!(u.name || '').toLowerCase().includes(keyword)) return false;
+            } else {
+                // 全部：搜索手机号或店铺名
+                var phoneMatch = (u.phone || '').toLowerCase().includes(keyword);
+                var nameMatch = (u.name || '').toLowerCase().includes(keyword);
+                if (!phoneMatch && !nameMatch) return false;
+            }
         }
 
         // 等级过滤
@@ -130,22 +141,21 @@ function applyFilters() {
 
         // 阶段过滤
         if (stage) {
-            const stages = u.completed_stages || [];
+            var stages = u.completed_stages || [];
             if (!stages.includes(parseInt(stage))) return false;
         }
 
         // 日期范围过滤
         if (dateFrom && u.created_at) {
-            const regDate = new Date(u.created_at);
-            const fromDate = new Date(dateFrom);
+            var regDate = new Date(u.created_at);
+            var fromDate = new Date(dateFrom);
             if (regDate < fromDate) return false;
         }
         if (dateTo && u.created_at) {
-            const regDate = new Date(u.created_at);
-            const toDate = new Date(dateTo);
-            // 设置到当天结束
+            var regDate2 = new Date(u.created_at);
+            var toDate = new Date(dateTo);
             toDate.setHours(23, 59, 59, 999);
-            if (regDate > toDate) return false;
+            if (regDate2 > toDate) return false;
         }
 
         return true;
@@ -160,6 +170,7 @@ function applyFilters() {
 
 function clearSearch() {
     searchKeyword.value = '';
+    searchType.value = 'all';
     searchLevel.value = '';
     searchStage.value = '';
     searchDateFrom.value = '';
@@ -174,46 +185,44 @@ function renderTable(users) {
         return;
     }
 
-    let html = `
-        <table class="admin-table">
-            <thead>
-                <tr>
-                    <th style="width:40px;">#</th>
-                    <th>手机号</th>
-                    <th>店铺名</th>
-                    <th>等级</th>
-                    <th>已完成阶段</th>
-                    <th>学习进度</th>
-                    <th>考核记录</th>
-                    <th>注册时间</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
+    var levelMap = { beginner: '入门', advanced: '进阶', senior: '资深', elite: '精英' };
+
+    var html = '';
+    html += '<table class="admin-table">';
+    html += '<thead><tr>';
+    html += '<th style="width:40px;">#</th>';
+    html += '<th>手机号</th>';
+    html += '<th>店铺名</th>';
+    html += '<th>等级</th>';
+    html += '<th>已完成阶段</th>';
+    html += '<th>学习进度</th>';
+    html += '<th>考核记录</th>';
+    html += '<th>注册时间</th>';
+    html += '<th>最后登录</th>';  // ★★★ 新增列 ★★★
+    html += '<th>操作</th>';
+    html += '</tr></thead><tbody>';
 
     users.forEach(function(u, index) {
-        const levelMap = { beginner: '入门', advanced: '进阶', senior: '资深', elite: '精英' };
-        const stages = u.completed_stages || [];
-        const quizCount = u.quiz_results ? Object.keys(u.quiz_results).length : 0;
-        const created = u.created_at ? new Date(u.created_at).toLocaleDateString() : '-';
-        const rowNum = index + 1;
+        var stages = u.completed_stages || [];
+        var quizCount = u.quiz_results ? Object.keys(u.quiz_results).length : 0;
+        var created = u.created_at ? new Date(u.created_at).toLocaleDateString() : '-';
+        var lastLogin = u.last_login ? new Date(u.last_login).toLocaleString() : '从未登录';
+        var rowNum = index + 1;
+        var prog = u._progress || { completed: 0, total: 0 };
+        var progressText = prog.total > 0 ? Math.round((prog.completed / prog.total) * 100) + '% (' + prog.completed + '/' + prog.total + ')' : '0% (0/0)';
 
-        html += `<tr>
-            <td class="row-num">${rowNum}</td>
-            <td>${u.phone || '-'}</td>
-            <td><strong>${u.name || '未命名'}</strong></td>
-            <td><span class="tag tag-${u.level}">${levelMap[u.level] || u.level}</span></td>
-            <td>${stages.length > 0 ? stages.join(', ') : '无'}</td>
-            <td>-</td>
-            <td>${quizCount} 次</td>
-            <td>${created}</td>
-            <td>
-                <button onclick="resetPassword(${u.id}, '${u.phone}')" class="reset-btn">
-                    🔑 重置密码
-                </button>
-            </td>
-        </tr>`;
+        html += '<tr>';
+        html += '<td class="row-num">' + rowNum + '</td>';
+        html += '<td>' + (u.phone || '-') + '</td>';
+        html += '<td><strong>' + (u.name || '未命名') + '</strong></td>';
+        html += '<td><span class="tag tag-' + u.level + '">' + (levelMap[u.level] || u.level) + '</span></td>';
+        html += '<td>' + (stages.length > 0 ? stages.join(', ') : '无') + '</td>';
+        html += '<td>' + progressText + '</td>';
+        html += '<td>' + quizCount + ' 次</td>';
+        html += '<td>' + created + '</td>';
+        html += '<td style="font-size:12px; color:#888;">' + lastLogin + '</td>';  // ★★★ 显示最后登录 ★★★
+        html += '<td><button onclick="resetPassword(' + u.id + ', \'' + u.phone + '\')" class="reset-btn">🔑 重置密码</button></td>';
+        html += '</tr>';
     });
 
     html += '</tbody></table>';
@@ -224,7 +233,8 @@ function renderTable(users) {
 async function loadAllUsers() {
     content.innerHTML = '<p>📊 加载中...</p>';
     try {
-        const { data: users, error } = await supabaseClient
+        // ★★★ 查询时包含 last_login ★★★
+        var { data: users, error } = await supabaseClient
             .from('merchants')
             .select('*')
             .order('created_at', { ascending: false });
@@ -240,17 +250,16 @@ async function loadAllUsers() {
             return;
         }
 
-        // ★★★ 获取所有用户的进度（批量查询优化）★★★
-        const userIds = users.map(u => u.id);
-        const { data: allProgress, error: progError } = await supabaseClient
+        // 获取所有用户的进度
+        var userIds = users.map(function(u) { return u.id; });
+        var { data: allProgress, error: progError } = await supabaseClient
             .from('user_learning_progress')
             .select('user_id, completed')
             .in('user_id', userIds);
 
         if (!progError && allProgress) {
-            // 计算每个用户的进度
-            const progressMap = {};
-            allProgress.forEach(p => {
+            var progressMap = {};
+            allProgress.forEach(function(p) {
                 if (!progressMap[p.user_id]) {
                     progressMap[p.user_id] = { completed: 0, total: 0 };
                 }
@@ -260,13 +269,12 @@ async function loadAllUsers() {
                 }
             });
 
-            // 合并到用户数据
-            users.forEach(u => {
-                const prog = progressMap[u.id] || { completed: 0, total: 0 };
+            users.forEach(function(u) {
+                var prog = progressMap[u.id] || { completed: 0, total: 0 };
                 u._progress = prog;
             });
         } else {
-            users.forEach(u => {
+            users.forEach(function(u) {
                 u._progress = { completed: 0, total: 0 };
             });
         }
@@ -275,79 +283,18 @@ async function loadAllUsers() {
         applyFilters();
 
     } catch (e) {
-        content.innerHTML = `<p style="color:#b33;">❌ 加载失败：${e.message}</p>`;
+        content.innerHTML = '<p style="color:#b33;">❌ 加载失败：' + e.message + '</p>';
         console.error(e);
     }
 }
 
-// 更新渲染表格，包含进度
-function renderTable(users) {
-    if (!users || users.length === 0) {
-        content.innerHTML = '<p style="padding:20px; text-align:center; color:#888;">📭 没有匹配的数据</p>';
-        return;
-    }
-
-    let html = `
-        <table class="admin-table">
-            <thead>
-                <tr>
-                    <th style="width:40px;">#</th>
-                    <th>手机号</th>
-                    <th>店铺名</th>
-                    <th>等级</th>
-                    <th>已完成阶段</th>
-                    <th>学习进度</th>
-                    <th>考核记录</th>
-                    <th>注册时间</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-
-    users.forEach(function(u, index) {
-        const levelMap = { beginner: '入门', advanced: '进阶', senior: '资深', elite: '精英' };
-        const stages = u.completed_stages || [];
-        const quizCount = u.quiz_results ? Object.keys(u.quiz_results).length : 0;
-        const created = u.created_at ? new Date(u.created_at).toLocaleDateString() : '-';
-        const rowNum = index + 1;
-        const prog = u._progress || { completed: 0, total: 0 };
-        const progressText = prog.total > 0 ? Math.round((prog.completed / prog.total) * 100) + '% (' + prog.completed + '/' + prog.total + ')' : '0% (0/0)';
-
-        html += `<tr>
-            <td class="row-num">${rowNum}</td>
-            <td>${u.phone || '-'}</td>
-            <td><strong>${u.name || '未命名'}</strong></td>
-            <td><span class="tag tag-${u.level}">${levelMap[u.level] || u.level}</span></td>
-            <td>${stages.length > 0 ? stages.join(', ') : '无'}</td>
-            <td>${progressText}</td>
-            <td>${quizCount} 次</td>
-            <td>${created}</td>
-            <td>
-                <button onclick="resetPassword(${u.id}, '${u.phone}')" class="reset-btn">
-                    🔑 重置密码
-                </button>
-            </td>
-        </tr>`;
-    });
-
-    html += '</tbody></table>';
-    content.innerHTML = html;
-}
-
 // ========== 事件绑定 ==========
-// 搜索按钮
 searchBtn.addEventListener('click', applyFilters);
-
-// 回车键搜索
 searchKeyword.addEventListener('keyup', function(e) {
     if (e.key === 'Enter') applyFilters();
 });
-
-// 清空按钮
 clearSearchBtn.addEventListener('click', clearSearch);
-
-// 下拉选择变化时自动搜索
+searchType.addEventListener('change', applyFilters);
 searchLevel.addEventListener('change', applyFilters);
 searchStage.addEventListener('change', applyFilters);
 searchDateFrom.addEventListener('change', applyFilters);
@@ -361,7 +308,6 @@ logoutBtn.addEventListener('click', function() {
     loginMsg.classList.add('hidden');
 });
 
-// 回车键登录
 adminPass.addEventListener('keyup', function(e) {
     if (e.key === 'Enter') loginBtn.click();
 });
