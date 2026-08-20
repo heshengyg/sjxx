@@ -1833,7 +1833,7 @@ if (level.id !== user.level) {
 
     const actualStage = getCurrentStage(stages);
     currentViewStage = actualStage > TOTAL_STAGES ? TOTAL_STAGES : actualStage;
-    if (shopNameDisplay) shopNameDisplay.textContent = user.name || '商家';
+    if (shopNameDisplay) shopNameDisplay.textContent = '🏪 ' + (user.name || '商家');
     if (levelDisplay) levelDisplay.textContent = level.label;
     const done = Math.min(stages.length, TOTAL_STAGES);
     const pct = Math.round((done / TOTAL_STAGES) * 100);
