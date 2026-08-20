@@ -775,12 +775,6 @@ async function loadQuizStateFromSupabase(stageId) {
 // ========== renderQuiz 函数 ==========
 async function renderQuiz(quiz) {
     const isExamStage = EXAM_STAGES.includes(currentViewStage);
-    // ★★★ 重置考核结果区域（避免显示其他阶段的数据）★★★
-    if (quizResult) {
-        quizResult.innerHTML = '';
-        quizResult.classList.add('hidden');
-        quizResult.className = 'msg hidden';
-    }
     // DOM 元素
     const singleContainer = document.getElementById('singleContainer');
     const multipleContainer = document.getElementById('multipleContainer');
@@ -815,18 +809,20 @@ async function renderQuiz(quiz) {
     });
 
     // ★★★ 检查当前阶段是否已通过（用于显示历史成绩）★★★
-    const stageId = currentViewStage;
-    const isPassed = currentUser && currentUser.completed_stages && currentUser.completed_stages.includes(stageId);
-    let historyData = null;
-    if (isPassed && currentUser) {
-        const results = currentUser.quiz_results || {};
-        const stageKey = `stage_${stageId}`;
-        historyData = results[stageKey] || null;
-    }
+    // ★★★ 检查当前阶段是否已通过（用于显示历史成绩）★★★
+const stageId = currentViewStage;
+const isPassed = currentUser && currentUser.completed_stages && currentUser.completed_stages.includes(stageId);
+let historyData = null;
+if (isPassed && currentUser) {
+    const results = currentUser.quiz_results || {};
+    const stageKey = `stage_${stageId}`;
+    historyData = results[stageKey] || null;
+}
 
-    // ★★★ 显示历史成绩（如果有）★★★
-    if (isPassed && historyData && quizResult) {
-        // 兼容新旧数据格式
+// ★★★ 根据当前阶段显示/隐藏历史成绩 ★★★
+if (quizResult) {
+    if (isPassed && historyData) {
+        // 当前阶段有数据，显示
         var rawData = historyData;
         var best = rawData.best || rawData;
         var last = rawData.last || rawData;
@@ -841,8 +837,13 @@ async function renderQuiz(quiz) {
         quizResult.classList.remove('hidden');
         quizResult.innerHTML = displayMsg;
         quizResult.className = bestPassed ? 'msg' : 'msg error';
-        // ★★★ 注意：这里不设置按钮文字，由 submitQuiz 统一控制 ★★★
+    } else {
+        // ★★★ 当前阶段没有数据，隐藏 ★★★
+        quizResult.classList.add('hidden');
+        quizResult.innerHTML = '';
+        quizResult.className = 'msg hidden';
     }
+}
 
     if (!isExamStage || !quiz || quiz.length === 0) {
         return;
