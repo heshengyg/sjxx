@@ -1,10 +1,14 @@
 // =====================================================
-// admin.js - 管理后台（添加重置密码功能）
+// admin.js - 管理后台（从 shop_account 表查询）
 // =====================================================
 
 const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_qnadIPVLPkAgIe5w_aR0lg_zy7VnqPC';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function hashPassword(pwd) {
+    return CryptoJS.SHA256(pwd).toString();
+}
 
 // DOM 元素
 const loginBox = document.getElementById('adminLogin');
@@ -15,10 +19,6 @@ const loginBtn = document.getElementById('adminLoginBtn');
 const loginMsg = document.getElementById('adminLoginMsg');
 const logoutBtn = document.getElementById('adminLogoutBtn');
 const content = document.getElementById('adminContent');
-
-function hashPassword(pwd) {
-    return CryptoJS.SHA256(pwd).toString();
-}
 
 function showMsg(text, isError = true) {
     loginMsg.classList.remove('hidden');
@@ -36,6 +36,7 @@ loginBtn.addEventListener('click', async function() {
         return;
     }
 
+    // ★★★ 从 shop_account 表查询管理员 ★★★
     const { data, error } = await supabaseClient
         .from('shop_account')
         .select('id, username, password, shop_name')
@@ -53,12 +54,17 @@ loginBtn.addEventListener('click', async function() {
         return;
     }
 
+    // 验证密码
     const hashedInput = hashPassword(password);
+    console.log('输入的密码哈希:', hashedInput);
+    console.log('数据库中的密码哈希:', data.password);
+
     if (data.password !== hashedInput) {
         showMsg('密码错误');
         return;
     }
 
+    // 登录成功
     loginBox.classList.add('hidden');
     dashboard.classList.remove('hidden');
     showMsg('✅ 欢迎回来，' + data.shop_name, false);
@@ -67,13 +73,11 @@ loginBtn.addEventListener('click', async function() {
 
 // ========== 重置密码 ==========
 async function resetPassword(userId, phone) {
-    // 确认弹窗
     if (!confirm('确定要重置用户 ' + phone + ' 的密码吗？\n重置后密码为：123456')) {
         return;
     }
 
     try {
-        // 将密码重置为 123456 的哈希值
         const defaultPassword = '123456';
         const hashedPassword = hashPassword(defaultPassword);
 
@@ -88,7 +92,6 @@ async function resetPassword(userId, phone) {
         }
 
         alert('✅ 密码已重置为：123456');
-        // 刷新列表
         loadAllUsers();
 
     } catch (e) {
@@ -131,7 +134,6 @@ async function loadAllUsers() {
         `;
 
         for (const u of users) {
-            // 获取该用户的进度
             const { data: prog } = await supabaseClient
                 .from('user_learning_progress')
                 .select('*')
