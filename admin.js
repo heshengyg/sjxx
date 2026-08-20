@@ -227,14 +227,13 @@ function renderTable(users) {
 
     var levelMap = { beginner: '入门', advanced: '进阶', senior: '资深', elite: '精英' };
 
-    // 构建表格结构，让 table-wrapper 填充剩余高度
     var html = '';
     
-    // 表格容器（flex:1 让表格填满）
-    html += '<div class="table-wrapper" style="flex:1;">';
+    // ★★★ 表格容器自适应 ★★★
+    html += '<div class="table-wrapper">';
     html += '<table>';
     html += '<thead><tr>';
-    html += '<th style="width:40px;">#</th>';
+    html += '<th style="width:36px;">#</th>';
     html += '<th>手机号</th>';
     html += '<th>店铺名</th>';
     html += '<th>等级</th>';
@@ -264,10 +263,10 @@ function renderTable(users) {
         html += '<td>' + progressText + '</td>';
         html += '<td>' + quizCount + ' 次</td>';
         html += '<td>' + created + '</td>';
-        html += '<td style="font-size:12px; color:#888;">' + lastLogin + '</td>';
+        html += '<td style="font-size:11px; color:#888;">' + lastLogin + '</td>';
         html += '<td><div class="action-btns">';
-        html += '<button onclick="resetPassword(' + u.id + ', \'' + u.phone + '\')" class="reset-btn">🔑 重置密码</button>';
-        html += '<button onclick="fixUserLevel(' + u.id + ')" class="fix-level-btn">修复等级</button>';
+        html += '<button onclick="resetPassword(' + u.id + ', \'' + u.phone + '\')" class="reset-btn">🔑</button>';
+        html += '<button onclick="fixUserLevel(' + u.id + ')" class="fix-level-btn">📊</button>';
         html += '</div></td>';
         html += '</tr>';
     });
@@ -277,7 +276,7 @@ function renderTable(users) {
 
     // ★★★ 分页栏 ★★★
     html += '<div class="pagination-bar">';
-    html += '<div class="page-info">共 <strong>' + users.length + '</strong> 条，当前第 <strong>' + currentPage + '/' + totalPages + '</strong> 页</div>';
+    html += '<div class="page-info">共 <strong>' + users.length + '</strong> 条，第 <strong>' + currentPage + '/' + totalPages + '</strong> 页</div>';
     html += '<div class="page-controls">';
     html += '<button onclick="goToPage(1)" ' + (currentPage <= 1 ? 'disabled' : '') + '>首页</button>';
     html += '<button onclick="goToPage(' + (currentPage - 1) + ')" ' + (currentPage <= 1 ? 'disabled' : '') + '>上一页</button>';
@@ -299,6 +298,7 @@ function renderTable(users) {
 
     content.innerHTML = html;
 }
+
 // ========== ★★★ 分页函数 ★★★ ==========
 function goToPage(page) {
     var totalPages = Math.ceil(filteredUsers.length / pageSize);
