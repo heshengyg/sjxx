@@ -20,6 +20,21 @@ const loginMsg = document.getElementById('adminLoginMsg');
 const logoutBtn = document.getElementById('adminLogoutBtn');
 const content = document.getElementById('adminContent');
 
+// 搜索相关
+const searchKeyword = document.getElementById('searchKeyword');
+const searchLevel = document.getElementById('searchLevel');
+const searchStage = document.getElementById('searchStage');
+const searchDateFrom = document.getElementById('searchDateFrom');
+const searchDateTo = document.getElementById('searchDateTo');
+const searchBtn = document.getElementById('searchBtn');
+const clearSearchBtn = document.getElementById('clearSearchBtn');
+const totalCountEl = document.getElementById('totalCount');
+const filteredCountEl = document.getElementById('filteredCount');
+
+// 全局数据
+let allUsers = [];
+let filteredUsers = [];
+
 function showMsg(text, isError = true) {
     loginMsg.classList.remove('hidden');
     loginMsg.textContent = text;
@@ -36,7 +51,6 @@ loginBtn.addEventListener('click', async function() {
         return;
     }
 
-    // ★★★ 从 shop_account 表查询管理员 ★★★
     const { data, error } = await supabaseClient
         .from('shop_account')
         .select('id, username, password, shop_name')
@@ -54,17 +68,12 @@ loginBtn.addEventListener('click', async function() {
         return;
     }
 
-    // 验证密码
     const hashedInput = hashPassword(password);
-    console.log('输入的密码哈希:', hashedInput);
-    console.log('数据库中的密码哈希:', data.password);
-
     if (data.password !== hashedInput) {
         showMsg('密码错误');
         return;
     }
 
-    // 登录成功
     loginBox.classList.add('hidden');
     dashboard.classList.remove('hidden');
     showMsg('✅ 欢迎回来，' + data.shop_name, false);
@@ -100,6 +109,117 @@ async function resetPassword(userId, phone) {
     }
 }
 
+// ========== 搜索过滤 ==========
+function applyFilters() {
+    const keyword = searchKeyword.value.trim().toLowerCase();
+    const level = searchLevel.value;
+    const stage = searchStage.value;
+    const dateFrom = searchDateFrom.value;
+    const dateTo = searchDateTo.value;
+
+    filteredUsers = allUsers.filter(function(u) {
+        // 关键词搜索（手机号、店铺名）
+        if (keyword) {
+            const phoneMatch = (u.phone || '').toLowerCase().includes(keyword);
+            const nameMatch = (u.name || '').toLowerCase().includes(keyword);
+            if (!phoneMatch && !nameMatch) return false;
+        }
+
+        // 等级过滤
+        if (level && u.level !== level) return false;
+
+        // 阶段过滤
+        if (stage) {
+            const stages = u.completed_stages || [];
+            if (!stages.includes(parseInt(stage))) return false;
+        }
+
+        // 日期范围过滤
+        if (dateFrom && u.created_at) {
+            const regDate = new Date(u.created_at);
+            const fromDate = new Date(dateFrom);
+            if (regDate < fromDate) return false;
+        }
+        if (dateTo && u.created_at) {
+            const regDate = new Date(u.created_at);
+            const toDate = new Date(dateTo);
+            // 设置到当天结束
+            toDate.setHours(23, 59, 59, 999);
+            if (regDate > toDate) return false;
+        }
+
+        return true;
+    });
+
+    // 更新统计
+    totalCountEl.textContent = allUsers.length;
+    filteredCountEl.textContent = filteredUsers.length;
+
+    renderTable(filteredUsers);
+}
+
+function clearSearch() {
+    searchKeyword.value = '';
+    searchLevel.value = '';
+    searchStage.value = '';
+    searchDateFrom.value = '';
+    searchDateTo.value = '';
+    applyFilters();
+}
+
+// ========== 渲染表格 ==========
+function renderTable(users) {
+    if (!users || users.length === 0) {
+        content.innerHTML = '<p style="padding:20px; text-align:center; color:#888;">📭 没有匹配的数据</p>';
+        return;
+    }
+
+    let html = `
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th style="width:40px;">#</th>
+                    <th>手机号</th>
+                    <th>店铺名</th>
+                    <th>等级</th>
+                    <th>已完成阶段</th>
+                    <th>学习进度</th>
+                    <th>考核记录</th>
+                    <th>注册时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    users.forEach(function(u, index) {
+        const levelMap = { beginner: '入门', advanced: '进阶', senior: '资深', elite: '精英' };
+        const stages = u.completed_stages || [];
+        const quizCount = u.quiz_results ? Object.keys(u.quiz_results).length : 0;
+        const created = u.created_at ? new Date(u.created_at).toLocaleDateString() : '-';
+        const rowNum = index + 1;
+
+        html += `<tr>
+            <td class="row-num">${rowNum}</td>
+            <td>${u.phone || '-'}</td>
+            <td><strong>${u.name || '未命名'}</strong></td>
+            <td><span class="tag tag-${u.level}">${levelMap[u.level] || u.level}</span></td>
+            <td>${stages.length > 0 ? stages.join(', ') : '无'}</td>
+            <td>-</td>
+            <td>${quizCount} 次</td>
+            <td>${created}</td>
+            <td>
+                <button onclick="resetPassword(${u.id}, '${u.phone}')" class="reset-btn">
+                    🔑 重置密码
+                </button>
+            </td>
+        </tr>`;
+    });
+
+    html += '</tbody></table>';
+    content.innerHTML = html;
+}
+
 // ========== 加载所有用户数据 ==========
 async function loadAllUsers() {
     content.innerHTML = '<p>📊 加载中...</p>';
@@ -113,67 +233,125 @@ async function loadAllUsers() {
 
         if (!users || users.length === 0) {
             content.innerHTML = '<p>📭 暂无商家数据</p>';
+            allUsers = [];
+            filteredUsers = [];
+            totalCountEl.textContent = '0';
+            filteredCountEl.textContent = '0';
             return;
         }
 
-        let html = `
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>手机号</th>
-                        <th>店铺名</th>
-                        <th>等级</th>
-                        <th>已完成阶段</th>
-                        <th>学习进度</th>
-                        <th>考核记录</th>
-                        <th>注册时间</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
+        // ★★★ 获取所有用户的进度（批量查询优化）★★★
+        const userIds = users.map(u => u.id);
+        const { data: allProgress, error: progError } = await supabaseClient
+            .from('user_learning_progress')
+            .select('user_id, completed')
+            .in('user_id', userIds);
 
-        for (const u of users) {
-            const { data: prog } = await supabaseClient
-                .from('user_learning_progress')
-                .select('*')
-                .eq('user_id', u.id);
+        if (!progError && allProgress) {
+            // 计算每个用户的进度
+            const progressMap = {};
+            allProgress.forEach(p => {
+                if (!progressMap[p.user_id]) {
+                    progressMap[p.user_id] = { completed: 0, total: 0 };
+                }
+                progressMap[p.user_id].total++;
+                if (p.completed) {
+                    progressMap[p.user_id].completed++;
+                }
+            });
 
-            const completed = prog ? prog.filter(p => p.completed).length : 0;
-            const total = prog ? prog.length : 0;
-            const progressPct = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-            const levelMap = { beginner: '入门', advanced: '进阶', senior: '资深', elite: '精英' };
-            const stages = u.completed_stages || [];
-            const quizCount = u.quiz_results ? Object.keys(u.quiz_results).length : 0;
-            const created = u.created_at ? new Date(u.created_at).toLocaleDateString() : '-';
-
-            html += `<tr>
-                <td>${u.phone || '-'}</td>
-                <td><strong>${u.name || '未命名'}</strong></td>
-                <td><span class="tag tag-${u.level}">${levelMap[u.level] || u.level}</span></td>
-                <td>${stages.length > 0 ? stages.join(', ') : '无'}</td>
-                <td>${progressPct}% (${completed}/${total})</td>
-                <td>${quizCount} 次</td>
-                <td>${created}</td>
-                <td>
-                    <button onclick="resetPassword(${u.id}, '${u.phone}')" 
-                            style="background:#1f7b4d; color:white; border:none; padding:4px 12px; border-radius:20px; cursor:pointer; font-size:13px;">
-                        🔑 重置密码
-                    </button>
-                </td>
-            </tr>`;
+            // 合并到用户数据
+            users.forEach(u => {
+                const prog = progressMap[u.id] || { completed: 0, total: 0 };
+                u._progress = prog;
+            });
+        } else {
+            users.forEach(u => {
+                u._progress = { completed: 0, total: 0 };
+            });
         }
 
-        html += '</tbody></table>';
-        html += `<p style="margin-top:16px; color:#5e6f7d; font-size:14px;">共 ${users.length} 位商家</p>`;
-        content.innerHTML = html;
+        allUsers = users;
+        applyFilters();
 
     } catch (e) {
         content.innerHTML = `<p style="color:#b33;">❌ 加载失败：${e.message}</p>`;
         console.error(e);
     }
 }
+
+// 更新渲染表格，包含进度
+function renderTable(users) {
+    if (!users || users.length === 0) {
+        content.innerHTML = '<p style="padding:20px; text-align:center; color:#888;">📭 没有匹配的数据</p>';
+        return;
+    }
+
+    let html = `
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th style="width:40px;">#</th>
+                    <th>手机号</th>
+                    <th>店铺名</th>
+                    <th>等级</th>
+                    <th>已完成阶段</th>
+                    <th>学习进度</th>
+                    <th>考核记录</th>
+                    <th>注册时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    users.forEach(function(u, index) {
+        const levelMap = { beginner: '入门', advanced: '进阶', senior: '资深', elite: '精英' };
+        const stages = u.completed_stages || [];
+        const quizCount = u.quiz_results ? Object.keys(u.quiz_results).length : 0;
+        const created = u.created_at ? new Date(u.created_at).toLocaleDateString() : '-';
+        const rowNum = index + 1;
+        const prog = u._progress || { completed: 0, total: 0 };
+        const progressText = prog.total > 0 ? Math.round((prog.completed / prog.total) * 100) + '% (' + prog.completed + '/' + prog.total + ')' : '0% (0/0)';
+
+        html += `<tr>
+            <td class="row-num">${rowNum}</td>
+            <td>${u.phone || '-'}</td>
+            <td><strong>${u.name || '未命名'}</strong></td>
+            <td><span class="tag tag-${u.level}">${levelMap[u.level] || u.level}</span></td>
+            <td>${stages.length > 0 ? stages.join(', ') : '无'}</td>
+            <td>${progressText}</td>
+            <td>${quizCount} 次</td>
+            <td>${created}</td>
+            <td>
+                <button onclick="resetPassword(${u.id}, '${u.phone}')" class="reset-btn">
+                    🔑 重置密码
+                </button>
+            </td>
+        </tr>`;
+    });
+
+    html += '</tbody></table>';
+    content.innerHTML = html;
+}
+
+// ========== 事件绑定 ==========
+// 搜索按钮
+searchBtn.addEventListener('click', applyFilters);
+
+// 回车键搜索
+searchKeyword.addEventListener('keyup', function(e) {
+    if (e.key === 'Enter') applyFilters();
+});
+
+// 清空按钮
+clearSearchBtn.addEventListener('click', clearSearch);
+
+// 下拉选择变化时自动搜索
+searchLevel.addEventListener('change', applyFilters);
+searchStage.addEventListener('change', applyFilters);
+searchDateFrom.addEventListener('change', applyFilters);
+searchDateTo.addEventListener('change', applyFilters);
 
 // ========== 退出 ==========
 logoutBtn.addEventListener('click', function() {
