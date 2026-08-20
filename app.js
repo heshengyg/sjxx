@@ -687,7 +687,7 @@ function controlQuizAreaVisibility(stageId) {
     }
 }
 
-// ========== 更新提交按钮状态 ==========
+// ========== 替换 updateSubmitButtonState 函数 ==========
 function updateSubmitButtonState() {
     const submitBtn = document.getElementById('submitQuizBtn');
     if (!submitBtn) return;
@@ -698,15 +698,27 @@ function updateSubmitButtonState() {
     }
     submitBtn.style.display = '';
     const allConfirmed = questionStates.every(s => s && s.confirmed === true);
+    
+    // ★★★ 检查是否有历史记录 ★★★
+    var hasHistory = false;
+    if (currentUser && currentUser.quiz_results) {
+        var stageKey = 'stage_' + currentViewStage;
+        var stageData = currentUser.quiz_results[stageKey] || {};
+        hasHistory = !!(stageData.best || stageData.last);
+    }
+    
     if (allConfirmed) {
         submitBtn.disabled = false;
-        submitBtn.textContent = '✅ 提交考核';
+        if (hasHistory) {
+            submitBtn.textContent = '🔄 重新提交';
+        } else {
+            submitBtn.textContent = '✅ 提交考核';
+        }
     } else {
         submitBtn.disabled = true;
         submitBtn.textContent = '📝 请先确认所有答案';
     }
 }
-
 // ========== 保存答题状态 ==========
 async function saveQuizStateToSupabase() {
     if (!currentUser) return;
