@@ -32,7 +32,7 @@ body {
 .dropdown-item.danger:hover { background:#fde8e8; }
 
 /* ========== 卡片 & 输入 ========== */
-.card { background:#f8faff; border-radius:20px; padding:16px 18px; margin-bottom:16px; border:1px solid #eef2f6; }
+.card { background:#f8faff; border-radius:20px; padding:16px 18px; margin-bottom:20px; border:1px solid #eef2f6; }
 .input-field { width:100%; padding:14px 16px; border-radius:40px; border:1px solid #dce3eb; font-size:18px; margin-bottom:12px; outline:none; display:block; }
 .input-field:focus { border-color:#1f7b4d; }
 .btn { background:#1a2e3b; color:#fff; font-weight:500; font-size:18px; padding:14px 18px; border-radius:60px; width:100%; cursor:pointer; border:none; transition:0.15s; box-shadow:0 6px 12px rgba(26,46,59,0.08); margin-top:6px; }
@@ -46,9 +46,24 @@ body {
 .progress-wrap { background:#e6eaef; height:8px; border-radius:20px; margin:12px 0 6px; overflow:hidden; }
 .progress-fill { height:100%; width:0%; background:#1f7b4d; border-radius:20px; transition:width 0.4s; }
 .progress-labels { display:flex; justify-content:space-between; font-size:16px; color:#4d6677; margin:4px 0 12px; }
-.user-info { display:flex; justify-content:space-between; margin-bottom:6px; }
+.user-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;  /* ★★★ 垂直居中 ★★★ */
+    margin-bottom: 6px;
+}
 .shop-name { font-weight:600; font-size:22px; }
-.level-tag { background:#1a2e3b; color:#fff; padding:2px 14px; border-radius:30px; font-size:15px; font-weight:500; }
+.level-tag {
+    background: #1a2e3b;
+    color: #fff;
+    padding: 4px 16px;
+    border-radius: 30px;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.5;
+    display: inline-flex;
+    align-items: center;
+}
 .status { font-size:18px; color:#1f2e3a; margin:8px 0 4px; font-weight:700; }
 
 /* ============================================================
@@ -886,6 +901,7 @@ body {
     border-radius: 24px;
     padding: 20px 18px 18px;
     margin-top: 16px;
+    margin-bottom: 28px;  /* ★★★ 增加底部间距 ★★★ */
     border: 1px solid #dce3eb;
     box-shadow: 0 4px 12px rgba(0,20,30,0.06);
 }
