@@ -10,28 +10,25 @@ function hashPassword(pwd) {
     return CryptoJS.SHA256(pwd).toString();
 }
 
-// DOM 元素
-const loginBox = document.getElementById('adminLogin');
-const dashboard = document.getElementById('adminDashboard');
-const adminUser = document.getElementById('adminUser');
-const adminPass = document.getElementById('adminPass');
-const loginBtn = document.getElementById('adminLoginBtn');
-const loginMsg = document.getElementById('adminLoginMsg');
-const logoutBtn = document.getElementById('adminLogoutBtn');
-const content = document.getElementById('adminContent');
+var loginBox = document.getElementById('adminLogin');
+var dashboard = document.getElementById('adminDashboard');
+var adminUser = document.getElementById('adminUser');
+var adminPass = document.getElementById('adminPass');
+var loginBtn = document.getElementById('adminLoginBtn');
+var loginMsg = document.getElementById('adminLoginMsg');
+var logoutBtn = document.getElementById('adminLogoutBtn');
+var content = document.getElementById('adminContent');
 
-// 搜索相关
-const searchPhone = document.getElementById('searchPhone');
-const searchName = document.getElementById('searchName');
-const searchLevel = document.getElementById('searchLevel');
-const searchStage = document.getElementById('searchStage');
-const searchDateFrom = document.getElementById('searchDateFrom');
-const searchDateTo = document.getElementById('searchDateTo');
-const clearSearchBtn = document.getElementById('clearSearchBtn');
-const totalCountEl = document.getElementById('totalCount');
-const filteredCountEl = document.getElementById('filteredCount');
+var searchPhone = document.getElementById('searchPhone');
+var searchName = document.getElementById('searchName');
+var searchLevel = document.getElementById('searchLevel');
+var searchStage = document.getElementById('searchStage');
+var searchDateFrom = document.getElementById('searchDateFrom');
+var searchDateTo = document.getElementById('searchDateTo');
+var clearSearchBtn = document.getElementById('clearSearchBtn');
+var totalCountEl = document.getElementById('totalCount');
+var filteredCountEl = document.getElementById('filteredCount');
 
-// ★★★ 分页变量 ★★★
 var currentPage = 1;
 var pageSize = 10;
 var allUsers = [];
@@ -112,7 +109,7 @@ async function resetPassword(userId, phone) {
     }
 }
 
-// ========== ★★★ 修复等级 ★★★ ==========
+// ========== 修复等级 ==========
 async function fixUserLevel(userId) {
     try {
         var { data: user, error } = await supabaseClient
@@ -124,16 +121,8 @@ async function fixUserLevel(userId) {
         if (error) throw error;
 
         var stages = user.completed_stages || [];
-        var levelMap = {
-            6: 'elite',
-            5: 'senior',
-            4: 'advanced',
-            3: 'advanced',
-            2: 'beginner',
-            1: 'beginner'
-        };
-        // 根据最大阶段判断等级
         var maxStage = stages.length > 0 ? Math.max.apply(null, stages) : 0;
+        var levelMap = { 6: 'elite', 5: 'senior', 4: 'advanced', 3: 'advanced', 2: 'beginner', 1: 'beginner' };
         var correctLevel = levelMap[maxStage] || 'beginner';
 
         if (correctLevel !== user.level) {
@@ -154,7 +143,7 @@ async function fixUserLevel(userId) {
     }
 }
 
-// ========== ★★★ 搜索过滤 ★★★ ==========
+// ========== 搜索过滤 ==========
 function applyFilters() {
     var phoneKeyword = searchPhone.value.trim().toLowerCase();
     var nameKeyword = searchName.value.trim().toLowerCase();
@@ -194,12 +183,10 @@ function applyFilters() {
     totalCountEl.textContent = allUsers.length;
     filteredCountEl.textContent = filteredUsers.length;
 
-    // 重置到第一页
     currentPage = 1;
     renderTable(filteredUsers);
 }
 
-// ========== 清空筛选 ==========
 function clearSearch() {
     searchPhone.value = '';
     searchName.value = '';
@@ -210,7 +197,7 @@ function clearSearch() {
     applyFilters();
 }
 
-// ========== ★★★ 渲染表格（含分页）★★★ ==========
+// ========== 渲染表格 ==========
 function renderTable(users) {
     if (!users || users.length === 0) {
         content.innerHTML = '<div style="flex:1; display:flex; align-items:center; justify-content:center; color:#888; font-size:16px;">📭 没有匹配的数据</div>';
@@ -228,8 +215,6 @@ function renderTable(users) {
     var levelMap = { beginner: '入门', advanced: '进阶', senior: '资深', elite: '精英' };
 
     var html = '';
-    
-    // ★★★ 表格容器自适应 ★★★
     html += '<div class="table-wrapper">';
     html += '<table>';
     html += '<thead><tr>';
@@ -265,8 +250,8 @@ function renderTable(users) {
         html += '<td>' + created + '</td>';
         html += '<td style="font-size:11px; color:#888;">' + lastLogin + '</td>';
         html += '<td><div class="action-btns">';
-        html += '<button onclick="resetPassword(' + u.id + ', \'' + u.phone + '\')" class="reset-btn">🔑</button>';
-        html += '<button onclick="fixUserLevel(' + u.id + ')" class="fix-level-btn">📊</button>';
+        html += '<button onclick="resetPassword(' + u.id + ', \'' + u.phone + '\')" class="reset-btn">🔑 重置密码</button>';
+        html += '<button onclick="fixUserLevel(' + u.id + ')" class="fix-level-btn">📊 修复等级</button>';
         html += '</div></td>';
         html += '</tr>';
     });
@@ -274,7 +259,6 @@ function renderTable(users) {
     html += '</tbody></table>';
     html += '</div>';
 
-    // ★★★ 分页栏 ★★★
     html += '<div class="pagination-bar">';
     html += '<div class="page-info">共 <strong>' + users.length + '</strong> 条，第 <strong>' + currentPage + '/' + totalPages + '</strong> 页</div>';
     html += '<div class="page-controls">';
@@ -299,7 +283,6 @@ function renderTable(users) {
     content.innerHTML = html;
 }
 
-// ========== ★★★ 分页函数 ★★★ ==========
 function goToPage(page) {
     var totalPages = Math.ceil(filteredUsers.length / pageSize);
     if (page < 1 || page > totalPages) return;
@@ -313,9 +296,9 @@ function changePageSize(size) {
     renderTable(filteredUsers);
 }
 
-// ========== 加载所有用户数据 ==========
+// ========== 加载用户数据 ==========
 async function loadAllUsers() {
-    content.innerHTML = '<p>📊 加载中...</p>';
+    content.innerHTML = '<div style="flex:1; display:flex; align-items:center; justify-content:center; color:#888;">📊 加载中...</div>';
     try {
         var { data: users, error } = await supabaseClient
             .from('merchants')
@@ -325,7 +308,7 @@ async function loadAllUsers() {
         if (error) throw error;
 
         if (!users || users.length === 0) {
-            content.innerHTML = '<p>📭 暂无商家数据</p>';
+            content.innerHTML = '<div style="flex:1; display:flex; align-items:center; justify-content:center; color:#888;">📭 暂无商家数据</div>';
             allUsers = [];
             filteredUsers = [];
             totalCountEl.textContent = '0';
@@ -333,7 +316,6 @@ async function loadAllUsers() {
             return;
         }
 
-        // 获取所有用户的进度
         var userIds = users.map(function(u) { return u.id; });
         var { data: allProgress, error: progError } = await supabaseClient
             .from('user_learning_progress')
@@ -366,7 +348,7 @@ async function loadAllUsers() {
         applyFilters();
 
     } catch (e) {
-        content.innerHTML = '<p style="color:#b33;">❌ 加载失败：' + e.message + '</p>';
+        content.innerHTML = '<div style="flex:1; display:flex; align-items:center; justify-content:center; color:#b33;">❌ 加载失败：' + e.message + '</div>';
         console.error(e);
     }
 }
