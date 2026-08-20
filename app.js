@@ -1504,16 +1504,8 @@ async function submitQuiz() {
         return;
     }
 
-    // ★★★ 判断该阶段是否已通过（历史）★★★
+    // 判断该阶段是否已通过（历史）
     var isStagePassed = currentUser.completed_stages && currentUser.completed_stages.indexOf(targetStage) !== -1;
-// ★★★ 添加调试日志 ★★★
-console.log('=== submitQuiz 调试 ===');
-console.log('targetStage:', targetStage);
-console.log('completed_stages:', currentUser.completed_stages);
-console.log('isStagePassed:', isStagePassed);
-console.log('passed:', passed);
-console.log('isFirstPass:', passed && !isStagePassed);
-console.log('isRetakePass:', passed && isStagePassed);
 
     // 未通过时检查资源完成
     if (!isStagePassed) {
@@ -1571,7 +1563,7 @@ console.log('isRetakePass:', passed && isStagePassed);
         date: new Date().toISOString()
     };
 
-    // ★★★ 检查是否有历史记录 ★★★
+    // 检查是否有历史记录
     var hasHistory = !!(stageDataObj.best || stageDataObj.last);
 
     // 更新最后一次成绩（每次都更新）
@@ -1616,13 +1608,14 @@ console.log('isRetakePass:', passed && isStagePassed);
         displayMsg += '📊 成绩：' + lastData.correct + '/' + lastData.total + '（达标分 ' + passThreshold + '）';
     }
 
+    // 显示结果
     if (quizResult) {
         quizResult.classList.remove('hidden');
         quizResult.innerHTML = displayMsg;
         quizResult.className = bestPassed ? 'msg' : 'msg error';
     }
 
-    // ★★★ 按钮逻辑：有历史记录就显示"重新提交" ★★★
+    // 按钮逻辑：有历史记录就显示"重新提交"
     var submitBtn = document.getElementById('submitQuizBtn');
     if (submitBtn) {
         if (hasHistory) {
@@ -1642,13 +1635,25 @@ console.log('isRetakePass:', passed && isStagePassed);
         refreshBtn.onclick = goToLatestStage;
     }
 
-    // ★★★ 判断晋级类型 ★★★
-    var isFirstPass = passed && !isStagePassed;      // 首次通过（晋级）
-    var isRetakePass = passed && isStagePassed;      // 重考通过（已通过的阶段再次提交）
+    // ★★★ 如果本次未通过，不跳转 ★★★
+    if (!passed) {
+        console.log('📝 本次未通过，停留在当前页面');
+        if (quizResult) {
+            quizResult.innerHTML = displayMsg + '<br>❌ 未达标，请重新作答后提交';
+            quizResult.className = 'msg error';
+        }
+        return;
+    }
 
-    // ★★★ 跳转逻辑 ★★★
+    // ★★★ 判断晋级类型 ★★★
+    var isFirstPass = passed && !isStagePassed;  // 首次通过（晋级）
+    
+    // ★★★ 重考通过：本次成绩 > 历史最好成绩 才跳转 ★★★
+    var bestScore = best ? best.correct : 0;
+    var isRetakePass = passed && isStagePassed && (earnedScore > bestScore);
+
     if (isFirstPass) {
-        // ★ 首次通过：更新 completed_stages，跳转到最新阶段
+        // ★ 首次通过：跳转到最新阶段
         var newStages = (currentUser.completed_stages || []).concat([targetStage]);
         await supabaseClient.from('merchants').update({ completed_stages: newStages }).eq('id', currentUser.id);
         currentUser.completed_stages = newStages;
@@ -1693,6 +1698,35 @@ console.log('isRetakePass:', passed && isStagePassed);
         }, 5000);
 
     } else if (isRetakePass) {
+        // ★ 重考通过且成绩高于历史最好 → 跳转到下一阶段
+        if (quizResult) {
+            quizResult.innerHTML = displayMsg + '<br>⏳ 5秒后自动进入下一阶段...';
+            quizResult.className = 'msg';
+        }
+
+        var nextStageRetake = targetStage + 1;
+        if (nextStageRetake > TOTAL_STAGES) nextStageRetake = TOTAL_STAGES;
+
+        setTimeout(function() {
+            if (currentViewStage !== nextStageRetake) {
+                switchStageSync(nextStageRetake);
+            } else {
+                updateDashboard(currentUser);
+            }
+            if (quizResult) {
+                quizResult.classList.add('hidden');
+            }
+        }, 5000);
+    } else {
+        // ★★★ 重考通过但成绩不高于历史最好 → 不跳转 ★★★
+        console.log('📝 重考通过但未超过历史最好成绩，停留在当前页面');
+        if (quizResult) {
+            quizResult.innerHTML = displayMsg + '<br>✅ 已通过（未超过历史最好成绩，可继续挑战更高分）';
+            quizResult.className = 'msg';
+        }
+    }
+}
+else if (isRetakePass) {
         // ★ 重考通过：如果该阶段还没记录，更新 completed_stages，跳转到下一阶段（不是最新阶段）
         var stageAlreadyRecorded = currentUser.completed_stages && currentUser.completed_stages.indexOf(targetStage) !== -1;
 
