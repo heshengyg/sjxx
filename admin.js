@@ -1,5 +1,5 @@
 // =====================================================
-// admin.js - 管理后台（移除修复等级按钮）
+// admin.js - 管理后台
 // =====================================================
 
 const SUPABASE_URL = 'https://sjgegoibummrvyuhehco.supabase.co';
@@ -33,6 +33,10 @@ var currentPage = 1;
 var pageSize = 10;
 var allUsers = [];
 var filteredUsers = [];
+
+// ★★★ 排序变量 ★★★
+var sortField = 'last_login';
+var sortOrder = 'desc';
 
 function showMsg(text, isError) {
     if (isError === undefined) isError = true;
@@ -78,9 +82,9 @@ loginBtn.addEventListener('click', async function() {
     dashboard.classList.remove('hidden');
     showMsg('✅ 欢迎回来，' + data.shop_name, false);
     
-    // ★★★ 关键修复：添加 await ★★★
     await loadAllUsers();
 });
+
 // ========== 重置密码 ==========
 async function resetPassword(userId, phone) {
     if (!confirm('确定要重置用户 ' + phone + ' 的密码吗？\n重置后密码为：123456')) {
@@ -147,6 +151,34 @@ function applyFilters() {
         return true;
     });
 
+    // ★★★ 排序 ★★★
+    filteredUsers.sort(function(a, b) {
+        var valA = a[sortField] || '';
+        var valB = b[sortField] || '';
+        
+        if (!valA && !valB) return 0;
+        if (!valA) return 1;
+        if (!valB) return -1;
+        
+        if (sortField === 'last_login' || sortField === 'created_at') {
+            var dateA = new Date(valA);
+            var dateB = new Date(valB);
+            if (sortOrder === 'desc') {
+                return dateB - dateA;
+            } else {
+                return dateA - dateB;
+            }
+        }
+        
+        var strA = String(valA).toLowerCase();
+        var strB = String(valB).toLowerCase();
+        if (sortOrder === 'desc') {
+            return strB.localeCompare(strA);
+        } else {
+            return strA.localeCompare(strB);
+        }
+    });
+
     totalCountEl.textContent = allUsers.length;
     filteredCountEl.textContent = filteredUsers.length;
 
@@ -161,6 +193,17 @@ function clearSearch() {
     searchStage.value = '';
     searchDateFrom.value = '';
     searchDateTo.value = '';
+    applyFilters();
+}
+
+// ========== 排序切换 ==========
+function toggleSort(field) {
+    if (sortField === field) {
+        sortOrder = (sortOrder === 'desc') ? 'asc' : 'desc';
+    } else {
+        sortField = field;
+        sortOrder = 'desc';
+    }
     applyFilters();
 }
 
@@ -193,7 +236,8 @@ function renderTable(users) {
     html += '<th>学习进度</th>';
     html += '<th>考核记录</th>';
     html += '<th>注册时间</th>';
-    html += '<th>最后登录</th>';
+    // ★★★ 最后登录列 - 可点击排序 ★★★
+    html += '<th style="cursor:pointer; user-select:none;" onclick="toggleSort(\'last_login\')">最后登录 ' + (sortField === 'last_login' ? (sortOrder === 'desc' ? '↓' : '↑') : '⇅') + '</th>';
     html += '<th>操作</th>';
     html += '</tr></thead><tbody>';
 
@@ -325,6 +369,7 @@ searchStage.addEventListener('change', applyFilters);
 searchDateFrom.addEventListener('change', applyFilters);
 searchDateTo.addEventListener('change', applyFilters);
 clearSearchBtn.addEventListener('click', clearSearch);
+
 // ========== 刷新列表 ==========
 var refreshBtn = document.getElementById('refreshListBtn');
 if (refreshBtn) {
