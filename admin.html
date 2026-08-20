@@ -19,18 +19,29 @@
             flex-direction: column;
         }
 
+        /* ★★★ 登录页面 - 居中显示 ★★★ */
         #adminLogin {
             flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
+            background: #f5f7fb;
         }
         .login-box {
             max-width: 400px;
             width: 100%;
             margin: 0 auto;
+            padding: 30px 24px;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+        }
+        .login-box h2 {
+            text-align: center;
+            margin-bottom: 20px;
         }
 
+        /* ★★★ 后台主体 ★★★ */
         .admin-container { 
             max-width: 1200px; 
             margin: 0 auto; 
@@ -41,6 +52,7 @@
             overflow: hidden;
             box-sizing: border-box;
             width: 100%;
+            background: #f5f7fb;
         }
 
         .admin-header { 
@@ -56,7 +68,7 @@
             display: flex; 
             flex-direction: column;
             gap: 8px; 
-            background: #f8faff; 
+            background: white; 
             padding: 12px 16px; 
             border-radius: 14px; 
             border: 1px solid #eef2f6; 
@@ -167,7 +179,7 @@
             flex-wrap: wrap;
             gap: 8px;
             padding: 10px 16px;
-            background: #f8faff;
+            background: white;
             border-radius: 0 0 14px 14px;
             border: 1px solid #eef2f6;
             border-top: none;
@@ -239,12 +251,15 @@
         .tag-senior { background: #f0e6d4; color: #7a5a1a; }
         .tag-elite { background: #f0d4e6; color: #7a1a5a; }
 
-        .hidden { display: none; }
+        .hidden { display: none !important; }
         .msg { background: #eef5f0; padding: 10px 14px; border-radius: 40px; color: #1a4d33; font-size: 14px; margin: 12px 0 8px; }
         .msg.error { background: #f8dddd; color: #8b3a3a; }
         .btn { background: #1a2e3b; color: white; font-weight: 500; font-size: 15px; padding: 14px 18px; border-radius: 60px; width: 100%; cursor: pointer; border: none; transition: 0.15s; margin-top: 6px; }
+        .btn:hover { background: #2a4e5b; }
         .btn-outline { background: transparent; border: 1.5px solid #d0d9e2; color: #1a2e3b; width: auto; padding: 6px 16px; font-size: 13px; border-radius: 30px; cursor: pointer; }
-        .input-field { width: 100%; padding: 14px 16px; border-radius: 40px; border: 1px solid #dce3eb; font-size: 16px; margin-bottom: 12px; outline: none; display: block; }
+        .btn-outline:hover { background: #eef2f6; }
+        .input-field { width: 100%; padding: 14px 16px; border-radius: 40px; border: 1px solid #dce3eb; font-size: 16px; margin-bottom: 12px; outline: none; display: block; box-sizing: border-box; }
+        .input-field:focus { border-color: #1f7b4d; }
         .reset-btn { background: #1f7b4d; color: white; border: none; padding: 4px 12px; border-radius: 20px; cursor: pointer; font-size: 12px; transition: 0.2s; height: 28px; }
         .reset-btn:hover { background: #16633b; }
         .fix-level-btn { background: #d4a017; color: white; border: none; padding: 4px 12px; border-radius: 20px; cursor: pointer; font-size: 12px; transition: 0.2s; height: 28px; }
@@ -259,19 +274,24 @@
             .table-wrapper th, .table-wrapper td { padding: 4px 6px; font-size: 11px; }
             .pagination-bar { flex-direction: column; align-items: stretch; text-align: center; }
             .pagination-bar .page-controls { justify-content: center; }
+            .login-box { margin: 20px; }
         }
     </style>
 </head>
 <body>
 <div id="adminApp">
-    <div id="adminLogin" class="login-box card">
-        <h2 style="margin-bottom:16px;">🔐 管理员登录</h2>
-        <input id="adminUser" class="input-field" type="text" placeholder="用户名" value="admin">
-        <input id="adminPass" class="input-field" type="password" placeholder="密码">
-        <button id="adminLoginBtn" class="btn">登录</button>
-        <div id="adminLoginMsg" class="msg hidden"></div>
+    <!-- ★★★ 登录界面 ★★★ -->
+    <div id="adminLogin">
+        <div class="login-box card">
+            <h2>🔐 管理员登录</h2>
+            <input id="adminUser" class="input-field" type="text" placeholder="用户名" value="admin">
+            <input id="adminPass" class="input-field" type="password" placeholder="密码">
+            <button id="adminLoginBtn" class="btn">登录</button>
+            <div id="adminLoginMsg" class="msg hidden"></div>
+        </div>
     </div>
 
+    <!-- ★★★ 后台界面 ★★★ -->
     <div id="adminDashboard" class="hidden admin-container">
         <div class="admin-header">
             <h1>📊 商家学习总览</h1>
