@@ -775,7 +775,12 @@ async function loadQuizStateFromSupabase(stageId) {
 // ========== renderQuiz 函数 ==========
 async function renderQuiz(quiz) {
     const isExamStage = EXAM_STAGES.includes(currentViewStage);
-
+    // ★★★ 重置考核结果区域（避免显示其他阶段的数据）★★★
+    if (quizResult) {
+        quizResult.innerHTML = '';
+        quizResult.classList.add('hidden');
+        quizResult.className = 'msg hidden';
+    }
     // DOM 元素
     const singleContainer = document.getElementById('singleContainer');
     const multipleContainer = document.getElementById('multipleContainer');
