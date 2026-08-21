@@ -46,8 +46,7 @@ let backPressCount = 0;
 let backPressTimer = null;
 let isBackGuardActive = false;
 let isLoggingOut = false;
-let lastBackPressTime = 0;  // ★新增：记录上次返回时间
-
+let lastBackPressTime = 0;
 // ========== ★ 新增：权益数据 ==========
 let benefitsData = null;
 let benefitsLoaded = false;
@@ -1918,6 +1917,8 @@ function setupBackButtonGuard() {
     isBackGuardActive = true;
     isLoggingOut = false;
     backPressCount = 0;
+    lastBackPressTime = 0;
+    
     if (backPressTimer) {
         clearTimeout(backPressTimer);
         backPressTimer = null;
@@ -1932,7 +1933,6 @@ function setupBackButtonGuard() {
     
     console.log('🛡️ 返回键拦截已启动');
 }
-
 function handlePopState(event) {
     // 只处理我们的拦截状态
     if (!event.state || !event.state.guard) {
@@ -1949,42 +1949,43 @@ function handlePopState(event) {
     const now = Date.now();
     const timeSinceLastPress = now - lastBackPressTime;
     
-    // ★★★ 关键修复：如果距离上次点击超过 1 秒，重置计数为 0 ★★★
-    if (timeSinceLastPress > 1000) {
-        backPressCount = 0;
-        console.log('⏰ 超过1秒，计数已重置为0');
-    }
+    console.log(`📱 返回点击，距上次: ${timeSinceLastPress}ms`);
     
-    // ★★★ 更新最后一次点击时间（放在重置判断之后）★★★
-    lastBackPressTime = now;
-    
-    // ★★★ 增加计数 ★★★
-    backPressCount++;
-    console.log(`📱 返回键点击次数: ${backPressCount}，距上次: ${timeSinceLastPress}ms`);
-    
-    if (backPressCount === 1) {
-        // 第一次返回：显示提示
-        showBackToast('再按一次返回键退出登录');
+    // ★★★ 核心逻辑：每次点击都重新计算 ★★★
+    // 如果距离上次点击超过 1 秒 或 是第一次点击（lastBackPressTime === 0）
+    if (timeSinceLastPress > 1000 || lastBackPressTime === 0) {
+        // 重置为第一次点击
+        backPressCount = 1;
+        lastBackPressTime = now;
         
-        // 清除旧的计时器
+        // 显示提示
+        showBackToast('再按一次返回键退出登录');
+        console.log('📱 第一次返回（显示提示）');
+        
+        // 清除旧定时器
+        if (backPressTimer) {
+            clearTimeout(backPressTimer);
+            backPressTimer = null;
+        }
+    } else {
+        // ★★★ 1秒内再次点击 → 第二次，执行退出 ★★★
+        console.log('🚪 1秒内连续2次返回，执行退出');
+        
+        // 清理状态
+        lastBackPressTime = 0;
+        backPressCount = 0;
+        isLoggingOut = true;
+        
         if (backPressTimer) {
             clearTimeout(backPressTimer);
             backPressTimer = null;
         }
         
-    } else if (backPressCount >= 2) {
-        // ★★★ 第二次返回（1秒内）：执行退出登录 ★★★
-        clearTimeout(backPressTimer);
-        backPressTimer = null;
-        backPressCount = 0;
-        isLoggingOut = true;
-        lastBackPressTime = 0;
-        
         // 移除提示
         const toast = document.getElementById('backToast');
         if (toast) toast.remove();
         
-        console.log('🚪 执行退出登录（连续2次返回）');
+        // 执行退出
         logout();
     }
     
@@ -2000,30 +2001,31 @@ function showBackToast(message) {
     const toast = document.createElement('div');
     toast.id = 'backToast';
     toast.textContent = message;
-    Object.assign(toast.style, {
-        position: 'fixed',
-        bottom: '100px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        background: 'rgba(0,0,0,0.82)',
-        color: '#ffffff',
-        padding: '14px 28px',
-        borderRadius: '30px',
-        fontSize: '17px',
-        fontWeight: '500',
-        zIndex: '999999',  // ★ 提高层级
-        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',  // ★ 微信兼容
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-        letterSpacing: '0.5px',
-        maxWidth: '85%',
-        textAlign: 'center',
-        opacity: '1',
-        transition: 'opacity 0.3s ease',
-        pointerEvents: 'none',  // ★ 不阻挡点击
-        whiteSpace: 'nowrap'
-    });
+    
+    // ★★★ 使用更兼容的样式 ★★★
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 120px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.85);
+        color: #ffffff;
+        padding: 14px 28px;
+        border-radius: 30px;
+        font-size: 17px;
+        font-weight: 500;
+        z-index: 999999;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        font-family: system-ui, -apple-system, sans-serif;
+        letter-spacing: 0.5px;
+        max-width: 85%;
+        text-align: center;
+        white-space: nowrap;
+        pointer-events: none;
+        opacity: 1;
+        transition: opacity 0.3s ease;
+    `;
+    
     document.body.appendChild(toast);
     
     // 2.5秒后自动消失
