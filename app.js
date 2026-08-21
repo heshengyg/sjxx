@@ -1919,80 +1919,26 @@ function handlePopState(event) {
         return;
     }
     
-    // ★★★ 从 sessionStorage 读取上次点击时间 ★★★
-    const now = Date.now();
-    let savedTime = 0;
-    const savedState = sessionStorage.getItem('backGuardState');
-    if (savedState) {
-        try {
-            savedTime = JSON.parse(savedState).t || 0;
-        } catch (e) {}
-    }
+    // ★★★ 核心：每次按返回，先强制重置拦截状态 ★★★
+    console.log('🔄 返回键按下，重置拦截状态...');
     
-    const timeSinceLastPress = now - savedTime;
+    // 1. 清除 sessionStorage 中的返回状态
+    sessionStorage.removeItem('backGuardState');
     
-    if (savedTime === 0 || timeSinceLastPress > 1000) {
-        // ★★★ 首次 或 超过1秒：显示提示，强制重置状态 ★★★
-        showBackToast('🔄 页面已刷新！');
-        
-        // 记录当前时间到 sessionStorage
-        sessionStorage.setItem('backGuardState', JSON.stringify({ t: now }));
-        
-        // ★★★ 核心：强制重置返回拦截状态（模拟切换当前阶段） ★★★
-        const currentStage = currentViewStage;
-        console.log(`📱 强制重置返回拦截状态（模拟切换阶段 ${currentStage}）`);
-        
-        // ★★★ 直接执行重置逻辑，绕过 isSwitching 检查 ★★★
-        // 1. 重置处理锁
-        isProcessingPopState = false;
-        
-        // 2. 清除 sessionStorage
-        sessionStorage.removeItem('backGuardState');
-        
-        // 3. 移除旧的 toast
-        const toast = document.getElementById('backToast');
-        if (toast) toast.remove();
-        
-        // 4. 重新设置拦截（相当于重新初始化）
-        // 先关闭再开启，确保状态重置
-        setupBackButtonGuard();
-        
-        // 5. 重新加载当前阶段数据并渲染（与点击阶段卡片效果一致）
-        const data = allStageData[currentStage] || stageData[currentStage];
-        if (data) {
-            updateStageUI(data);
-            console.log(`✅ 阶段 ${currentStage} 已重新渲染`);
-        } else {
-            // 如果数据不存在，重新加载
-            loadStageData(currentStage).then(d => {
-                if (d) {
-                    updateStageUI(d);
-                    console.log(`✅ 阶段 ${currentStage} 已重新加载并渲染`);
-                }
-            });
-        }
-        
-        // 6. 更新阶段卡片的激活状态
-        document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
-        const cards = document.querySelectorAll('.stage-card');
-        if (cards[currentStage - 1]) cards[currentStage - 1].classList.add('active');
-        const contentCards = document.querySelectorAll('#stageListContent .stage-card');
-        if (contentCards[currentStage - 1]) contentCards[currentStage - 1].classList.add('active');
-        
-        console.log(`📱 第一次返回（显示提示，已重置拦截状态）`);
-    } else {
-        // ★★★ 1秒内再次点击：执行退出 ★★★
-        console.log('🚪 1秒内连续2次返回，执行退出');
-        sessionStorage.removeItem('backGuardState');
-        isLoggingOut = true;
-        const toast = document.getElementById('backToast');
-        if (toast) toast.remove();
-        logout();
-        isProcessingPopState = false;
-        return;
-    }
+    // 2. 重置处理锁
+    isProcessingPopState = false;
     
+    // 3. 重新设置拦截
+    setupBackButtonGuard();
+    
+    // 4. 显示提示
+    showBackToast('🔄 页面已刷新！');
+    
+    // 5. 重新推入拦截状态
     history.pushState({ guard: true }, '');
+    
+    console.log('📱 返回键已处理，拦截状态已重置');
+    
     setTimeout(function() {
         isProcessingPopState = false;
     }, 200);
