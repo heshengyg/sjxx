@@ -1932,22 +1932,21 @@ function handlePopState(event) {
     const timeSinceLastPress = now - savedTime;
     
     if (savedTime === 0 || timeSinceLastPress > 1000) {
-        // ★★★ 首次 或 超过1秒：显示提示，重新渲染当前阶段 ★★★
+        // ★★★ 首次 或 超过1秒：显示提示，模拟点击当前阶段 ★★★
         showBackToast('🔄 页面已刷新！');
         
         // 记录当前时间到 sessionStorage
         sessionStorage.setItem('backGuardState', JSON.stringify({ t: now }));
         
-        // 重新渲染当前阶段（不刷新页面）
+        // ★★★ 核心：模拟点击当前阶段（触发 switchStageSync，重置所有状态）★★★
         const currentStage = currentViewStage;
-        loadStageData(currentStage).then(data => {
-            if (data) {
-                updateStageUI(data);
-                console.log(`✅ 阶段 ${currentStage} 已重新渲染`);
-            }
-        });
+        console.log(`📱 模拟点击阶段 ${currentStage}，重置返回拦截状态`);
         
-        console.log(`📱 第一次返回（显示提示，重新渲染阶段 ${currentViewStage}）`);
+        // 直接调用 switchStageSync，传入当前阶段
+        // 这会触发阶段切换逻辑，重置 sessionStorage 中的 backGuardState
+        switchStageSync(currentStage);
+        
+        console.log(`📱 第一次返回（显示提示，已模拟切换阶段 ${currentStage}）`);
     } else {
         // ★★★ 1秒内再次点击：执行退出 ★★★
         console.log('🚪 1秒内连续2次返回，执行退出');
@@ -1965,7 +1964,6 @@ function handlePopState(event) {
         isProcessingPopState = false;
     }, 200);
 }
-
 // 显示轻提示
 function showBackToast(message) {
     const oldToast = document.getElementById('backToast');
