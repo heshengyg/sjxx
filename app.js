@@ -1948,31 +1948,29 @@ function handlePopState(event) {
     
     const now = Date.now();
     const timeSinceLastPress = now - lastBackPressTime;
-    lastBackPressTime = now;
     
-    // ★★★ 核心逻辑：如果距离上次点击超过 1 秒，重置计数 ★★★
-    if (timeSinceLastPress >1000 && backPressCount > 0) {
+    // ★★★ 关键修复：如果距离上次点击超过 1 秒，重置计数为 0 ★★★
+    if (timeSinceLastPress > 1000) {
         backPressCount = 0;
-        console.log('⏰ 超过2秒，计数已重置');
+        console.log('⏰ 超过1秒，计数已重置为0');
     }
     
+    // ★★★ 更新最后一次点击时间（放在重置判断之后）★★★
+    lastBackPressTime = now;
+    
+    // ★★★ 增加计数 ★★★
     backPressCount++;
-    console.log(`📱 返回键点击次数: ${backPressCount}，间隔: ${timeSinceLastPress}ms`);
+    console.log(`📱 返回键点击次数: ${backPressCount}，距上次: ${timeSinceLastPress}ms`);
     
     if (backPressCount === 1) {
-        // ★★★ 第一次返回：显示提示，不刷新页面 ★★★
+        // 第一次返回：显示提示
         showBackToast('再按一次返回键退出登录');
         
-        // 设置超时重置计数（2秒内连按才有效）
-        if (backPressTimer) clearTimeout(backPressTimer);
-        backPressTimer = setTimeout(() => {
-            backPressCount = 0;
+        // 清除旧的计时器
+        if (backPressTimer) {
+            clearTimeout(backPressTimer);
             backPressTimer = null;
-            console.log('⏰ 返回计数已重置（超时）');
-            // 移除提示
-            const toast = document.getElementById('backToast');
-            if (toast) toast.remove();
-        }, 1000);
+        }
         
     } else if (backPressCount >= 2) {
         // ★★★ 第二次返回（1秒内）：执行退出登录 ★★★
@@ -1987,14 +1985,12 @@ function handlePopState(event) {
         if (toast) toast.remove();
         
         console.log('🚪 执行退出登录（连续2次返回）');
-        // 执行退出逻辑
         logout();
     }
     
     // 重新推入拦截记录，保持拦截状态
     history.pushState({ guard: true }, '');
 }
-
 // 显示轻提示
 function showBackToast(message) {
     // 移除已有的toast
@@ -2006,38 +2002,38 @@ function showBackToast(message) {
     toast.textContent = message;
     Object.assign(toast.style, {
         position: 'fixed',
-        bottom: '120px',
+        bottom: '100px',
         left: '50%',
         transform: 'translateX(-50%)',
-        background: 'rgba(0,0,0,0.78)',
-        color: '#fff',
-        padding: '14px 32px',
+        background: 'rgba(0,0,0,0.82)',
+        color: '#ffffff',
+        padding: '14px 28px',
         borderRadius: '30px',
         fontSize: '17px',
         fontWeight: '500',
-        zIndex: '99999',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+        zIndex: '999999',  // ★ 提高层级
+        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
         backdropFilter: 'blur(10px)',
-        transition: 'opacity 0.4s ease, transform 0.4s ease',
+        WebkitBackdropFilter: 'blur(10px)',  // ★ 微信兼容
         fontFamily: 'system-ui, -apple-system, sans-serif',
         letterSpacing: '0.5px',
-        maxWidth: '90%',
+        maxWidth: '85%',
         textAlign: 'center',
         opacity: '1',
-        transform: 'translateX(-50%) translateY(0)'
+        transition: 'opacity 0.3s ease',
+        pointerEvents: 'none',  // ★ 不阻挡点击
+        whiteSpace: 'nowrap'
     });
     document.body.appendChild(toast);
     
-    // 2.5秒后自动淡出
+    // 2.5秒后自动消失
     setTimeout(() => {
         toast.style.opacity = '0';
-        toast.style.transform = 'translateX(-50%) translateY(20px)';
         setTimeout(() => {
             if (toast.parentNode) toast.remove();
         }, 400);
     }, 2500);
 }
-
 // ========== Auth ==========
 async function handleAuth() {
     if (!phoneInput || !passwordInput || !nameInput) return;
