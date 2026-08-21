@@ -1109,6 +1109,8 @@ if (quizResult) {
 let currentVideoElement = null;
 
 function openResourceDetail(resource, allResources) {
+    // ★★★ 新增：禁止背景滚动 ★★★
+    document.body.classList.add('modal-open');
     if (!detailModal || !detailTitle || !detailBody || !detailProgress) return;
     currentImageResources = allResources.filter(r => r.type === resource.type);
     currentImageIdx = currentImageResources.findIndex(r => r.id === resource.id);
@@ -1337,6 +1339,8 @@ function openResourceDetail(resource, allResources) {
 }
 
 function closeDetailModal() {
+    // ★★★ 新增：恢复背景滚动 ★★★
+    document.body.classList.remove('modal-open');
     if (!detailModal) return;
     detailModal.classList.remove('open');
     

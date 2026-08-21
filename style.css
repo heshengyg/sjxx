@@ -495,8 +495,15 @@ body {
 }
 .modal-overlay.open {
     display: flex;
+    /* ★ 新增：阻止背景滚动穿透 */
+    overscroll-behavior: contain;
 }
-
+/* ★ 详情弹窗打开时，锁定 body 滚动 */
+body.modal-open {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+}
 /* 弹窗卡片 - 通用 */
 .modal-card {
     background: #fff;
@@ -1206,13 +1213,14 @@ body {
 #detailBody {
     flex: 1;
     overflow: hidden;
-    padding: 0;  /* ← 去掉 padding，让内容完全撑满 */
+    padding: 0;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;  /* ← 从顶部开始 */
-    align-items: stretch;  /* ← 水平拉伸撑满 */
+    justify-content: flex-start;
+    align-items: stretch;
     background: #f8faff;
+    position: relative;  /* ★ 新增 */
 }
 
 /* 视频容器 - 自适应 */
@@ -1294,17 +1302,19 @@ body {
 /* 文章内容 */
 #detailBody .article-content {
     width: 100%;
-    flex: 1;  /* ← 改为 flex:1，撑满剩余空间 */
-    min-height: 0;  /* ← 防止 flex 溢出 */
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
-    padding: 16px 20px;  /* ← 稍微增加内边距，提升阅读体验 */
+    padding: 16px 20px 20px 20px;  /* ★ 增加底部内边距 */
     background: #fff;
-    border-radius: 0;  /* ← 去掉圆角，紧贴边缘 */
     font-size: 17px;
-    line-height: 1.9;  /* ← 稍微增加行高，更易读 */
+    line-height: 1.9;
     word-wrap: break-word;
     box-sizing: border-box;
-    border-radius: 0 0 12px 12px;  /* 只保留底部圆角 */
+    border-radius: 0;
+    /* ★ 新增：确保内容区域占满 */
+    height: 100%;
+    max-height: 100%;
 }
 /* 进度条 - 固定在底部 */
 #detailProgress {
@@ -1317,8 +1327,10 @@ body {
     text-align: center;
     background: #fff;
     border-radius: 0 0 28px 28px;
+    /* ★ 新增：确保底部固定 */
+    position: relative;
+    z-index: 2;
 }
-
 /* 移动端适配 */
 @media (max-width: 480px) {
     #detailModal .modal-card {
