@@ -1882,50 +1882,67 @@ async function updateDashboard(user) {
     }
 }
 
-// ========== 返回键拦截 - 终极方案 ==========
+// ========== 返回键拦截 ==========
 
-// 在页面加载时，推入多个拦截状态，防止返回退出
+// 判断是否在微信中
+const isWechat = /MicroMessenger/i.test(navigator.userAgent);
+console.log('📱 是否微信环境:', isWechat);
+
 function setupBackButtonGuard() {
     if (isLoggingOut) return;
     
-    // ★★★ 清除旧的状态 ★★★
+    // 清除旧的状态
     sessionStorage.removeItem('backGuardState');
     
-    // ★★★ 推入多个历史记录，让浏览器无法退出 ★★★
-    // 先清空历史记录状态
-    history.replaceState(null, '', window.location.href);
-    
-    // 推入 5 个拦截状态，这样用户按 5 次返回都不会退出
-    for (let i = 0; i < 5; i++) {
-        history.pushState({ guard: true }, '');
+    try {
+        // 先清空历史记录状态
+        history.replaceState(null, '', window.location.href);
+        
+        // ★★★ 根据不同环境推入不同数量的拦截状态 ★★★
+        const count = isWechat ? 10 : 3;
+        for (let i = 0; i < count; i++) {
+            history.pushState({ guard: true }, '');
+        }
+        console.log(`🛡️ 返回键拦截已启动（${isWechat ? '微信' : '普通'}环境，推入${count}个拦截状态）`);
+    } catch(e) {
+        console.warn('推入历史记录失败:', e);
+        // 降级方案：至少推入1个
+        try { history.pushState({ guard: true }, ''); } catch(e2) {}
     }
     
     window.removeEventListener('popstate', handlePopState);
     window.addEventListener('popstate', handlePopState);
-    console.log('🛡️ 返回键拦截已启动（已推入5个拦截状态）');
 }
 
 function handlePopState(event) {
     if (isProcessingPopState) {
-        if (!history.state || !history.state.guard) {
-            history.pushState({ guard: true }, '');
-        }
+        try {
+            if (!history.state || !history.state.guard) {
+                history.pushState({ guard: true }, '');
+            }
+        } catch(e) {}
         return;
     }
     isProcessingPopState = true;
 
-    // ★★★ 如果状态丢失，重新推入 ★★★
-    if (!event.state || !event.state.guard) {
-        history.replaceState(null, '', window.location.href);
-        for (let i = 0; i < 3; i++) {
-            history.pushState({ guard: true }, '');
+    try {
+        // 如果状态丢失，重新推入
+        if (!event.state || !event.state.guard) {
+            history.replaceState(null, '', window.location.href);
+            const count = isWechat ? 10 : 3;
+            for (let i = 0; i < count; i++) {
+                history.pushState({ guard: true }, '');
+            }
+            isProcessingPopState = false;
+            return;
         }
+    } catch(e) {
         isProcessingPopState = false;
         return;
     }
     
     if (isLoggingOut) {
-        history.pushState({ guard: true }, '');
+        try { history.pushState({ guard: true }, ''); } catch(e) {}
         isProcessingPopState = false;
         return;
     }
@@ -1933,13 +1950,18 @@ function handlePopState(event) {
     // ★★★ 每次返回都显示提示 ★★★
     showBackToast('🔄 页面已刷新！');
     
-    // ★★★ 清除 sessionStorage ★★★
+    // 清除 sessionStorage
     sessionStorage.removeItem('backGuardState');
     
-    // ★★★ 重新推入一个拦截状态，保持堆叠 ★★★
-    history.pushState({ guard: true }, '');
+    // 重新推入拦截状态，保持堆叠
+    try {
+        const count = isWechat ? 3 : 1;
+        for (let i = 0; i < count; i++) {
+            history.pushState({ guard: true }, '');
+        }
+    } catch(e) {}
     
-    console.log('📱 返回键已处理，拦截状态堆叠数:', history.length);
+    console.log('📱 返回键已处理');
     
     setTimeout(function() {
         isProcessingPopState = false;
