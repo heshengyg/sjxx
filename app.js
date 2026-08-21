@@ -1915,17 +1915,7 @@ if (level.id !== user.level) {
 
 // ========== 返回键拦截 ==========
 function setupBackButtonGuard() {
-    // ★★★ 如果已经激活，不要重置 lastBackPressTime ★★★
-    if (isBackGuardActive) {
-        console.log('🛡️ 拦截已激活，跳过重置');
-        return;
-    }
-    isBackGuardActive = true;
-    isLoggingOut = false;
-    backPressCount = 0;
-    isProcessingPopState = false;
-    
-    // ★★★ 尝试从 sessionStorage 恢复 lastBackPressTime ★★★
+    // ★★★ 第一步：从 sessionStorage 恢复状态（放在最前面）★★★
     const savedState = sessionStorage.getItem('backGuardState');
     if (savedState) {
         try {
@@ -1933,16 +1923,22 @@ function setupBackButtonGuard() {
             if (state.lastBackPressTime) {
                 lastBackPressTime = state.lastBackPressTime;
                 console.log('🔄 从 sessionStorage 恢复 lastBackPressTime:', lastBackPressTime);
-            } else {
-                lastBackPressTime = 0;
             }
         } catch (e) {
             console.warn('恢复状态失败:', e);
-            lastBackPressTime = 0;
         }
-    } else {
-        lastBackPressTime = 0;
     }
+    
+    // ★★★ 第二步：如果已经激活，跳过重置 ★★★
+    if (isBackGuardActive) {
+        console.log('🛡️ 拦截已激活，跳过重置');
+        return;
+    }
+    
+    isBackGuardActive = true;
+    isLoggingOut = false;
+    backPressCount = 0;
+    isProcessingPopState = false;
     
     if (backPressTimer) {
         clearTimeout(backPressTimer);
