@@ -1934,13 +1934,11 @@ function setupBackButtonGuard() {
     console.log('🛡️ 返回键拦截已启动');
 }
 function handlePopState(event) {
-    // 只处理我们的拦截状态
     if (!event.state || !event.state.guard) {
         history.pushState({ guard: true }, '');
         return;
     }
     
-    // 如果正在退出，忽略后续操作
     if (isLoggingOut) {
         history.pushState({ guard: true }, '');
         return;
@@ -1949,31 +1947,29 @@ function handlePopState(event) {
     const now = Date.now();
     const timeSinceLastPress = now - lastBackPressTime;
     
-    console.log(`📱 返回点击，距上次: ${timeSinceLastPress}ms`);
+    console.log(`📱 返回点击，距上次: ${timeSinceLastPress}ms, 当前计数: ${backPressCount}`);
     
-    // ★★★ 核心逻辑：每次点击都重新计算 ★★★
-    // 如果距离上次点击超过 1 秒 或 是第一次点击（lastBackPressTime === 0）
+    // ★★★ 核心修复：超时或首次点击，重置计数为 0 ★★★
     if (timeSinceLastPress > 1000 || lastBackPressTime === 0) {
-        // 重置为第一次点击
-        backPressCount = 1;
-        lastBackPressTime = now;
-        
-        // 显示提示
+        backPressCount = 0;
+        lastBackPressTime = 0;
+        console.log('⏰ 重置计数为0');
+    }
+    
+    // 增加计数
+    backPressCount++;
+    lastBackPressTime = now;
+    console.log(`📱 计数变为: ${backPressCount}`);
+    
+    if (backPressCount === 1) {
         showBackToast('再按一次返回键退出登录');
-        console.log('📱 第一次返回（显示提示）');
-        
-        // 清除旧定时器
         if (backPressTimer) {
             clearTimeout(backPressTimer);
             backPressTimer = null;
         }
-    } else {
-        // ★★★ 1秒内再次点击 → 第二次，执行退出 ★★★
-        console.log('🚪 1秒内连续2次返回，执行退出');
-        
-        // 清理状态
-        lastBackPressTime = 0;
+    } else if (backPressCount >= 2) {
         backPressCount = 0;
+        lastBackPressTime = 0;
         isLoggingOut = true;
         
         if (backPressTimer) {
@@ -1981,20 +1977,16 @@ function handlePopState(event) {
             backPressTimer = null;
         }
         
-        // 移除提示
         const toast = document.getElementById('backToast');
         if (toast) toast.remove();
         
-        // 执行退出
         logout();
     }
     
-    // 重新推入拦截记录，保持拦截状态
     history.pushState({ guard: true }, '');
 }
 // 显示轻提示
 function showBackToast(message) {
-    // 移除已有的toast
     const oldToast = document.getElementById('backToast');
     if (oldToast) oldToast.remove();
     
@@ -2002,7 +1994,6 @@ function showBackToast(message) {
     toast.id = 'backToast';
     toast.textContent = message;
     
-    // ★★★ 使用更兼容的样式 ★★★
     toast.style.cssText = `
         position: fixed;
         bottom: 120px;
@@ -2021,14 +2012,15 @@ function showBackToast(message) {
         max-width: 85%;
         text-align: center;
         white-space: nowrap;
-        pointer-events: none;
         opacity: 1;
         transition: opacity 0.3s ease;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
     `;
     
     document.body.appendChild(toast);
     
-    // 2.5秒后自动消失
     setTimeout(() => {
         toast.style.opacity = '0';
         setTimeout(() => {
