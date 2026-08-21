@@ -47,6 +47,7 @@ let backPressTimer = null;
 let isBackGuardActive = false;
 let isLoggingOut = false;
 let lastBackPressTime = 0;
+let isProcessingPopState = false;  // ★★★ 新增：防重复触发锁 ★★★
 // ========== ★ 新增：权益数据 ==========
 let benefitsData = null;
 let benefitsLoaded = false;
@@ -1930,14 +1931,29 @@ function setupBackButtonGuard() {
     console.log('🛡️ 返回键拦截已启动');
 }
 
+// 在文件顶部的全局变量区域（约第48行）添加一个锁变量
+// let isProcessingPopState = false;  // 请确认这行已添加
+
 function handlePopState(event) {
+    // ★★★ 防抖锁：如果正在处理，直接忽略本次事件 ★★★
+    if (isProcessingPopState) {
+        console.log('⏳ 正在处理返回事件，忽略重复触发');
+        // 但仍然要保证拦截状态存在
+        history.pushState({ guard: true }, '');
+        return;
+    }
+    isProcessingPopState = true;
+
+    // 只处理我们的拦截状态
     if (!event.state || !event.state.guard) {
         history.pushState({ guard: true }, '');
+        isProcessingPopState = false;
         return;
     }
     
     if (isLoggingOut) {
         history.pushState({ guard: true }, '');
+        isProcessingPopState = false;
         return;
     }
     
@@ -1946,7 +1962,7 @@ function handlePopState(event) {
     
     console.log(`📱 返回点击，距上次: ${timeSinceLastPress}ms, 当前计数: ${backPressCount}`);
     
-    // ★★★ 超时重置计数为 0 ★★★
+    // ★★★ 核心逻辑：超时或首次点击，重置计数为 0 ★★★
     if (timeSinceLastPress > 1000 || lastBackPressTime === 0) {
         backPressCount = 0;
         console.log('⏰ 重置计数为0');
@@ -1969,12 +1985,19 @@ function handlePopState(event) {
         const toast = document.getElementById('backToast');
         if (toast) toast.remove();
         
+        // ★★★ 解锁后再执行 logout，避免阻塞 ★★★
+        isProcessingPopState = false;
         logout();
+        // logout 会重置状态，所以这里直接返回
+        return;
     }
     
+    // ★★★ 重新推入拦截记录，保持拦截状态 ★★★
     history.pushState({ guard: true }, '');
+    
+    // ★★★ 解锁 ★★★
+    isProcessingPopState = false;
 }
-
 // 显示轻提示
 function showBackToast(message) {
     const oldToast = document.getElementById('backToast');
