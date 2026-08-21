@@ -1829,6 +1829,7 @@ async function switchStageSync(stageId) {
     // ★★★ 切换阶段后重新设置返回拦截 ★★★
     // 重置计数
     backPressCount = 0;
+    isProcessingPopState = false;  // ★★★ 新增 ★★★
     if (backPressTimer) {
         clearTimeout(backPressTimer);
         backPressTimer = null;
@@ -1938,13 +1939,17 @@ function handlePopState(event) {
     // ★★★ 防抖锁：如果正在处理，直接忽略本次事件 ★★★
     if (isProcessingPopState) {
         console.log('⏳ 正在处理返回事件，忽略重复触发');
-        // 但仍然要保证拦截状态存在
         history.pushState({ guard: true }, '');
         return;
     }
     isProcessingPopState = true;
+    
+    // 清除之前的延迟解锁
+    if (backPressTimer) {
+        clearTimeout(backPressTimer);
+        backPressTimer = null;
+    }
 
-    // 只处理我们的拦截状态
     if (!event.state || !event.state.guard) {
         history.pushState({ guard: true }, '');
         isProcessingPopState = false;
@@ -1985,8 +1990,7 @@ function handlePopState(event) {
         const toast = document.getElementById('backToast');
         if (toast) toast.remove();
         
-        // ★★★ 解锁后再执行 logout，避免阻塞 ★★★
-        isProcessingPopState = false;
+        // 执行退出
         logout();
         // logout 会重置状态，所以这里直接返回
         return;
@@ -1995,8 +1999,11 @@ function handlePopState(event) {
     // ★★★ 重新推入拦截记录，保持拦截状态 ★★★
     history.pushState({ guard: true }, '');
     
-    // ★★★ 解锁 ★★★
-    isProcessingPopState = false;
+    // ★★★ 延迟解锁，防止短时间内重复触发 ★★★
+    backPressTimer = setTimeout(() => {
+        isProcessingPopState = false;
+        backPressTimer = null;
+    }, 300);
 }
 // 显示轻提示
 function showBackToast(message) {
@@ -2361,6 +2368,7 @@ function logout() {
         isLoggingOut = false;
         backPressCount = 0;
         lastBackPressTime = 0;
+        isProcessingPopState = false;  // ★★★ 新增 ★★★
         if (backPressTimer) {
             clearTimeout(backPressTimer);
             backPressTimer = null;
