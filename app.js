@@ -1915,21 +1915,18 @@ if (level.id !== user.level) {
 
 // ========== 返回键拦截 ==========
 function setupBackButtonGuard() {
-    // ★★★ 第一步：从 sessionStorage 恢复状态（放在最前面）★★★
+    // ★★★ 从 sessionStorage 恢复 lastBackPressTime ★★★
     const savedState = sessionStorage.getItem('backGuardState');
     if (savedState) {
         try {
             const state = JSON.parse(savedState);
             if (state.lastBackPressTime) {
                 lastBackPressTime = state.lastBackPressTime;
-                console.log('🔄 从 sessionStorage 恢复 lastBackPressTime:', lastBackPressTime);
+                console.log('🔄 恢复 lastBackPressTime:', lastBackPressTime);
             }
-        } catch (e) {
-            console.warn('恢复状态失败:', e);
-        }
+        } catch (e) {}
     }
     
-    // ★★★ 第二步：如果已经激活，跳过重置 ★★★
     if (isBackGuardActive) {
         console.log('🛡️ 拦截已激活，跳过重置');
         return;
@@ -1987,25 +1984,12 @@ function handlePopState(event) {
     const now = Date.now();
     const timeSinceLastPress = now - lastBackPressTime;
     
-    // ★★★ 显示调试信息在页面上（代替控制台）★★★
-    const debugEl = document.getElementById('debugInfo') || (function() {
-        const el = document.createElement('div');
-        el.id = 'debugInfo';
-        el.style.cssText = 'position:fixed; bottom:10px; left:10px; right:10px; background:rgba(0,0,0,0.85); color:#0f0; padding:10px 14px; border-radius:10px; font-size:13px; z-index:999999; font-family:monospace; line-height:1.6; word-break:break-all; max-height:200px; overflow-y:auto;';
-        document.body.appendChild(el);
-        return el;
-    })();
+    console.log(`📱 返回点击，距上次: ${timeSinceLastPress}ms, 当前计数: ${backPressCount}, lastBackPressTime: ${lastBackPressTime}`);
     
-    debugEl.innerHTML = `
-        📱 返回点击<br>
-        距上次: ${timeSinceLastPress}ms<br>
-        计数: ${backPressCount}<br>
-        上次时间: ${lastBackPressTime || '无'}<br>
-        当前时间: ${now}<br>
-        ${timeSinceLastPress > 1000 ? '⏰ 超过1秒，重置' : '⚡ 1秒内，退出'}
-    `;
+    // ★★★ 核心修复：每次点击都先重置 backPressCount 为 0 ★★★
+    // 然后根据时间差决定是第一次还是第二次
+    backPressCount = 0;  // ← 关键：强制重置
     
-    // ★★★ 核心逻辑 ★★★
     if (lastBackPressTime === 0 || timeSinceLastPress > 1000) {
         // 首次点击 或 超过1秒：重置为第一次
         backPressCount = 1;
@@ -2021,9 +2005,6 @@ function handlePopState(event) {
         
         const toast = document.getElementById('backToast');
         if (toast) toast.remove();
-        
-        // 清除调试信息
-        if (debugEl) debugEl.remove();
         
         logout();
         return;
