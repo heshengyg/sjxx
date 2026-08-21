@@ -1924,16 +1924,14 @@ function setupBackButtonGuard() {
         backPressTimer = null;
     }
     
-    // 推入一个拦截状态
     history.pushState({ guard: true }, '');
-    
-    // 移除旧的监听器，防止重复绑定
     window.removeEventListener('popstate', handlePopState);
     window.addEventListener('popstate', handlePopState);
-    
     console.log('🛡️ 返回键拦截已启动');
 }
+
 function handlePopState(event) {
+    // 只处理我们的拦截状态
     if (!event.state || !event.state.guard) {
         history.pushState({ guard: true }, '');
         return;
@@ -1947,38 +1945,21 @@ function handlePopState(event) {
     const now = Date.now();
     const timeSinceLastPress = now - lastBackPressTime;
     
-    console.log(`📱 返回点击，距上次: ${timeSinceLastPress}ms, 当前计数: ${backPressCount}, lastBackPressTime: ${lastBackPressTime}`);
+    console.log(`📱 返回点击，距上次: ${timeSinceLastPress}ms, 当前计数: ${backPressCount}`);
     
-    // 超时或首次点击，重置计数为 0
-    if (timeSinceLastPress > 1000 || lastBackPressTime === 0) {
-        backPressCount = 0;
-        console.log('⏰ 重置 backPressCount = 0');
-    }
-    
-    // 增加计数
-    backPressCount++;
-    lastBackPressTime = now;
-    console.log(`📱 计数变为: ${backPressCount}`);
-    
-    if (backPressCount === 1) {
+    // ★★★ 核心逻辑：判断是否是 1 秒内的连续点击 ★★★
+    if (lastBackPressTime === 0 || timeSinceLastPress > 1000) {
+        // 首次点击 或 超过1秒：重置为第一次
+        backPressCount = 1;
+        lastBackPressTime = now;
         showBackToast('再按一次返回键退出登录');
-        if (backPressTimer) {
-            clearTimeout(backPressTimer);
-            backPressTimer = null;
-        }
         console.log('📱 第一次返回（显示提示）');
-    } else if (backPressCount >= 2) {
+    } else {
+        // 1秒内再次点击：执行退出
         console.log('🚪 1秒内连续2次返回，执行退出');
-        
-        // ★★★ 退出时重置所有状态 ★★★
         backPressCount = 0;
         lastBackPressTime = 0;
         isLoggingOut = true;
-        
-        if (backPressTimer) {
-            clearTimeout(backPressTimer);
-            backPressTimer = null;
-        }
         
         const toast = document.getElementById('backToast');
         if (toast) toast.remove();
