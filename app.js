@@ -1991,19 +1991,24 @@ function handlePopState(event) {
     
     // ★★★ 核心逻辑 ★★★
     if (lastBackPressTime === 0 || timeSinceLastPress > 1000) {
-    // 首次点击 或 超过1秒：重置为第一次
-    backPressCount = 1;
-    lastBackPressTime = now;
-    
-    // ★★★ 保存到 sessionStorage ★★★
-    sessionStorage.setItem('backGuardState', JSON.stringify({
-        lastBackPressTime: lastBackPressTime
-    }));
-    
-    showBackToast('再按一次返回键退出登录');
-    console.log('📱 第一次返回（显示提示）');
-}
-    else {
+        // 首次点击 或 超过1秒：重置为第一次
+        backPressCount = 1;
+        lastBackPressTime = now;
+        
+        // ★★★ 保存到 sessionStorage ★★★
+        sessionStorage.setItem('backGuardState', JSON.stringify({
+            lastBackPressTime: lastBackPressTime
+        }));
+        
+        showBackToast('再按一次返回键退出登录');
+        console.log('📱 第一次返回（显示提示）');
+        
+        // ★★★ 关键修复：第一次返回时，刷新当前页面（只刷新，不跳转）★★★
+        // 使用 location.reload() 刷新页面，让内容更新
+        // 但不要用 setTimeout，直接刷新
+        location.reload();
+        return;  // ★★★ 刷新后直接返回，不继续执行 ★★★
+    } else {
         // 1秒内再次点击：执行退出
         console.log('🚪 1秒内连续2次返回，执行退出');
         backPressCount = 0;
@@ -2026,7 +2031,6 @@ function handlePopState(event) {
         isProcessingPopState = false;
     }, 200);
 }
-
 // 显示轻提示
 function showBackToast(message) {
     const oldToast = document.getElementById('backToast');
