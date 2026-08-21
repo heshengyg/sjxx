@@ -41,6 +41,10 @@ let isRenderingQuiz = false;
 let isDataPreloaded = false;
 let allStageData = {};
 let isSwitching = false;
+// ========== 返回键拦截相关 ==========
+let backPressCount = 0;
+let backPressTimer = null;
+let isBackGuardActive = false;
 
 // ========== ★ 新增：权益数据 ==========
 let benefitsData = null;
@@ -1883,6 +1887,45 @@ if (level.id !== user.level) {
     }
 }
 
+// ========== 返回键拦截 ==========
+function setupBackButtonGuard() {
+    if (isBackGuardActive) return;
+    isBackGuardActive = true;
+    
+    // 推入一个拦截状态
+    history.pushState({ guard: true }, '');
+    
+    window.addEventListener('popstate', function(event) {
+        // 只处理我们的拦截状态
+        if (event.state && event.state.guard) {
+            backPressCount++;
+            
+            if (backPressCount === 1) {
+                // 第一次返回：刷新当前登录后的版面
+                location.reload();
+                
+                // 重置计时器，500ms 内连按两次才退出
+                if (backPressTimer) clearTimeout(backPressTimer);
+                backPressTimer = setTimeout(() => {
+                    backPressCount = 0;
+                    backPressTimer = null;
+                }, 500);
+            } else if (backPressCount >= 2) {
+                // 第二次返回：执行退出登录
+                clearTimeout(backPressTimer);
+                backPressTimer = null;
+                backPressCount = 0;
+                
+                // 执行退出逻辑
+                logout();
+            }
+            
+            // 重新推入拦截记录，保持拦截状态
+            history.pushState({ guard: true }, '');
+        }
+    });
+}
+
 // ========== Auth ==========
 async function handleAuth() {
     if (!phoneInput || !passwordInput || !nameInput) return;
@@ -1936,6 +1979,7 @@ async function handleAuth() {
             currentViewStage = getCurrentStage(stages);
             if (currentViewStage > TOTAL_STAGES) currentViewStage = TOTAL_STAGES;
             await updateDashboard(currentUser);
+            setupBackButtonGuard();
             saveRememberMe(phone, password);
             showAuthMsg(`欢迎回来，${existing.name}`, false);
 
@@ -1981,6 +2025,7 @@ async function handleAuth() {
             if (dashboard) dashboard.classList.remove('hidden');
             currentViewStage = 1;
             await updateDashboard(currentUser);
+            setupBackButtonGuard();
             saveRememberMe(phone, password);
             showAuthMsg(`🎉 注册成功，${name}！`, false);
 
@@ -2195,6 +2240,16 @@ function logout() {
         timerElapsed = {};
         isDataPreloaded = false;
         allStageData = {};
+        
+        // ★★★ 新增：重置返回拦截状态 ★★★
+        isBackGuardActive = false;
+        backPressCount = 0;
+        if (backPressTimer) {
+            clearTimeout(backPressTimer);
+            backPressTimer = null;
+        }
+        // 清除历史记录中的拦截状态
+        history.replaceState(null, '', window.location.href);
     }
 }
 
