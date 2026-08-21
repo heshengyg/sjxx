@@ -1964,34 +1964,23 @@ function handlePopState(event) {
         return;
     }
     
-    console.log(`📱 返回点击，当前计数: ${backPressCount}`);
+    const now = Date.now();
+    const timeSinceLastPress = now - lastBackPressTime;
     
-    // ★★★ 新逻辑：使用 setTimeout 管理 1 秒超时 ★★★
-    if (backPressCount === 0) {
-        // 第一次点击 或 已超时重置
+    console.log(`📱 返回点击，距上次: ${timeSinceLastPress}ms, 当前计数: ${backPressCount}`);
+    
+    // ★★★ 核心逻辑：基于时间差判断 ★★★
+    if (lastBackPressTime === 0 || timeSinceLastPress > 1000) {
+        // 首次点击 或 超过1秒：重置为第一次
         backPressCount = 1;
+        lastBackPressTime = now;
         showBackToast('再按一次返回键退出登录');
         console.log('📱 第一次返回（显示提示）');
-        
-        // 启动 1 秒定时器，到时重置计数
-        backPressTimer = setTimeout(function() {
-            backPressCount = 0;
-            console.log('⏰ 超过1秒，计数重置为0');
-            const toast = document.getElementById('backToast');
-            if (toast) toast.remove();
-            backPressTimer = null;
-        }, 1000);
-        
-    } else if (backPressCount === 1) {
+    } else {
         // 1秒内再次点击：执行退出
         console.log('🚪 1秒内连续2次返回，执行退出');
-        
-        if (backPressTimer) {
-            clearTimeout(backPressTimer);
-            backPressTimer = null;
-        }
-        
         backPressCount = 0;
+        lastBackPressTime = 0;
         isLoggingOut = true;
         
         const toast = document.getElementById('backToast');
@@ -1999,15 +1988,6 @@ function handlePopState(event) {
         
         logout();
         return;
-        
-    } else {
-        // 防抖保护
-        console.log('⚠️ 计数异常，重置');
-        backPressCount = 0;
-        if (backPressTimer) {
-            clearTimeout(backPressTimer);
-            backPressTimer = null;
-        }
     }
     
     history.pushState({ guard: true }, '');
@@ -2377,16 +2357,14 @@ function logout() {
         isDataPreloaded = false;
         allStageData = {};
         
-        // ★★★ 重置返回拦截状态 ★★★
-        isBackGuardActive = false;
-        isLoggingOut = false;
-        backPressCount = 0;
-        lastBackPressTime = 0;
-        isProcessingPopState = false;  // ★★★ 新增 ★★★
-        if (backPressTimer) {
-            clearTimeout(backPressTimer);
-            backPressTimer = null;
-        }
+        // ★★★ 切换阶段后重置 ★★★
+backPressCount = 0;
+lastBackPressTime = 0;  // ★★★ 必须重置为 0 ★★★
+isProcessingPopState = false;
+if (backPressTimer) {
+    clearTimeout(backPressTimer);
+    backPressTimer = null;
+}
         window.removeEventListener('popstate', handlePopState);
         history.replaceState(null, '', window.location.href);
         
