@@ -1948,7 +1948,7 @@ function handlePopState(event) {
     }
     
     // ★★★ 每次返回都显示提示 ★★★
-    showBackToast('🔄 页面已刷新！');
+    showBackToast('⚠️ 请勿使用返回键，否则将退出此程序！');
     
     // 清除 sessionStorage
     sessionStorage.removeItem('backGuardState');
@@ -1968,41 +1968,65 @@ function handlePopState(event) {
     }, 200);
 }
 // 显示轻提示
-function showBackToast(message) {
+// 显示警告提示
+function showBackToast() {
     const oldToast = document.getElementById('backToast');
     if (oldToast) oldToast.remove();
     
+    // 添加动画样式（只添加一次）
+    const styleId = 'backToastStyle';
+    if (!document.getElementById(styleId)) {
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+            @keyframes warningPulse {
+                0%, 100% { transform: translateX(-50%) scale(1); background: rgba(200, 50, 50, 0.92); }
+                50% { transform: translateX(-50%) scale(1.05); background: rgba(220, 30, 30, 0.98); }
+            }
+            .toast-warning {
+                animation: warningPulse 0.6s ease 4 !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
     const toast = document.createElement('div');
     toast.id = 'backToast';
-    toast.textContent = message;
+    toast.className = 'toast-warning';
+    toast.innerHTML = '⚠️ 请勿使用返回键，否则将退出此程序！';
+    
     toast.style.cssText = `
         position: fixed !important;
         bottom: 120px !important;
         left: 50% !important;
         transform: translateX(-50%) !important;
-        background: rgba(0,0,0,0.85) !important;
+        background: rgba(200, 50, 50, 0.92) !important;
         color: #ffffff !important;
         padding: 14px 28px !important;
         border-radius: 30px !important;
         font-size: 17px !important;
-        font-weight: 500 !important;
+        font-weight: 600 !important;
         z-index: 9999999 !important;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.3) !important;
+        box-shadow: 0 8px 32px rgba(200, 50, 50, 0.5) !important;
         font-family: system-ui, -apple-system, sans-serif !important;
         letter-spacing: 0.5px !important;
-        max-width: 85% !important;
+        max-width: 90% !important;
         text-align: center !important;
         white-space: nowrap !important;
         pointer-events: none !important;
+        border: 2px solid rgba(255, 255, 255, 0.25) !important;
+        user-select: none !important;
+        -webkit-user-select: none !important;
     `;
     document.body.appendChild(toast);
     
     setTimeout(() => {
         toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s ease';
         setTimeout(() => {
             if (toast.parentNode) toast.remove();
         }, 400);
-    }, 2500);
+    }, 4000);
 }
 
 // ========== Auth ==========
