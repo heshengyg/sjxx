@@ -1912,7 +1912,11 @@ if (level.id !== user.level) {
 
 // ========== 返回键拦截 ==========
 function setupBackButtonGuard() {
-    if (isBackGuardActive) return;
+    // ★★★ 如果已经激活，不要重置 lastBackPressTime ★★★
+    if (isBackGuardActive) {
+        console.log('🛡️ 拦截已激活，跳过重置');
+        return;
+    }
     isBackGuardActive = true;
     isLoggingOut = false;
     backPressCount = 0;
@@ -1924,7 +1928,6 @@ function setupBackButtonGuard() {
         backPressTimer = null;
     }
     
-    // 使用 replaceState 替换当前历史记录
     history.replaceState({ guard: true }, '');
     history.pushState({ guard: true }, '');
     
