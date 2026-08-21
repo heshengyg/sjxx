@@ -1827,6 +1827,7 @@ async function switchStageSync(stageId) {
     isSwitching = false;
 
     // ★★★ 切换阶段后重置 ★★★
+// ★★★ 切换阶段后重置 ★★★
 backPressCount = 0;
 lastBackPressTime = 0;  // ★★★ 必须重置为 0 ★★★
 isProcessingPopState = false;
@@ -1836,6 +1837,9 @@ if (backPressTimer) {
 }
 lastBackPressTime = 0;
 
+// ★★★ 清除 sessionStorage 中保存的状态 ★★★
+sessionStorage.removeItem('backGuardState');
+
 // 移除旧的toast
 const toast = document.getElementById('backToast');
 if (toast) toast.remove();
@@ -1843,7 +1847,6 @@ if (toast) toast.remove();
 // ★★★ 强制重新设置拦截（先关闭再开启）★★★
 isBackGuardActive = false;  // ★★★ 强制重置，让 setupBackButtonGuard 可以重新执行 ★★★
 setupBackButtonGuard();
-
     setTimeout(() => {
         isHeaderInitialized = false;
         initStickyHeaders();
@@ -1920,8 +1923,26 @@ function setupBackButtonGuard() {
     isBackGuardActive = true;
     isLoggingOut = false;
     backPressCount = 0;
-    lastBackPressTime = 0;
     isProcessingPopState = false;
+    
+    // ★★★ 尝试从 sessionStorage 恢复 lastBackPressTime ★★★
+    const savedState = sessionStorage.getItem('backGuardState');
+    if (savedState) {
+        try {
+            const state = JSON.parse(savedState);
+            if (state.lastBackPressTime) {
+                lastBackPressTime = state.lastBackPressTime;
+                console.log('🔄 从 sessionStorage 恢复 lastBackPressTime:', lastBackPressTime);
+            } else {
+                lastBackPressTime = 0;
+            }
+        } catch (e) {
+            console.warn('恢复状态失败:', e);
+            lastBackPressTime = 0;
+        }
+    } else {
+        lastBackPressTime = 0;
+    }
     
     if (backPressTimer) {
         clearTimeout(backPressTimer);
@@ -1970,21 +1991,31 @@ function handlePopState(event) {
     const now = Date.now();
     const timeSinceLastPress = now - lastBackPressTime;
     
-    console.log(`📱 返回点击，距上次: ${timeSinceLastPress}ms, 当前计数: ${backPressCount}`);
+    console.log(`📱 返回点击，距上次: ${timeSinceLastPress}ms, 当前计数: ${backPressCount}, lastBackPressTime: ${lastBackPressTime}`);
     
-    // ★★★ 修复后的核心逻辑 ★★★
+    // ★★★ 核心逻辑 ★★★
     if (lastBackPressTime === 0 || timeSinceLastPress > 1000) {
-        // 首次点击 或 超过1秒：重置为第一次
-        backPressCount = 1;
-        lastBackPressTime = now;
-        showBackToast('再按一次返回键退出登录');
-        console.log('📱 第一次返回（显示提示）');
-    } else {
+    // 首次点击 或 超过1秒：重置为第一次
+    backPressCount = 1;
+    lastBackPressTime = now;
+    
+    // ★★★ 保存到 sessionStorage ★★★
+    sessionStorage.setItem('backGuardState', JSON.stringify({
+        lastBackPressTime: lastBackPressTime
+    }));
+    
+    showBackToast('再按一次返回键退出登录');
+    console.log('📱 第一次返回（显示提示）');
+}
+    else {
         // 1秒内再次点击：执行退出
         console.log('🚪 1秒内连续2次返回，执行退出');
         backPressCount = 0;
         lastBackPressTime = 0;
         isLoggingOut = true;
+        
+        // ★★★ 清除 sessionStorage ★★★
+        sessionStorage.removeItem('backGuardState');
         
         const toast = document.getElementById('backToast');
         if (toast) toast.remove();
@@ -1999,6 +2030,7 @@ function handlePopState(event) {
         isProcessingPopState = false;
     }, 200);
 }
+
 // 显示轻提示
 function showBackToast(message) {
     const oldToast = document.getElementById('backToast');
@@ -2360,14 +2392,18 @@ function logout() {
         isDataPreloaded = false;
         allStageData = {};
         
-        // ★★★ 切换阶段后重置 ★★★
-backPressCount = 0;
-lastBackPressTime = 0;  // ★★★ 必须重置为 0 ★★★
-isProcessingPopState = false;
-if (backPressTimer) {
-    clearTimeout(backPressTimer);
-    backPressTimer = null;
-}
+        // ★★★ 重置返回拦截状态 ★★★
+        backPressCount = 0;
+        lastBackPressTime = 0;
+        isProcessingPopState = false;
+        if (backPressTimer) {
+            clearTimeout(backPressTimer);
+            backPressTimer = null;
+        }
+        
+        // ★★★ 清除 sessionStorage 中保存的状态 ★★★
+        sessionStorage.removeItem('backGuardState');
+        
         window.removeEventListener('popstate', handlePopState);
         history.replaceState(null, '', window.location.href);
         
