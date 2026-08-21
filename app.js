@@ -1987,27 +1987,31 @@ function handlePopState(event) {
     const now = Date.now();
     const timeSinceLastPress = now - lastBackPressTime;
     
-    console.log(`📱 返回点击，距上次: ${timeSinceLastPress}ms, 当前计数: ${backPressCount}, lastBackPressTime: ${lastBackPressTime}`);
+    // ★★★ 显示调试信息在页面上（代替控制台）★★★
+    const debugEl = document.getElementById('debugInfo') || (function() {
+        const el = document.createElement('div');
+        el.id = 'debugInfo';
+        el.style.cssText = 'position:fixed; bottom:10px; left:10px; right:10px; background:rgba(0,0,0,0.85); color:#0f0; padding:10px 14px; border-radius:10px; font-size:13px; z-index:999999; font-family:monospace; line-height:1.6; word-break:break-all; max-height:200px; overflow-y:auto;';
+        document.body.appendChild(el);
+        return el;
+    })();
+    
+    debugEl.innerHTML = `
+        📱 返回点击<br>
+        距上次: ${timeSinceLastPress}ms<br>
+        计数: ${backPressCount}<br>
+        上次时间: ${lastBackPressTime || '无'}<br>
+        当前时间: ${now}<br>
+        ${timeSinceLastPress > 1000 ? '⏰ 超过1秒，重置' : '⚡ 1秒内，退出'}
+    `;
     
     // ★★★ 核心逻辑 ★★★
     if (lastBackPressTime === 0 || timeSinceLastPress > 1000) {
         // 首次点击 或 超过1秒：重置为第一次
         backPressCount = 1;
         lastBackPressTime = now;
-        
-        // ★★★ 保存到 sessionStorage ★★★
-        sessionStorage.setItem('backGuardState', JSON.stringify({
-            lastBackPressTime: lastBackPressTime
-        }));
-        
         showBackToast('再按一次返回键退出登录');
         console.log('📱 第一次返回（显示提示）');
-        
-        // ★★★ 关键修复：第一次返回时，刷新当前页面（只刷新，不跳转）★★★
-        // 使用 location.reload() 刷新页面，让内容更新
-        // 但不要用 setTimeout，直接刷新
-        location.reload();
-        return;  // ★★★ 刷新后直接返回，不继续执行 ★★★
     } else {
         // 1秒内再次点击：执行退出
         console.log('🚪 1秒内连续2次返回，执行退出');
@@ -2015,11 +2019,11 @@ function handlePopState(event) {
         lastBackPressTime = 0;
         isLoggingOut = true;
         
-        // ★★★ 清除 sessionStorage ★★★
-        sessionStorage.removeItem('backGuardState');
-        
         const toast = document.getElementById('backToast');
         if (toast) toast.remove();
+        
+        // 清除调试信息
+        if (debugEl) debugEl.remove();
         
         logout();
         return;
@@ -2040,7 +2044,7 @@ function showBackToast(message) {
     toast.id = 'backToast';
     toast.textContent = message;
     
-    // ★★★ 微信兼容版本：使用更高 z-index 和更稳定的定位 ★★★
+    // ★★★ 加上闪烁效果，确保能看到 ★★★
     toast.style.cssText = `
         position: fixed !important;
         bottom: 120px !important;
@@ -2065,11 +2069,21 @@ function showBackToast(message) {
         user-select: none !important;
         -webkit-touch-callout: none !important;
         pointer-events: none !important;
+        animation: backToastPulse 0.5s ease 3 !important;
     `;
+    
+    // 添加动画
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes backToastPulse {
+            0%, 100% { transform: translateX(-50%) scale(1); }
+            50% { transform: translateX(-50%) scale(1.05); background: rgba(200,50,50,0.9); }
+        }
+    `;
+    document.head.appendChild(style);
     
     document.body.appendChild(toast);
     
-    // 2.5秒后自动消失
     setTimeout(() => {
         toast.style.opacity = '0';
         setTimeout(() => {
