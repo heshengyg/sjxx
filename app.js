@@ -1829,23 +1829,20 @@ async function switchStageSync(stageId) {
     // ★★★ 切换阶段后重新设置返回拦截 ★★★
     // 重置计数
     backPressCount = 0;
-    isProcessingPopState = false;  // ★★★ 新增 ★★★
-    if (backPressTimer) {
-        clearTimeout(backPressTimer);
-        backPressTimer = null;
-    }
-    lastBackPressTime = 0;
-    
-    // 移除旧的toast
-    const toast = document.getElementById('backToast');
-    if (toast) toast.remove();
-    
-    // 重置拦截状态，重新推入新的历史记录
-    if (isBackGuardActive) {
-        history.replaceState(null, '', window.location.href);
-        isBackGuardActive = false;
-        setupBackButtonGuard();
-    }
+isProcessingPopState = false;
+if (backPressTimer) {
+    clearTimeout(backPressTimer);
+    backPressTimer = null;
+}
+lastBackPressTime = 0;
+
+// 移除旧的toast
+const toast = document.getElementById('backToast');
+if (toast) toast.remove();
+
+// ★★★ 强制重新设置拦截（先关闭再开启）★★★
+isBackGuardActive = false;  // ★★★ 强制重置，让 setupBackButtonGuard 可以重新执行 ★★★
+setupBackButtonGuard();
 
     setTimeout(() => {
         isHeaderInitialized = false;
@@ -1920,37 +1917,44 @@ function setupBackButtonGuard() {
     isLoggingOut = false;
     backPressCount = 0;
     lastBackPressTime = 0;
+    isProcessingPopState = false;
     
     if (backPressTimer) {
         clearTimeout(backPressTimer);
         backPressTimer = null;
     }
     
+    // 使用 replaceState 替换当前历史记录
+    history.replaceState({ guard: true }, '');
     history.pushState({ guard: true }, '');
+    
     window.removeEventListener('popstate', handlePopState);
     window.addEventListener('popstate', handlePopState);
     console.log('🛡️ 返回键拦截已启动');
 }
-
 // 在文件顶部的全局变量区域（约第48行）添加一个锁变量
 // let isProcessingPopState = false;  // 请确认这行已添加
 
 function handlePopState(event) {
-    // ★★★ 防抖锁：如果正在处理，直接忽略本次事件 ★★★
+    // 防抖锁
     if (isProcessingPopState) {
         console.log('⏳ 正在处理返回事件，忽略重复触发');
-        history.pushState({ guard: true }, '');
+        if (!history.state || !history.state.guard) {
+            history.pushState({ guard: true }, '');
+        }
         return;
     }
     isProcessingPopState = true;
     
-    // 清除之前的延迟解锁
     if (backPressTimer) {
         clearTimeout(backPressTimer);
         backPressTimer = null;
     }
 
+    // 如果状态不是我们的拦截状态，重新设置
     if (!event.state || !event.state.guard) {
+        console.log('🔄 拦截状态丢失，重新设置');
+        history.replaceState(null, '', window.location.href);
         history.pushState({ guard: true }, '');
         isProcessingPopState = false;
         return;
@@ -1967,7 +1971,7 @@ function handlePopState(event) {
     
     console.log(`📱 返回点击，距上次: ${timeSinceLastPress}ms, 当前计数: ${backPressCount}`);
     
-    // ★★★ 核心逻辑：超时或首次点击，重置计数为 0 ★★★
+    // 超时或首次点击，重置计数为 0
     if (timeSinceLastPress > 1000 || lastBackPressTime === 0) {
         backPressCount = 0;
         console.log('⏰ 重置计数为0');
@@ -1990,16 +1994,12 @@ function handlePopState(event) {
         const toast = document.getElementById('backToast');
         if (toast) toast.remove();
         
-        // 执行退出
         logout();
-        // logout 会重置状态，所以这里直接返回
         return;
     }
     
-    // ★★★ 重新推入拦截记录，保持拦截状态 ★★★
     history.pushState({ guard: true }, '');
     
-    // ★★★ 延迟解锁，防止短时间内重复触发 ★★★
     backPressTimer = setTimeout(() => {
         isProcessingPopState = false;
         backPressTimer = null;
@@ -2014,33 +2014,36 @@ function showBackToast(message) {
     toast.id = 'backToast';
     toast.textContent = message;
     
+    // ★★★ 微信兼容版本：使用更高 z-index 和更稳定的定位 ★★★
     toast.style.cssText = `
-        position: fixed;
-        bottom: 120px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0,0,0,0.85);
-        color: #ffffff;
-        padding: 14px 28px;
-        border-radius: 30px;
-        font-size: 17px;
-        font-weight: 500;
-        z-index: 999999;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-        font-family: system-ui, -apple-system, sans-serif;
-        letter-spacing: 0.5px;
-        max-width: 85%;
-        text-align: center;
-        white-space: nowrap;
-        opacity: 1;
-        transition: opacity 0.3s ease;
-        -webkit-user-select: none;
-        user-select: none;
-        -webkit-touch-callout: none;
+        position: fixed !important;
+        bottom: 120px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        background: rgba(0,0,0,0.88) !important;
+        color: #ffffff !important;
+        padding: 14px 28px !important;
+        border-radius: 30px !important;
+        font-size: 17px !important;
+        font-weight: 500 !important;
+        z-index: 9999999 !important;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+        font-family: system-ui, -apple-system, sans-serif !important;
+        letter-spacing: 0.5px !important;
+        max-width: 85% !important;
+        text-align: center !important;
+        white-space: nowrap !important;
+        opacity: 1 !important;
+        transition: opacity 0.3s ease !important;
+        -webkit-user-select: none !important;
+        user-select: none !important;
+        -webkit-touch-callout: none !important;
+        pointer-events: none !important;
     `;
     
     document.body.appendChild(toast);
     
+    // 2.5秒后自动消失
     setTimeout(() => {
         toast.style.opacity = '0';
         setTimeout(() => {
