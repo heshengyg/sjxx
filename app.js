@@ -1919,7 +1919,7 @@ function handlePopState(event) {
         return;
     }
     
-    // ★★★ 完全依赖 sessionStorage ★★★
+    // ★★★ 从 sessionStorage 读取上次点击时间 ★★★
     const now = Date.now();
     let savedTime = 0;
     const savedState = sessionStorage.getItem('backGuardState');
@@ -1932,11 +1932,25 @@ function handlePopState(event) {
     const timeSinceLastPress = now - savedTime;
     
     if (savedTime === 0 || timeSinceLastPress > 1000) {
-        // 首次 或 超过1秒：显示提示，记录时间
+        // ★★★ 首次 或 超过1秒：显示提示，重新渲染当前阶段 ★★★
+        showBackToast('🔄 页面已刷新！');
+        
+        // 记录当前时间到 sessionStorage
         sessionStorage.setItem('backGuardState', JSON.stringify({ t: now }));
-        showBackToast('再按一次返回键退出登录');
+        
+        // 重新渲染当前阶段（不刷新页面）
+        const currentStage = currentViewStage;
+        loadStageData(currentStage).then(data => {
+            if (data) {
+                updateStageUI(data);
+                console.log(`✅ 阶段 ${currentStage} 已重新渲染`);
+            }
+        });
+        
+        console.log(`📱 第一次返回（显示提示，重新渲染阶段 ${currentViewStage}）`);
     } else {
-        // 1秒内：退出
+        // ★★★ 1秒内再次点击：执行退出 ★★★
+        console.log('🚪 1秒内连续2次返回，执行退出');
         sessionStorage.removeItem('backGuardState');
         isLoggingOut = true;
         const toast = document.getElementById('backToast');
