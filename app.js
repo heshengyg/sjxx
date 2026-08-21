@@ -1969,23 +1969,17 @@ function handlePopState(event) {
     const now = Date.now();
     const timeSinceLastPress = now - lastBackPressTime;
     
-    console.log(`📱 返回点击，距上次: ${timeSinceLastPress}ms, 当前计数: ${backPressCount}`);
+    console.log(`📱 返回点击，距上次: ${timeSinceLastPress}ms`);
     
-    // 超时或首次点击，重置计数为 0
+    // ★★★ 核心逻辑：只要超过 1 秒，就重置为首次点击 ★★★
     if (timeSinceLastPress > 1000 || lastBackPressTime === 0) {
-        backPressCount = 0;
-        console.log('⏰ 重置计数为0');
-    }
-    
-    // 增加计数
-    backPressCount++;
-    lastBackPressTime = now;
-    console.log(`📱 计数变为: ${backPressCount}`);
-    
-    if (backPressCount === 1) {
+        // ★★★ 超过 1 秒：重置为"第一次"状态 ★★★
+        backPressCount = 1;
+        lastBackPressTime = now;
         showBackToast('再按一次返回键退出登录');
-        console.log('📱 第一次返回（显示提示）');
-    } else if (backPressCount >= 2) {
+        console.log('📱 第一次返回（超过1秒，显示提示）');
+    } else {
+        // ★★★ 1 秒内再次点击：执行退出 ★★★
         console.log('🚪 1秒内连续2次返回，执行退出');
         backPressCount = 0;
         lastBackPressTime = 0;
