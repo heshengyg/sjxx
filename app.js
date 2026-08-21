@@ -1931,7 +1931,6 @@ function setupBackButtonGuard() {
 }
 
 function handlePopState(event) {
-    // 只处理我们的拦截状态
     if (!event.state || !event.state.guard) {
         history.pushState({ guard: true }, '');
         return;
@@ -1947,15 +1946,21 @@ function handlePopState(event) {
     
     console.log(`📱 返回点击，距上次: ${timeSinceLastPress}ms, 当前计数: ${backPressCount}`);
     
-    // ★★★ 核心逻辑：判断是否是 1 秒内的连续点击 ★★★
-    if (lastBackPressTime === 0 || timeSinceLastPress > 1000) {
-        // 首次点击 或 超过1秒：重置为第一次
-        backPressCount = 1;
-        lastBackPressTime = now;
+    // ★★★ 超时重置计数为 0 ★★★
+    if (timeSinceLastPress > 1000 || lastBackPressTime === 0) {
+        backPressCount = 0;
+        console.log('⏰ 重置计数为0');
+    }
+    
+    // 增加计数
+    backPressCount++;
+    lastBackPressTime = now;
+    console.log(`📱 计数变为: ${backPressCount}`);
+    
+    if (backPressCount === 1) {
         showBackToast('再按一次返回键退出登录');
         console.log('📱 第一次返回（显示提示）');
-    } else {
-        // 1秒内再次点击：执行退出
+    } else if (backPressCount >= 2) {
         console.log('🚪 1秒内连续2次返回，执行退出');
         backPressCount = 0;
         lastBackPressTime = 0;
@@ -1969,6 +1974,7 @@ function handlePopState(event) {
     
     history.pushState({ guard: true }, '');
 }
+
 // 显示轻提示
 function showBackToast(message) {
     const oldToast = document.getElementById('backToast');
