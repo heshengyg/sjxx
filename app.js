@@ -1936,7 +1936,6 @@ function setupBackButtonGuard() {
 // let isProcessingPopState = false;  // 请确认这行已添加
 
 function handlePopState(event) {
-    // 防抖锁
     if (isProcessingPopState) {
         console.log('⏳ 正在处理返回事件，忽略重复触发');
         if (!history.state || !history.state.guard) {
@@ -1951,7 +1950,6 @@ function handlePopState(event) {
         backPressTimer = null;
     }
 
-    // 如果状态不是我们的拦截状态，重新设置
     if (!event.state || !event.state.guard) {
         console.log('🔄 拦截状态丢失，重新设置');
         history.replaceState(null, '', window.location.href);
@@ -1966,23 +1964,34 @@ function handlePopState(event) {
         return;
     }
     
-    const now = Date.now();
-    const timeSinceLastPress = now - lastBackPressTime;
+    console.log(`📱 返回点击，当前计数: ${backPressCount}`);
     
-    console.log(`📱 返回点击，距上次: ${timeSinceLastPress}ms`);
-    
-    // ★★★ 核心逻辑：只要超过 1 秒，就重置为首次点击 ★★★
-    if (timeSinceLastPress > 1000 || lastBackPressTime === 0) {
-        // ★★★ 超过 1 秒：重置为"第一次"状态 ★★★
+    // ★★★ 新逻辑：使用 setTimeout 管理 1 秒超时 ★★★
+    if (backPressCount === 0) {
+        // 第一次点击 或 已超时重置
         backPressCount = 1;
-        lastBackPressTime = now;
         showBackToast('再按一次返回键退出登录');
-        console.log('📱 第一次返回（超过1秒，显示提示）');
-    } else {
-        // ★★★ 1 秒内再次点击：执行退出 ★★★
+        console.log('📱 第一次返回（显示提示）');
+        
+        // 启动 1 秒定时器，到时重置计数
+        backPressTimer = setTimeout(function() {
+            backPressCount = 0;
+            console.log('⏰ 超过1秒，计数重置为0');
+            const toast = document.getElementById('backToast');
+            if (toast) toast.remove();
+            backPressTimer = null;
+        }, 1000);
+        
+    } else if (backPressCount === 1) {
+        // 1秒内再次点击：执行退出
         console.log('🚪 1秒内连续2次返回，执行退出');
+        
+        if (backPressTimer) {
+            clearTimeout(backPressTimer);
+            backPressTimer = null;
+        }
+        
         backPressCount = 0;
-        lastBackPressTime = 0;
         isLoggingOut = true;
         
         const toast = document.getElementById('backToast');
@@ -1990,14 +1999,22 @@ function handlePopState(event) {
         
         logout();
         return;
+        
+    } else {
+        // 防抖保护
+        console.log('⚠️ 计数异常，重置');
+        backPressCount = 0;
+        if (backPressTimer) {
+            clearTimeout(backPressTimer);
+            backPressTimer = null;
+        }
     }
     
     history.pushState({ guard: true }, '');
     
-    backPressTimer = setTimeout(() => {
+    setTimeout(function() {
         isProcessingPopState = false;
-        backPressTimer = null;
-    }, 300);
+    }, 200);
 }
 // 显示轻提示
 function showBackToast(message) {
