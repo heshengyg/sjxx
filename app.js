@@ -1826,9 +1826,9 @@ async function switchStageSync(stageId) {
 
     isSwitching = false;
 
-    // ★★★ 切换阶段后重新设置返回拦截 ★★★
-    // 重置计数
-    backPressCount = 0;
+    // ★★★ 切换阶段后重置 ★★★
+backPressCount = 0;
+lastBackPressTime = 0;  // ★★★ 必须重置为 0 ★★★
 isProcessingPopState = false;
 if (backPressTimer) {
     clearTimeout(backPressTimer);
@@ -1969,7 +1969,7 @@ function handlePopState(event) {
     
     console.log(`📱 返回点击，距上次: ${timeSinceLastPress}ms, 当前计数: ${backPressCount}`);
     
-    // ★★★ 核心逻辑：基于时间差判断 ★★★
+    // ★★★ 修复后的核心逻辑 ★★★
     if (lastBackPressTime === 0 || timeSinceLastPress > 1000) {
         // 首次点击 或 超过1秒：重置为第一次
         backPressCount = 1;
