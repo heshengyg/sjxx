@@ -45,7 +45,8 @@ let isSwitching = false;
 let backPressCount = 0;
 let backPressTimer = null;
 let isBackGuardActive = false;
-let isLoggingOut = false;  // ★新增：防止重复退出
+let isLoggingOut = false;
+let lastBackPressTime = 0;  // ★新增：记录上次返回时间
 
 // ========== ★ 新增：权益数据 ==========
 let benefitsData = null;
@@ -1821,12 +1822,22 @@ async function switchStageSync(stageId) {
 
     isSwitching = false;
 
-    // ★★★ 新增：切换阶段后重新设置返回拦截 ★★★
+    // ★★★ 切换阶段后重新设置返回拦截 ★★★
+    // 重置计数
+    backPressCount = 0;
+    if (backPressTimer) {
+        clearTimeout(backPressTimer);
+        backPressTimer = null;
+    }
+    lastBackPressTime = 0;
+    
+    // 移除旧的toast
+    const toast = document.getElementById('backToast');
+    if (toast) toast.remove();
+    
     // 重置拦截状态，重新推入新的历史记录
     if (isBackGuardActive) {
-        // 替换当前历史记录，清除旧的拦截状态
         history.replaceState(null, '', window.location.href);
-        // 重新设置拦截
         isBackGuardActive = false;
         setupBackButtonGuard();
     }
@@ -1902,6 +1913,11 @@ function setupBackButtonGuard() {
     if (isBackGuardActive) return;
     isBackGuardActive = true;
     isLoggingOut = false;
+    backPressCount = 0;
+    if (backPressTimer) {
+        clearTimeout(backPressTimer);
+        backPressTimer = null;
+    }
     
     // 推入一个拦截状态
     history.pushState({ guard: true }, '');
@@ -1909,12 +1925,13 @@ function setupBackButtonGuard() {
     // 移除旧的监听器，防止重复绑定
     window.removeEventListener('popstate', handlePopState);
     window.addEventListener('popstate', handlePopState);
+    
+    console.log('🛡️ 返回键拦截已启动');
 }
 
 function handlePopState(event) {
     // 只处理我们的拦截状态
     if (!event.state || !event.state.guard) {
-        // 如果不是我们的拦截状态，重新推入一个
         history.pushState({ guard: true }, '');
         return;
     }
@@ -1925,30 +1942,47 @@ function handlePopState(event) {
         return;
     }
     
+    const now = Date.now();
+    const timeSinceLastPress = now - lastBackPressTime;
+    lastBackPressTime = now;
+    
+    // ★★★ 核心逻辑：如果距离上次点击超过 1 秒，重置计数 ★★★
+    if (timeSinceLastPress >1000 && backPressCount > 0) {
+        backPressCount = 0;
+        console.log('⏰ 超过2秒，计数已重置');
+    }
+    
     backPressCount++;
-    console.log(`📱 返回键点击次数: ${backPressCount}`);
+    console.log(`📱 返回键点击次数: ${backPressCount}，间隔: ${timeSinceLastPress}ms`);
     
     if (backPressCount === 1) {
-        // 第一次返回：显示提示 + 刷新当前登录后的版面
+        // ★★★ 第一次返回：显示提示，不刷新页面 ★★★
         showBackToast('再按一次返回键退出登录');
-        location.reload();
         
-        // 重置计时器，2秒内连按两次才退出（时间放宽到2秒，更符合用户习惯）
+        // 设置超时重置计数（2秒内连按才有效）
         if (backPressTimer) clearTimeout(backPressTimer);
         backPressTimer = setTimeout(() => {
             backPressCount = 0;
             backPressTimer = null;
-            console.log('⏰ 返回计数已重置');
-        }, 2000); // ★改为2秒
+            console.log('⏰ 返回计数已重置（超时）');
+            // 移除提示
+            const toast = document.getElementById('backToast');
+            if (toast) toast.remove();
+        }, 1000);
         
     } else if (backPressCount >= 2) {
-        // 第二次返回（2秒内）：执行退出登录
+        // ★★★ 第二次返回（1秒内）：执行退出登录 ★★★
         clearTimeout(backPressTimer);
         backPressTimer = null;
         backPressCount = 0;
         isLoggingOut = true;
+        lastBackPressTime = 0;
         
-        console.log('🚪 执行退出登录');
+        // 移除提示
+        const toast = document.getElementById('backToast');
+        if (toast) toast.remove();
+        
+        console.log('🚪 执行退出登录（连续2次返回）');
         // 执行退出逻辑
         logout();
     }
@@ -1957,7 +1991,7 @@ function handlePopState(event) {
     history.pushState({ guard: true }, '');
 }
 
-// ★新增：显示轻提示
+// 显示轻提示
 function showBackToast(message) {
     // 移除已有的toast
     const oldToast = document.getElementById('backToast');
@@ -1968,32 +2002,38 @@ function showBackToast(message) {
     toast.textContent = message;
     Object.assign(toast.style, {
         position: 'fixed',
-        bottom: '100px',
+        bottom: '120px',
         left: '50%',
         transform: 'translateX(-50%)',
-        background: 'rgba(0,0,0,0.75)',
+        background: 'rgba(0,0,0,0.78)',
         color: '#fff',
-        padding: '12px 28px',
+        padding: '14px 32px',
         borderRadius: '30px',
-        fontSize: '16px',
+        fontSize: '17px',
         fontWeight: '500',
         zIndex: '99999',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-        backdropFilter: 'blur(8px)',
-        transition: 'opacity 0.3s ease',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+        backdropFilter: 'blur(10px)',
+        transition: 'opacity 0.4s ease, transform 0.4s ease',
         fontFamily: 'system-ui, -apple-system, sans-serif',
         letterSpacing: '0.5px',
         maxWidth: '90%',
-        textAlign: 'center'
+        textAlign: 'center',
+        opacity: '1',
+        transform: 'translateX(-50%) translateY(0)'
     });
     document.body.appendChild(toast);
     
-    // 2.5秒后自动消失
+    // 2.5秒后自动淡出
     setTimeout(() => {
         toast.style.opacity = '0';
-        setTimeout(() => toast.remove(), 300);
+        toast.style.transform = 'translateX(-50%) translateY(20px)';
+        setTimeout(() => {
+            if (toast.parentNode) toast.remove();
+        }, 400);
     }, 2500);
 }
+
 // ========== Auth ==========
 async function handleAuth() {
     if (!phoneInput || !passwordInput || !nameInput) return;
@@ -2313,16 +2353,14 @@ function logout() {
         isBackGuardActive = false;
         isLoggingOut = false;
         backPressCount = 0;
+        lastBackPressTime = 0;
         if (backPressTimer) {
             clearTimeout(backPressTimer);
             backPressTimer = null;
         }
-        // 移除监听器
         window.removeEventListener('popstate', handlePopState);
-        // 清除历史记录中的拦截状态
         history.replaceState(null, '', window.location.href);
         
-        // ★移除提示toast
         const toast = document.getElementById('backToast');
         if (toast) toast.remove();
     }
