@@ -41,14 +41,12 @@ let isRenderingQuiz = false;
 let isDataPreloaded = false;
 let allStageData = {};
 let isSwitching = false;
-// ========== 返回键拦截相关 ==========
-let backPressCount = 0;
-let backPressTimer = null;
-let isBackGuardActive = false;
+
+// ========== 返回键拦截相关（简化版） ==========
 let isLoggingOut = false;
-let lastBackPressTime = 0;
-let isProcessingPopState = false;  // ★★★ 新增：防重复触发锁 ★★★
-// ========== ★ 新增：权益数据 ==========
+let isProcessingPopState = false;
+
+// ========== 权益数据 ==========
 let benefitsData = null;
 let benefitsLoaded = false;
 
@@ -58,7 +56,6 @@ async function loadBenefits() {
         const resp = await fetch('benefits.json');
         if (!resp.ok) throw new Error('加载权益数据失败');
         const data = await resp.json();
-        // ★★★ 自动计算总价值 ★★★
         var total = 0;
         if (data.stages && Array.isArray(data.stages)) {
             data.stages.forEach(function(s) {
@@ -89,12 +86,12 @@ async function loadBenefits() {
         return benefitsData;
     }
 }
+
 async function renderBenefitsTable() {
     const data = await loadBenefits();
     const tbody = document.getElementById('benefitsBody');
     if (!tbody) return;
     tbody.innerHTML = '';
-    // ★★★ 重新计算总价值 ★★★
     var total = 0;
     data.stages.forEach(function(s) {
         total += (s.value || 0);
@@ -108,6 +105,7 @@ async function renderBenefitsTable() {
     });
     document.getElementById('totalValue').textContent = '¥' + total;
 }
+
 function showBenefitsPopup() {
     const modal = document.getElementById('benefitsModal');
     const body = document.getElementById('benefitsModalBody');
@@ -220,13 +218,16 @@ function getLevelFromStages(stages) {
     if (max >= 3) return LEVELS[1];
     return LEVELS[0];
 }
+
 function getCurrentStage(stages) {
     if (!stages || stages.length === 0) return 1;
     const max = Math.max(...stages);
     if (max >= 6) return 6;
     return max + 1;
 }
+
 function getLevelById(id) { return LEVELS.find(l => l.id === id) || LEVELS[0]; }
+
 function formatTime(sec) {
     const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
     return `${m}分${s}秒`;
@@ -390,6 +391,7 @@ async function loadUserProgress() {
         }
     } catch (e) { console.warn('加载进度失败:', e); }
 }
+
 async function updateResourceProgress(resourceId, progress, position = 0) {
     if (!currentUser) return;
     if (!progressMap[resourceId]) {
@@ -717,7 +719,6 @@ function updateSubmitButtonState() {
     submitBtn.style.display = '';
     const allConfirmed = questionStates.every(s => s && s.confirmed === true);
     
-    // ★★★ 检查是否有历史记录 ★★★
     var hasHistory = false;
     if (currentUser && currentUser.quiz_results) {
         var stageKey = 'stage_' + currentViewStage;
@@ -737,6 +738,7 @@ function updateSubmitButtonState() {
         submitBtn.textContent = '📝 请先确认所有答案';
     }
 }
+
 // ========== 保存答题状态 ==========
 async function saveQuizStateToSupabase() {
     if (!currentUser) return;
@@ -781,7 +783,6 @@ async function loadQuizStateFromSupabase(stageId) {
 // ========== renderQuiz 函数 ==========
 async function renderQuiz(quiz) {
     const isExamStage = EXAM_STAGES.includes(currentViewStage);
-    // DOM 元素
     const singleContainer = document.getElementById('singleContainer');
     const multipleContainer = document.getElementById('multipleContainer');
     const judgeContainer = document.getElementById('judgeContainer');
@@ -803,7 +804,6 @@ async function renderQuiz(quiz) {
     const quizJudgeTitle = document.getElementById('quizJudgeTitle');
     const quizJudgeScoreText = document.getElementById('quizJudgeScoreText');
 
-    // 先全部隐藏
     [singleHeader, multipleHeader, judgeHeader, quizTitleHeader, quizFooterGlobal].forEach(el => {
         if (el) el.style.display = 'none';
     });
@@ -814,42 +814,37 @@ async function renderQuiz(quiz) {
         if (el) el.style.display = 'none';
     });
 
-    // ★★★ 检查当前阶段是否已通过（用于显示历史成绩）★★★
-    // ★★★ 检查当前阶段是否已通过（用于显示历史成绩）★★★
-const stageId = currentViewStage;
-const isPassed = currentUser && currentUser.completed_stages && currentUser.completed_stages.includes(stageId);
-let historyData = null;
-if (isPassed && currentUser) {
-    const results = currentUser.quiz_results || {};
-    const stageKey = `stage_${stageId}`;
-    historyData = results[stageKey] || null;
-}
-
-// ★★★ 根据当前阶段显示/隐藏历史成绩 ★★★
-if (quizResult) {
-    if (isPassed && historyData) {
-        // 当前阶段有数据，显示
-        var rawData = historyData;
-        var best = rawData.best || rawData;
-        var last = rawData.last || rawData;
-        var bestPassed = best.passed;
-        var passThreshold = Math.round(best.total * 0.8);
-        
-        var displayMsg = '';
-        displayMsg += (bestPassed ? '✅ 已通过' : '❌ 未通过') + '<br>';
-        displayMsg += '📊 最后一次成绩：' + last.correct + '/' + last.total + '（达标分 ' + passThreshold + '）<br>';
-        displayMsg += '🏆 历史最好成绩：' + best.correct + '/' + best.total;
-        
-        quizResult.classList.remove('hidden');
-        quizResult.innerHTML = displayMsg;
-        quizResult.className = bestPassed ? 'msg' : 'msg error';
-    } else {
-        // ★★★ 当前阶段没有数据，隐藏 ★★★
-        quizResult.classList.add('hidden');
-        quizResult.innerHTML = '';
-        quizResult.className = 'msg hidden';
+    const stageId = currentViewStage;
+    const isPassed = currentUser && currentUser.completed_stages && currentUser.completed_stages.includes(stageId);
+    let historyData = null;
+    if (isPassed && currentUser) {
+        const results = currentUser.quiz_results || {};
+        const stageKey = `stage_${stageId}`;
+        historyData = results[stageKey] || null;
     }
-}
+
+    if (quizResult) {
+        if (isPassed && historyData) {
+            var rawData = historyData;
+            var best = rawData.best || rawData;
+            var last = rawData.last || rawData;
+            var bestPassed = best.passed;
+            var passThreshold = Math.round(best.total * 0.8);
+            
+            var displayMsg = '';
+            displayMsg += (bestPassed ? '✅ 已通过' : '❌ 未通过') + '<br>';
+            displayMsg += '📊 最后一次成绩：' + last.correct + '/' + last.total + '（达标分 ' + passThreshold + '）<br>';
+            displayMsg += '🏆 历史最好成绩：' + best.correct + '/' + best.total;
+            
+            quizResult.classList.remove('hidden');
+            quizResult.innerHTML = displayMsg;
+            quizResult.className = bestPassed ? 'msg' : 'msg error';
+        } else {
+            quizResult.classList.add('hidden');
+            quizResult.innerHTML = '';
+            quizResult.className = 'msg hidden';
+        }
+    }
 
     if (!isExamStage || !quiz || quiz.length === 0) {
         return;
@@ -872,7 +867,6 @@ if (quizResult) {
         }
     });
 
-    // ★★★ 计算总分数和达标分 ★★★
     let totalQuizScore = 0;
     ['single', 'multiple', 'judge'].forEach(key => {
         totalQuizScore += groups[key].totalScore || 0;
@@ -882,7 +876,6 @@ if (quizResult) {
     const hasAnyQuiz = groups.single.items.length > 0 || groups.multiple.items.length > 0 || groups.judge.items.length > 0;
     if (!hasAnyQuiz) return;
 
-    // ★★★ 显示考核总标题（含总分和达标分）★★★
     if (quizContentTitle) {
         quizContentTitle.style.display = 'block';
         const titleTextEl = quizContentTitle.querySelector('.title-text') || quizContentTitle;
@@ -893,7 +886,6 @@ if (quizResult) {
         }
     }
 
-    // 初始化 questionStates
     let savedState = null;
     if (currentUser && isExamStage && quiz && quiz.length > 0) {
         savedState = await loadQuizStateFromSupabase(currentViewStage);
@@ -907,14 +899,12 @@ if (quizResult) {
         questionStates = quiz.map(() => ({ confirmed: false, selected: [] }));
     }
 
-    // 渲染各题型
     for (const [type, group] of Object.entries(groups)) {
         if (group.items.length === 0) continue;
 
         const perScore = group.totalScore / group.items.length;
         const scoreText = `（每题${perScore}分，共${group.totalScore}分）`;
 
-        // 显示内容标题
         if (group.titleEl) {
             group.titleEl.style.display = 'block';
             if (group.scoreTextEl) {
@@ -924,7 +914,6 @@ if (quizResult) {
             }
         }
 
-        // 更新对应的帘头分数
         if (type === 'single' && singleScoreEl) {
             singleScoreEl.textContent = scoreText;
             singleScoreEl.style.textAlign = 'right';
@@ -1049,22 +1038,18 @@ if (quizResult) {
         });
     }
 
-    // 强制显示容器
     [singleContainer, multipleContainer, judgeContainer].forEach(el => {
         if (el) el.style.display = 'block';
     });
     if (quizFooterGlobal) quizFooterGlobal.style.display = 'block';
 
-        // ★★★ 设置提交按钮（由 submitQuiz 统一控制）★★★
     if (submitBtn) {
-        // 检查是否有历史记录
         var hasHistory = false;
         if (currentUser && currentUser.quiz_results) {
             var stageKey = 'stage_' + currentViewStage;
             var stageData = currentUser.quiz_results[stageKey] || {};
             hasHistory = !!(stageData.best || stageData.last);
         }
-        // ★★★ 有历史记录显示"重新提交"，否则显示"提交考核" ★★★
         if (hasHistory || (isPassed && historyData)) {
             submitBtn.textContent = '🔄 重新提交';
         } else {
@@ -1074,7 +1059,6 @@ if (quizResult) {
         submitBtn.onclick = submitQuiz;
     }
 
-    // 确保内容标题重新显示
     if (quizContentTitle) {
         let totalQuizScore = 0;
         ['single', 'multiple', 'judge'].forEach(key => {
@@ -1109,7 +1093,6 @@ if (quizResult) {
 let currentVideoElement = null;
 
 function openResourceDetail(resource, allResources) {
-    // ★★★ 新增：禁止背景滚动 ★★★
     document.body.classList.add('modal-open');
     if (!detailModal || !detailTitle || !detailBody || !detailProgress) return;
     currentImageResources = allResources.filter(r => r.type === resource.type);
@@ -1339,7 +1322,6 @@ function openResourceDetail(resource, allResources) {
 }
 
 function closeDetailModal() {
-    // ★★★ 新增：恢复背景滚动 ★★★
     document.body.classList.remove('modal-open');
     if (!detailModal) return;
     detailModal.classList.remove('open');
@@ -1650,7 +1632,6 @@ async function submitQuiz() {
         refreshBtn.onclick = goToLatestStage;
     }
 
-    // ★★★ 如果本次未通过，不跳转 ★★★
     if (!passed) {
         console.log('📝 本次未通过，停留在当前页面');
         if (quizResult) {
@@ -1660,13 +1641,11 @@ async function submitQuiz() {
         return;
     }
 
-    // ★★★ 判断晋级类型 ★★★
     var isFirstPass = passed && !isStagePassed;
     var bestScore = best ? best.correct : 0;
     var isRetakePass = passed && isStagePassed && (earnedScore > bestScore);
 
     if (isFirstPass) {
-        // ★ 首次通过：跳转到最新阶段
         var newStages = (currentUser.completed_stages || []).concat([targetStage]);
         await supabaseClient.from('merchants').update({ completed_stages: newStages }).eq('id', currentUser.id);
         currentUser.completed_stages = newStages;
@@ -1710,7 +1689,6 @@ async function submitQuiz() {
         }, 5000);
 
     } else if (isRetakePass) {
-        // ★ 重考通过且成绩高于历史最好 → 跳转到下一阶段
         if (quizResult) {
             quizResult.innerHTML = displayMsg + '<br>⏳ 5秒后自动进入下一阶段...';
             quizResult.className = 'msg';
@@ -1730,7 +1708,6 @@ async function submitQuiz() {
             }
         }, 5000);
     } else {
-        // ★★★ 重考通过但成绩不高于历史最好 → 不跳转 ★★★
         console.log('📝 重考通过但未超过历史最好成绩，停留在当前页面');
         if (quizResult) {
             quizResult.innerHTML = displayMsg + '<br>✅ 已通过（未超过历史最好成绩，可继续挑战更高分）';
@@ -1738,6 +1715,7 @@ async function submitQuiz() {
         }
     }
 }
+
 // ========== 生成阶段卡片 ==========
 function buildStageCards(container, currentStage, maxUnlocked) {
     if (!container) return;
@@ -1826,46 +1804,37 @@ async function switchStageSync(stageId) {
 
     isSwitching = false;
 
-    // ★★★ 切换阶段后重置 ★★★
-// ★★★ 切换阶段后重置 ★★★
-backPressCount = 0;
-lastBackPressTime = 0;  // ★★★ 必须重置为 0 ★★★
-isProcessingPopState = false;
-if (backPressTimer) {
-    clearTimeout(backPressTimer);
-    backPressTimer = null;
-}
-lastBackPressTime = 0;
+    // ★★★ 切换阶段后重置拦截状态 ★★★
+    isProcessingPopState = false;
+    sessionStorage.removeItem('backGuardState');
 
-// ★★★ 清除 sessionStorage 中保存的状态 ★★★
-sessionStorage.removeItem('backGuardState');
+    // 移除旧的toast
+    const toast = document.getElementById('backToast');
+    if (toast) toast.remove();
 
-// 移除旧的toast
-const toast = document.getElementById('backToast');
-if (toast) toast.remove();
+    // 重新设置拦截
+    setupBackButtonGuard();
 
-// ★★★ 强制重新设置拦截（先关闭再开启）★★★
-isBackGuardActive = false;  // ★★★ 强制重置，让 setupBackButtonGuard 可以重新执行 ★★★
-setupBackButtonGuard();
     setTimeout(() => {
         isHeaderInitialized = false;
         initStickyHeaders();
     }, 100);
 }
+
 // ========== Dashboard ==========
 async function updateDashboard(user) {
     if (!user) return;
     currentUser = user;
     const stages = user.completed_stages || [];
     const level = getLevelFromStages(stages);
-    // ★★★ 如果数据库中的等级与计算不符，自动修复 ★★★
-if (level.id !== user.level) {
-    await supabaseClient
-        .from('merchants')
-        .update({ level: level.id })
-        .eq('id', user.id);
-    user.level = level.id;
-}
+    
+    if (level.id !== user.level) {
+        await supabaseClient
+            .from('merchants')
+            .update({ level: level.id })
+            .eq('id', user.id);
+        user.level = level.id;
+    }
 
     const actualStage = getCurrentStage(stages);
     currentViewStage = actualStage > TOTAL_STAGES ? TOTAL_STAGES : actualStage;
@@ -1915,32 +1884,10 @@ if (level.id !== user.level) {
 
 // ========== 返回键拦截 ==========
 function setupBackButtonGuard() {
-    // ★★★ 从 sessionStorage 恢复 lastBackPressTime ★★★
-    const savedState = sessionStorage.getItem('backGuardState');
-    if (savedState) {
-        try {
-            const state = JSON.parse(savedState);
-            if (state.lastBackPressTime) {
-                lastBackPressTime = state.lastBackPressTime;
-                console.log('🔄 恢复 lastBackPressTime:', lastBackPressTime);
-            }
-        } catch (e) {}
-    }
+    if (isLoggingOut) return;
     
-    if (isBackGuardActive) {
-        console.log('🛡️ 拦截已激活，跳过重置');
-        return;
-    }
-    
-    isBackGuardActive = true;
-    isLoggingOut = false;
-    backPressCount = 0;
-    isProcessingPopState = false;
-    
-    if (backPressTimer) {
-        clearTimeout(backPressTimer);
-        backPressTimer = null;
-    }
+    // 清除旧的状态
+    sessionStorage.removeItem('backGuardState');
     
     history.replaceState({ guard: true }, '');
     history.pushState({ guard: true }, '');
@@ -1949,26 +1896,17 @@ function setupBackButtonGuard() {
     window.addEventListener('popstate', handlePopState);
     console.log('🛡️ 返回键拦截已启动');
 }
-// 在文件顶部的全局变量区域（约第48行）添加一个锁变量
-// let isProcessingPopState = false;  // 请确认这行已添加
 
 function handlePopState(event) {
     if (isProcessingPopState) {
-        console.log('⏳ 正在处理返回事件，忽略重复触发');
         if (!history.state || !history.state.guard) {
             history.pushState({ guard: true }, '');
         }
         return;
     }
     isProcessingPopState = true;
-    
-    if (backPressTimer) {
-        clearTimeout(backPressTimer);
-        backPressTimer = null;
-    }
 
     if (!event.state || !event.state.guard) {
-        console.log('🔄 拦截状态丢失，重新设置');
         history.replaceState(null, '', window.location.href);
         history.pushState({ guard: true }, '');
         isProcessingPopState = false;
@@ -1981,41 +1919,39 @@ function handlePopState(event) {
         return;
     }
     
+    // ★★★ 完全依赖 sessionStorage ★★★
     const now = Date.now();
-    const timeSinceLastPress = now - lastBackPressTime;
+    let savedTime = 0;
+    const savedState = sessionStorage.getItem('backGuardState');
+    if (savedState) {
+        try {
+            savedTime = JSON.parse(savedState).t || 0;
+        } catch (e) {}
+    }
     
-    console.log(`📱 返回点击，距上次: ${timeSinceLastPress}ms, 当前计数: ${backPressCount}, lastBackPressTime: ${lastBackPressTime}`);
+    const timeSinceLastPress = now - savedTime;
     
-    // ★★★ 核心修复：每次点击都先重置 backPressCount 为 0 ★★★
-    // 然后根据时间差决定是第一次还是第二次
-    backPressCount = 0;  // ← 关键：强制重置
-    
-    if (lastBackPressTime === 0 || timeSinceLastPress > 1000) {
-        // 首次点击 或 超过1秒：重置为第一次
-        backPressCount = 1;
-        lastBackPressTime = now;
+    if (savedTime === 0 || timeSinceLastPress > 1000) {
+        // 首次 或 超过1秒：显示提示，记录时间
+        sessionStorage.setItem('backGuardState', JSON.stringify({ t: now }));
         showBackToast('再按一次返回键退出登录');
-        console.log('📱 第一次返回（显示提示）');
     } else {
-        // 1秒内再次点击：执行退出
-        console.log('🚪 1秒内连续2次返回，执行退出');
-        backPressCount = 0;
-        lastBackPressTime = 0;
+        // 1秒内：退出
+        sessionStorage.removeItem('backGuardState');
         isLoggingOut = true;
-        
         const toast = document.getElementById('backToast');
         if (toast) toast.remove();
-        
         logout();
+        isProcessingPopState = false;
         return;
     }
     
     history.pushState({ guard: true }, '');
-    
     setTimeout(function() {
         isProcessingPopState = false;
     }, 200);
 }
+
 // 显示轻提示
 function showBackToast(message) {
     const oldToast = document.getElementById('backToast');
@@ -2024,45 +1960,26 @@ function showBackToast(message) {
     const toast = document.createElement('div');
     toast.id = 'backToast';
     toast.textContent = message;
-    
-    // ★★★ 加上闪烁效果，确保能看到 ★★★
     toast.style.cssText = `
         position: fixed !important;
         bottom: 120px !important;
         left: 50% !important;
         transform: translateX(-50%) !important;
-        background: rgba(0,0,0,0.88) !important;
+        background: rgba(0,0,0,0.85) !important;
         color: #ffffff !important;
         padding: 14px 28px !important;
         border-radius: 30px !important;
         font-size: 17px !important;
         font-weight: 500 !important;
         z-index: 9999999 !important;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3) !important;
         font-family: system-ui, -apple-system, sans-serif !important;
         letter-spacing: 0.5px !important;
         max-width: 85% !important;
         text-align: center !important;
         white-space: nowrap !important;
-        opacity: 1 !important;
-        transition: opacity 0.3s ease !important;
-        -webkit-user-select: none !important;
-        user-select: none !important;
-        -webkit-touch-callout: none !important;
         pointer-events: none !important;
-        animation: backToastPulse 0.5s ease 3 !important;
     `;
-    
-    // 添加动画
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes backToastPulse {
-            0%, 100% { transform: translateX(-50%) scale(1); }
-            50% { transform: translateX(-50%) scale(1.05); background: rgba(200,50,50,0.9); }
-        }
-    `;
-    document.head.appendChild(style);
-    
     document.body.appendChild(toast);
     
     setTimeout(() => {
@@ -2072,6 +1989,7 @@ function showBackToast(message) {
         }, 400);
     }, 2500);
 }
+
 // ========== Auth ==========
 async function handleAuth() {
     if (!phoneInput || !passwordInput || !nameInput) return;
@@ -2129,12 +2047,10 @@ async function handleAuth() {
             saveRememberMe(phone, password);
             showAuthMsg(`欢迎回来，${existing.name}`, false);
 
-            // ★★★ 添加这行 ★★★
-    await supabaseClient
-        .from('merchants')
-        .update({ last_login: new Date().toISOString() })
-        .eq('id', currentUser.id);
-
+            await supabaseClient
+                .from('merchants')
+                .update({ last_login: new Date().toISOString() })
+                .eq('id', currentUser.id);
 
             setTimeout(preloadAllStages, 500);
 
@@ -2175,11 +2091,10 @@ async function handleAuth() {
             saveRememberMe(phone, password);
             showAuthMsg(`🎉 注册成功，${name}！`, false);
 
-           // ★★★ 添加这行 ★★★
-    await supabaseClient
-        .from('merchants')
-        .update({ last_login: new Date().toISOString() })
-        .eq('id', currentUser.id);
+            await supabaseClient
+                .from('merchants')
+                .update({ last_login: new Date().toISOString() })
+                .eq('id', currentUser.id);
 
             setTimeout(preloadAllStages, 500);
 
@@ -2253,6 +2168,7 @@ async function goToLatestStage() {
 
 // ========== Avatar Upload ==========
 let selectedFile = null;
+
 function openAvatarModal() {
     if (!avatarModal) return;
     selectedFile = null;
@@ -2261,6 +2177,7 @@ function openAvatarModal() {
     updateAvatar(currentUser);
     avatarModal.classList.add('open');
 }
+
 if (avatarFileInput) {
     avatarFileInput.addEventListener('change', function(e) {
         const file = e.target.files[0];
@@ -2288,6 +2205,7 @@ if (avatarFileInput) {
         if (avatarModalMsg) avatarModalMsg.classList.add('hidden');
     });
 }
+
 async function saveAvatar() {
     if (!selectedFile) { if (avatarModalMsg) { avatarModalMsg.classList.remove('hidden'); avatarModalMsg.textContent = '请选择图片'; } return; }
     if (!currentUser) return;
@@ -2348,6 +2266,7 @@ function openPasswordModal() {
     if (passwordModalMsg) { passwordModalMsg.classList.add('hidden'); passwordModalMsg.textContent = ''; }
     passwordModal.classList.add('open');
 }
+
 async function savePassword() {
     if (!oldPasswordInput || !newPasswordInput || !confirmPasswordInput) return;
     const old = oldPasswordInput.value.trim();
@@ -2387,17 +2306,11 @@ function logout() {
         isDataPreloaded = false;
         allStageData = {};
         
-        // ★★★ 重置返回拦截状态 ★★★
-        backPressCount = 0;
-        lastBackPressTime = 0;
-        isProcessingPopState = false;
-        if (backPressTimer) {
-            clearTimeout(backPressTimer);
-            backPressTimer = null;
-        }
-        
-        // ★★★ 清除 sessionStorage 中保存的状态 ★★★
+        // ★★★ 清除 sessionStorage ★★★
         sessionStorage.removeItem('backGuardState');
+        
+        isLoggingOut = false;
+        isProcessingPopState = false;
         
         window.removeEventListener('popstate', handlePopState);
         history.replaceState(null, '', window.location.href);
@@ -2406,6 +2319,7 @@ function logout() {
         if (toast) toast.remove();
     }
 }
+
 // ========== 帘头滚动切换 ==========
 let headerSections = [];
 let isHeaderInitialized = false;
@@ -2531,17 +2445,20 @@ function initStickyControl() {
 // ========== Event Bindings ==========
 if (authBtn) authBtn.addEventListener('click', handleAuth);
 if (refreshBtn) refreshBtn.addEventListener('click', goToLatestStage);
+
 if (avatarWrapper) {
     avatarWrapper.addEventListener('click', function(e) {
         e.stopPropagation();
         if (dropdownMenu) dropdownMenu.classList.toggle('open');
     });
 }
+
 document.addEventListener('click', function(e) {
     if (avatarWrapper && !avatarWrapper.contains(e.target)) {
         if (dropdownMenu) dropdownMenu.classList.remove('open');
     }
 });
+
 if (changeAvatarBtn) {
     changeAvatarBtn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -2549,8 +2466,10 @@ if (changeAvatarBtn) {
         openAvatarModal();
     });
 }
+
 if (avatarCancelBtn) avatarCancelBtn.addEventListener('click', function() { if (avatarModal) avatarModal.classList.remove('open'); });
 if (avatarSaveBtn) avatarSaveBtn.addEventListener('click', saveAvatar);
+
 if (changePasswordBtn) {
     changePasswordBtn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -2558,6 +2477,7 @@ if (changePasswordBtn) {
         openPasswordModal();
     });
 }
+
 if (changeShopNameBtn) {
     changeShopNameBtn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -2565,8 +2485,10 @@ if (changeShopNameBtn) {
         openShopNameModal();
     });
 }
+
 if (passwordCancelBtn) passwordCancelBtn.addEventListener('click', function() { if (passwordModal) passwordModal.classList.remove('open'); });
 if (passwordSaveBtn) passwordSaveBtn.addEventListener('click', savePassword);
+
 if (logoutBtn) {
     logoutBtn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -2574,12 +2496,14 @@ if (logoutBtn) {
         logout();
     });
 }
+
 if (detailCloseBtn) detailCloseBtn.addEventListener('click', closeDetailModal);
 if (detailModal) {
     detailModal.addEventListener('click', function(e) {
         if (e.target === this) closeDetailModal();
     });
 }
+
 if (phoneInput) phoneInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 if (passwordInput) passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
 if (nameInput) nameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleAuth(); });
