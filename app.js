@@ -1947,13 +1947,12 @@ function handlePopState(event) {
     const now = Date.now();
     const timeSinceLastPress = now - lastBackPressTime;
     
-    console.log(`📱 返回点击，距上次: ${timeSinceLastPress}ms, 当前计数: ${backPressCount}`);
+    console.log(`📱 返回点击，距上次: ${timeSinceLastPress}ms, 当前计数: ${backPressCount}, lastBackPressTime: ${lastBackPressTime}`);
     
-    // ★★★ 核心修复：超时或首次点击，重置计数为 0 ★★★
+    // 超时或首次点击，重置计数为 0
     if (timeSinceLastPress > 1000 || lastBackPressTime === 0) {
         backPressCount = 0;
-        lastBackPressTime = 0;
-        console.log('⏰ 重置计数为0');
+        console.log('⏰ 重置 backPressCount = 0');
     }
     
     // 增加计数
@@ -1967,7 +1966,11 @@ function handlePopState(event) {
             clearTimeout(backPressTimer);
             backPressTimer = null;
         }
+        console.log('📱 第一次返回（显示提示）');
     } else if (backPressCount >= 2) {
+        console.log('🚪 1秒内连续2次返回，执行退出');
+        
+        // ★★★ 退出时重置所有状态 ★★★
         backPressCount = 0;
         lastBackPressTime = 0;
         isLoggingOut = true;
