@@ -2245,9 +2245,18 @@ async function goToLatestStage() {
             return;
         }
         
-        // ★★★ 直接更新当前阶段并刷新 Dashboard ★★★
+        // ★★★ 更新当前阶段 ★★★
         currentViewStage = nextStage;
+        
+        // ★★★ 先更新 Dashboard（更新用户信息、进度等）★★★
         await updateDashboard(currentUser);
+        
+        // ★★★ 强制刷新阶段 UI（确保成绩显示）★★★
+        const stageDataForRefresh = stageData[currentViewStage];
+        if (stageDataForRefresh) {
+            await updateStageUI(stageDataForRefresh);
+            console.log(`✅ 强制刷新阶段 ${currentViewStage} UI 完成`);
+        }
         
         // 移除提示
         if (quizResult) {
