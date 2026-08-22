@@ -1850,7 +1850,6 @@ async function updateDashboard(user) {
     if (!user) return;
     
     // ★★★ 确保使用最新的用户数据 ★★★
-    // 如果传入的 user 是旧数据，重新从数据库获取
     if (user.id) {
         try {
             const { data, error } = await supabaseClient
@@ -1861,6 +1860,7 @@ async function updateDashboard(user) {
             if (!error && data) {
                 currentUser = data;
                 user = data;
+                console.log('🔄 updateDashboard 刷新用户数据成功');
             }
         } catch (e) {
             console.warn('刷新用户数据失败，使用缓存数据', e);
@@ -1898,7 +1898,13 @@ async function updateDashboard(user) {
 
     const data = await loadStageData(currentViewStage);
     if (data) {
+        // ★★★ 延迟调用 updateStageUI，确保 currentUser 已完全更新 ★★★
         await updateStageUI(data);
+        // ★★★ 二次确认：再次调用 renderQuiz 刷新考核区域 ★★★
+        if (data.quiz && data.quiz.length > 0) {
+            await renderQuiz(data.quiz);
+            console.log(`✅ 二次渲染考核完成，阶段 ${currentViewStage}`);
+        }
     } else {
         if (stageTitle) stageTitle.textContent = `📘 第${currentViewStage}阶段`;
         if (stageDesc) stageDesc.textContent = '数据加载失败，请检查网络或JSON文件。';
@@ -2125,8 +2131,18 @@ async function handleAuth() {
             const stages = existing.completed_stages || [];
             currentViewStage = getCurrentStage(stages);
             if (currentViewStage > TOTAL_STAGES) currentViewStage = TOTAL_STAGES;
-            await updateDashboard(currentUser);
-            setupBackButtonGuard();
+            // 在登录成功后，添加额外刷新
+await updateDashboard(currentUser);
+// ★★★ 登录后强制刷新阶段 UI ★★★
+const loginStageData = stageData[currentViewStage];
+if (loginStageData) {
+    await updateStageUI(loginStageData);
+    if (loginStageData.quiz && loginStageData.quiz.length > 0) {
+        await renderQuiz(loginStageData.quiz);
+    }
+    console.log('✅ 登录后强制刷新阶段UI完成');
+}
+setupBackButtonGuard();
             saveRememberMe(phone, password);
             showAuthMsg(`欢迎回来，${existing.name}`, false);
 
@@ -2251,16 +2267,21 @@ async function goToLatestStage() {
         // ★★★ 先更新 Dashboard（更新用户信息、进度等）★★★
         await updateDashboard(currentUser);
         
-        // ★★★ 强制刷新阶段 UI（确保成绩显示）★★★
+        // ★★★ 额外保险：再次强制刷新阶段 UI ★★★
         const stageDataForRefresh = stageData[currentViewStage];
         if (stageDataForRefresh) {
+            // 先清除旧的 quizResult 状态
+            if (quizResult) {
+                quizResult.classList.add('hidden');
+                quizResult.innerHTML = '';
+            }
+            // 重新渲染
             await updateStageUI(stageDataForRefresh);
+            // 再次确保考核区域刷新
+            if (stageDataForRefresh.quiz && stageDataForRefresh.quiz.length > 0) {
+                await renderQuiz(stageDataForRefresh.quiz);
+            }
             console.log(`✅ 强制刷新阶段 ${currentViewStage} UI 完成`);
-        }
-        
-        // 移除提示
-        if (quizResult) {
-            quizResult.classList.add('hidden');
         }
         
         // 更新阶段卡片的激活状态
