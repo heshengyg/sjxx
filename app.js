@@ -815,13 +815,13 @@ async function renderQuiz(quiz) {
     });
 
     const stageId = currentViewStage;
-    const isPassed = currentUser && currentUser.completed_stages && currentUser.completed_stages.includes(stageId);
-    let historyData = null;
-    if (isPassed && currentUser) {
-        const results = currentUser.quiz_results || {};
-        const stageKey = `stage_${stageId}`;
-        historyData = results[stageKey] || null;
-    }
+// ★★★ 直接从 quiz_results 读取，不依赖 isPassed ★★★
+let historyData = null;
+if (currentUser && currentUser.quiz_results) {
+    const results = currentUser.quiz_results || {};
+    const stageKey = `stage_${stageId}`;
+    historyData = results[stageKey] || null;
+}
 
     if (quizResult) {
     // ★★★ 只要有历史数据就显示，不管是否通过 ★★★
