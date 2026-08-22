@@ -782,6 +782,28 @@ async function loadQuizStateFromSupabase(stageId) {
 
 // ========== renderQuiz 函数 ==========
 async function renderQuiz(quiz) {
+    // ★★★ 强制刷新用户数据，确保 quiz_results 最新 ★★★
+    if (currentUser && currentUser.id) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('merchants')
+                .select('*')
+                .eq('id', currentUser.id)
+                .single();
+            if (!error && data) {
+                // 更新 currentUser 的 quiz_results
+                if (data.quiz_results) {
+                    currentUser.quiz_results = data.quiz_results;
+                }
+                // 也更新其他可能变化的字段
+                currentUser.completed_stages = data.completed_stages || [];
+                currentUser.level = data.level || 'beginner';
+                console.log('🔄 renderQuiz 刷新用户数据成功');
+            }
+        } catch (e) {
+            console.warn('renderQuiz 刷新用户数据失败:', e);
+        }
+    }
     const isExamStage = EXAM_STAGES.includes(currentViewStage);
     const singleContainer = document.getElementById('singleContainer');
     const multipleContainer = document.getElementById('multipleContainer');
