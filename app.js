@@ -1825,39 +1825,43 @@ async function switchStageSync(stageId) {
 
 // ========== Dashboard ==========
 async function updateDashboard(user) {
-    // ★★★ 强制刷新用户数据，确保 quiz_results 是最新的 ★★★
-if (user && user.id) {
-    try {
-        const { data, error } = await supabaseClient
-            .from('merchants')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-        if (!error && data) {
-            user = data;
-            currentUser = data;
+    if (!user) return;
+    
+    // ★★★ 确保使用最新的用户数据 ★★★
+    // 如果传入的 user 是旧数据，重新从数据库获取
+    if (user.id) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('merchants')
+                .select('*')
+                .eq('id', user.id)
+                .single();
+            if (!error && data) {
+                currentUser = data;
+                user = data;
+            }
+        } catch (e) {
+            console.warn('刷新用户数据失败，使用缓存数据', e);
+            currentUser = user;
         }
-    } catch (e) {
-        console.warn('刷新用户数据失败:', e);
+    } else {
         currentUser = user;
     }
-}
-    if (!user) return;
-    currentUser = user;
-    const stages = user.completed_stages || [];
+    
+    const stages = currentUser.completed_stages || [];
     const level = getLevelFromStages(stages);
     
-    if (level.id !== user.level) {
+    if (level.id !== currentUser.level) {
         await supabaseClient
             .from('merchants')
             .update({ level: level.id })
-            .eq('id', user.id);
-        user.level = level.id;
+            .eq('id', currentUser.id);
+        currentUser.level = level.id;
     }
 
     const actualStage = getCurrentStage(stages);
     currentViewStage = actualStage > TOTAL_STAGES ? TOTAL_STAGES : actualStage;
-    if (shopNameDisplay) shopNameDisplay.textContent = '🏪 ' + (user.name || '商家');
+    if (shopNameDisplay) shopNameDisplay.textContent = '🏪 ' + (currentUser.name || '商家');
     if (levelDisplay) levelDisplay.textContent = level.label;
     const done = Math.min(stages.length, TOTAL_STAGES);
     const pct = Math.round((done / TOTAL_STAGES) * 100);
@@ -1883,7 +1887,7 @@ if (user && user.id) {
     buildStageCards(stageList, currentViewStage, maxUnlocked);
     buildStageCards(stageListContent, currentViewStage, maxUnlocked);
 
-    updateAvatar(user);
+    updateAvatar(currentUser);
     if (avatarWrapper) avatarWrapper.classList.add('visible');
     if (learnMsg) learnMsg.classList.add('hidden');
     if (quizResult) quizResult.classList.add('hidden');
@@ -1900,7 +1904,6 @@ if (user && user.id) {
         }, 800);
     }
 }
-
 // ========== 返回键拦截 ==========
 
 // 判断是否在微信中
