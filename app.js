@@ -1825,6 +1825,23 @@ async function switchStageSync(stageId) {
 
 // ========== Dashboard ==========
 async function updateDashboard(user) {
+    // ★★★ 强制刷新用户数据，确保 quiz_results 是最新的 ★★★
+if (user && user.id) {
+    try {
+        const { data, error } = await supabaseClient
+            .from('merchants')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+        if (!error && data) {
+            user = data;
+            currentUser = data;
+        }
+    } catch (e) {
+        console.warn('刷新用户数据失败:', e);
+        currentUser = user;
+    }
+}
     if (!user) return;
     currentUser = user;
     const stages = user.completed_stages || [];
