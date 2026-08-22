@@ -2205,28 +2205,46 @@ function showAuthMsg(text, isError = true) {
 async function goToLatestStage() {
     if (!currentUser) return;
     try {
-        const { data, error } = await supabaseClient.from('merchants').select('*').eq('id', currentUser.id).single();
+        // ★★★ 重新获取用户最新数据 ★★★
+        const { data, error } = await supabaseClient
+            .from('merchants')
+            .select('*')
+            .eq('id', currentUser.id)
+            .single();
         if (error) throw error;
+        
+        // ★★★ 更新 currentUser 为最新数据 ★★★
         currentUser = data;
+        
         const stages = currentUser.completed_stages || [];
         const nextStage = getCurrentStage(stages);
         if (nextStage > TOTAL_STAGES) {
             alert('🎉 您已完成全部阶段！');
             return;
         }
-        if (currentViewStage !== nextStage) {
-            await switchStageSync(nextStage);
-        } else {
-            await updateDashboard(currentUser);
-        }
+        
+        // ★★★ 直接更新当前阶段并刷新 Dashboard ★★★
+        currentViewStage = nextStage;
+        await updateDashboard(currentUser);
+        
+        // 移除提示
         if (quizResult) {
             quizResult.classList.add('hidden');
         }
+        
+        // 更新阶段卡片的激活状态
+        document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
+        const cards = document.querySelectorAll('.stage-card');
+        if (cards[nextStage - 1]) cards[nextStage - 1].classList.add('active');
+        const contentCards = document.querySelectorAll('#stageListContent .stage-card');
+        if (contentCards[nextStage - 1]) contentCards[nextStage - 1].classList.add('active');
+        
+        console.log(`✅ 已进入最新阶段: ${nextStage}`);
     } catch (e) {
         alert('跳转失败: ' + e.message);
+        console.error('goToLatestStage 错误:', e);
     }
 }
-
 // ========== Avatar Upload ==========
 let selectedFile = null;
 
