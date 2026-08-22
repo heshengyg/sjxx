@@ -824,27 +824,29 @@ async function renderQuiz(quiz) {
     }
 
     if (quizResult) {
-        if (isPassed && historyData) {
-            var rawData = historyData;
-            var best = rawData.best || rawData;
-            var last = rawData.last || rawData;
-            var bestPassed = best.passed;
-            var passThreshold = Math.round(best.total * 0.8);
-            
-            var displayMsg = '';
-            displayMsg += (bestPassed ? '✅ 已通过' : '❌ 未通过') + '<br>';
-            displayMsg += '📊 最后一次成绩：' + last.correct + '/' + last.total + '（达标分 ' + passThreshold + '）<br>';
-            displayMsg += '🏆 历史最好成绩：' + best.correct + '/' + best.total;
-            
-            quizResult.classList.remove('hidden');
-            quizResult.innerHTML = displayMsg;
-            quizResult.className = bestPassed ? 'msg' : 'msg error';
-        } else {
-            quizResult.classList.add('hidden');
-            quizResult.innerHTML = '';
-            quizResult.className = 'msg hidden';
-        }
+    // ★★★ 只要有历史数据就显示，不管是否通过 ★★★
+    if (historyData) {
+        var rawData = historyData;
+        var best = rawData.best || rawData;
+        var last = rawData.last || rawData;
+        var bestPassed = best.passed;
+        var passThreshold = Math.round(best.total * 0.8);
+        
+        var displayMsg = '';
+        displayMsg += (bestPassed ? '✅ 已通过' : '❌ 未通过') + '<br>';
+        displayMsg += '📊 最后一次成绩：' + last.correct + '/' + last.total + '（达标分 ' + passThreshold + '）<br>';
+        displayMsg += '🏆 历史最好成绩：' + best.correct + '/' + best.total;
+        
+        quizResult.classList.remove('hidden');
+        quizResult.innerHTML = displayMsg;
+        quizResult.className = bestPassed ? 'msg' : 'msg error';
+    } else {
+        // ★★★ 当前阶段没有数据，隐藏 ★★★
+        quizResult.classList.add('hidden');
+        quizResult.innerHTML = '';
+        quizResult.className = 'msg hidden';
     }
+}
 
     if (!isExamStage || !quiz || quiz.length === 0) {
         return;
