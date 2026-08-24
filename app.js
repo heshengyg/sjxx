@@ -16,7 +16,7 @@ const LEVELS = [
     { id: 'elite', label: '精英商家', stages: [6], quizPass: 90, next: null }
 ];
 const TOTAL_STAGES = 6;
-const EXAM_STAGES = [2, 4, 5, 6];
+const EXAM_STAGES = [1, 2, 3, 4, 5, 6]; // 所有阶段都有考核
 
 const STAGE_INFO = {
     1: { title: '第一阶段：认知破局' },
@@ -791,11 +791,9 @@ async function renderQuiz(quiz) {
                 .eq('id', currentUser.id)
                 .single();
             if (!error && data) {
-                // 更新 currentUser 的 quiz_results
                 if (data.quiz_results) {
                     currentUser.quiz_results = data.quiz_results;
                 }
-                // 也更新其他可能变化的字段
                 currentUser.completed_stages = data.completed_stages || [];
                 currentUser.level = data.level || 'beginner';
                 console.log('🔄 renderQuiz 刷新用户数据成功');
@@ -837,38 +835,35 @@ async function renderQuiz(quiz) {
     });
 
     const stageId = currentViewStage;
-// ★★★ 直接从 quiz_results 读取，不依赖 isPassed ★★★
-let historyData = null;
-if (currentUser && currentUser.quiz_results) {
-    const results = currentUser.quiz_results || {};
-    const stageKey = `stage_${stageId}`;
-    historyData = results[stageKey] || null;
-}
+    let historyData = null;
+    if (currentUser && currentUser.quiz_results) {
+        const results = currentUser.quiz_results || {};
+        const stageKey = `stage_${stageId}`;
+        historyData = results[stageKey] || null;
+    }
 
     if (quizResult) {
-    // ★★★ 只要有历史数据就显示，不管是否通过 ★★★
-    if (historyData) {
-        var rawData = historyData;
-        var best = rawData.best || rawData;
-        var last = rawData.last || rawData;
-        var bestPassed = best.passed;
-        var passThreshold = Math.round(best.total * 0.8);
-        
-        var displayMsg = '';
-        displayMsg += (bestPassed ? '✅ 已通过' : '❌ 未通过') + '<br>';
-        displayMsg += '📊 最后一次成绩：' + last.correct + '/' + last.total + '（达标分 ' + passThreshold + '）<br>';
-        displayMsg += '🏆 历史最好成绩：' + best.correct + '/' + best.total;
-        
-        quizResult.classList.remove('hidden');
-        quizResult.innerHTML = displayMsg;
-        quizResult.className = bestPassed ? 'msg' : 'msg error';
-    } else {
-        // ★★★ 当前阶段没有数据，隐藏 ★★★
-        quizResult.classList.add('hidden');
-        quizResult.innerHTML = '';
-        quizResult.className = 'msg hidden';
+        if (historyData) {
+            var rawData = historyData;
+            var best = rawData.best || rawData;
+            var last = rawData.last || rawData;
+            var bestPassed = best.passed;
+            var passThreshold = Math.round(best.total * 0.8);
+            
+            var displayMsg = '';
+            displayMsg += (bestPassed ? '✅ 已通过' : '❌ 未通过') + '<br>';
+            displayMsg += '📊 最后一次成绩：' + last.correct + '/' + last.total + '（达标分 ' + passThreshold + '）<br>';
+            displayMsg += '🏆 历史最好成绩：' + best.correct + '/' + best.total;
+            
+            quizResult.classList.remove('hidden');
+            quizResult.innerHTML = displayMsg;
+            quizResult.className = bestPassed ? 'msg' : 'msg error';
+        } else {
+            quizResult.classList.add('hidden');
+            quizResult.innerHTML = '';
+            quizResult.className = 'msg hidden';
+        }
     }
-}
 
     if (!isExamStage || !quiz || quiz.length === 0) {
         return;
@@ -1074,7 +1069,7 @@ if (currentUser && currentUser.quiz_results) {
             var stageData = currentUser.quiz_results[stageKey] || {};
             hasHistory = !!(stageData.best || stageData.last);
         }
-        if (hasHistory || (isPassed && historyData)) {
+        if (hasHistory) {
             submitBtn.textContent = '🔄 重新提交';
         } else {
             submitBtn.textContent = '✅ 提交考核';
@@ -1113,10 +1108,512 @@ if (currentUser && currentUser.quiz_results) {
     updateSubmitButtonState();
 }
 
+// ========== 图片全屏查看器 ==========
+let imageViewerState = {
+    isFullscreen: false,
+    isZoomed: false,
+    scale: 1
+};
+
+function openImageFullscreen(resource, allResources) {
+    closeImageFullscreen();
+    
+    const viewer = document.createElement('div');
+    viewer.id = 'imageFullscreenViewer';
+    viewer.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        overflow: hidden;
+    `;
+    
+    const imageWrapper = document.createElement('div');
+    imageWrapper.id = 'imageViewerWrapper';
+    imageWrapper.style.cssText = `
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+        position: relative;
+        touch-action: none;
+    `;
+    
+    const img = document.createElement('img');
+    img.id = 'imageViewerImg';
+    img.src = resource.file;
+    img.alt = resource.title;
+    img.draggable = false;
+    img.style.cssText = `
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        transition: none;
+        display: block;
+        touch-action: none;
+        will-change: transform;
+    `;
+    
+    imageWrapper.appendChild(img);
+    viewer.appendChild(imageWrapper);
+    
+    // 进度条
+    const progressBar = document.createElement('div');
+    progressBar.id = 'imageProgressBar';
+    progressBar.style.cssText = `
+        position: absolute;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.7);
+        color: #fff;
+        padding: 8px 20px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-family: system-ui, -apple-system, sans-serif;
+        z-index: 10;
+        pointer-events: none;
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,0.15);
+        transition: opacity 0.3s ease;
+    `;
+    
+    const prog = progressMap[resource.id];
+    progressBar.textContent = prog ? `学习进度：${prog.progress}%` : '学习进度：0%';
+    viewer.appendChild(progressBar);
+    
+    // 图片计数
+    if (allResources && allResources.length > 1) {
+        const counter = document.createElement('div');
+        counter.id = 'imageCounter';
+        counter.style.cssText = `
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: rgba(255,255,255,0.6);
+            font-size: 14px;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: rgba(0,0,0,0.5);
+            padding: 4px 12px;
+            border-radius: 12px;
+            z-index: 10;
+            pointer-events: none;
+        `;
+        const idx = allResources.findIndex(r => r.id === resource.id);
+        counter.textContent = `${idx + 1} / ${allResources.length}`;
+        viewer.appendChild(counter);
+    }
+    
+    // 关闭按钮
+    const closeBtn = document.createElement('button');
+    closeBtn.id = 'imageViewerClose';
+    closeBtn.innerHTML = '✕';
+    closeBtn.style.cssText = `
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        width: 40px;
+        height: 40px;
+        border: none;
+        border-radius: 50%;
+        background: rgba(0,0,0,0.6);
+        color: #fff;
+        font-size: 22px;
+        cursor: pointer;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,0.15);
+        transition: background 0.2s;
+    `;
+    closeBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        closeImageFullscreen();
+    });
+    viewer.appendChild(closeBtn);
+    
+    // 上一张/下一张
+    if (allResources && allResources.length > 1) {
+        const navContainer = document.createElement('div');
+        navContainer.style.cssText = `
+            position: absolute;
+            bottom: 80px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            z-index: 10;
+            pointer-events: none;
+        `;
+        
+        const prevBtn = document.createElement('button');
+        prevBtn.textContent = '◀ 上一张';
+        prevBtn.style.cssText = `
+            padding: 8px 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 30px;
+            background: rgba(0,0,0,0.5);
+            color: #fff;
+            cursor: pointer;
+            font-size: 15px;
+            pointer-events: auto;
+            backdrop-filter: blur(8px);
+            transition: background 0.2s;
+        `;
+        prevBtn.addEventListener('mouseenter', function() { this.style.background = 'rgba(255,255,255,0.2)'; });
+        prevBtn.addEventListener('mouseleave', function() { this.style.background = 'rgba(0,0,0,0.5)'; });
+        prevBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const currentIdx = allResources.findIndex(r => r.id === resource.id);
+            if (currentIdx > 0) {
+                const prevResource = allResources[currentIdx - 1];
+                img.src = prevResource.file;
+                const counter = document.getElementById('imageCounter');
+                if (counter) counter.textContent = `${currentIdx} / ${allResources.length}`;
+                const newProg = progressMap[prevResource.id];
+                const bar = document.getElementById('imageProgressBar');
+                if (bar) bar.textContent = newProg ? `学习进度：${newProg.progress}%` : '学习进度：0%';
+                resetImageViewerState(img);
+                resource = prevResource;
+            }
+        });
+        
+        const nextBtn = document.createElement('button');
+        nextBtn.textContent = '下一张 ▶';
+        nextBtn.style.cssText = `
+            padding: 8px 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 30px;
+            background: rgba(0,0,0,0.5);
+            color: #fff;
+            cursor: pointer;
+            font-size: 15px;
+            pointer-events: auto;
+            backdrop-filter: blur(8px);
+            transition: background 0.2s;
+        `;
+        nextBtn.addEventListener('mouseenter', function() { this.style.background = 'rgba(255,255,255,0.2)'; });
+        nextBtn.addEventListener('mouseleave', function() { this.style.background = 'rgba(0,0,0,0.5)'; });
+        nextBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const currentIdx = allResources.findIndex(r => r.id === resource.id);
+            if (currentIdx < allResources.length - 1) {
+                const nextResource = allResources[currentIdx + 1];
+                img.src = nextResource.file;
+                const counter = document.getElementById('imageCounter');
+                if (counter) counter.textContent = `${currentIdx + 2} / ${allResources.length}`;
+                const newProg = progressMap[nextResource.id];
+                const bar = document.getElementById('imageProgressBar');
+                if (bar) bar.textContent = newProg ? `学习进度：${newProg.progress}%` : '学习进度：0%';
+                resetImageViewerState(img);
+                resource = nextResource;
+            }
+        });
+        
+        navContainer.appendChild(prevBtn);
+        navContainer.appendChild(nextBtn);
+        viewer.appendChild(navContainer);
+    }
+    
+    document.body.appendChild(viewer);
+    document.body.style.overflow = 'hidden';
+    
+    // 状态管理
+    let state = {
+        scale: 1,
+        translateX: 0,
+        translateY: 0,
+        isZoomed: false,
+        isDragging: false,
+        startX: 0,
+        startY: 0,
+        lastX: 0,
+        lastY: 0,
+        initialDistance: 0,
+        initialScale: 1,
+        isPinching: false
+    };
+    
+    let lastTapTime = 0;
+    let tapTimeout = null;
+    
+    function updateTransform() {
+        img.style.transform = `translate(${state.translateX}px, ${state.translateY}px) scale(${state.scale})`;
+        updateProgressBarVisibility();
+    }
+    
+    function updateProgressBarVisibility() {
+        const bar = document.getElementById('imageProgressBar');
+        if (!bar) return;
+        if (state.isZoomed || state.scale > 1.1) {
+            bar.style.opacity = '0';
+            bar.style.pointerEvents = 'none';
+        } else {
+            bar.style.opacity = '1';
+            bar.style.pointerEvents = 'none';
+        }
+    }
+    
+    function resetImageViewerState(imgEl) {
+        state.scale = 1;
+        state.translateX = 0;
+        state.translateY = 0;
+        state.isZoomed = false;
+        state.isDragging = false;
+        imgEl.style.transform = `translate(0px, 0px) scale(1)`;
+        updateProgressBarVisibility();
+    }
+    
+    function getDistance(event) {
+        const touch1 = event.touches[0];
+        const touch2 = event.touches[1];
+        const dx = touch1.clientX - touch2.clientX;
+        const dy = touch1.clientY - touch2.clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+    
+    // 触摸事件
+    imageWrapper.addEventListener('touchstart', function(e) {
+        if (e.touches.length === 1) {
+            const touch = e.touches[0];
+            state.isDragging = false;
+            state.startX = touch.clientX;
+            state.startY = touch.clientY;
+            state.lastX = touch.clientX;
+            state.lastY = touch.clientY;
+            
+            const now = Date.now();
+            const timeDiff = now - lastTapTime;
+            lastTapTime = now;
+            
+            if (timeDiff < 300 && timeDiff > 50) {
+                if (tapTimeout) {
+                    clearTimeout(tapTimeout);
+                    tapTimeout = null;
+                }
+                e.preventDefault();
+                handleDoubleTap();
+                return;
+            }
+            
+            if (tapTimeout) clearTimeout(tapTimeout);
+            tapTimeout = setTimeout(() => {
+                tapTimeout = null;
+                handleSingleTap();
+            }, 300);
+            
+        } else if (e.touches.length === 2) {
+            if (tapTimeout) {
+                clearTimeout(tapTimeout);
+                tapTimeout = null;
+            }
+            e.preventDefault();
+            state.isPinching = true;
+            state.initialDistance = getDistance(e);
+            state.initialScale = state.scale;
+            state.isDragging = false;
+        }
+    }, { passive: false });
+    
+    imageWrapper.addEventListener('touchmove', function(e) {
+        if (e.touches.length === 1 && !state.isPinching) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const dx = touch.clientX - state.lastX;
+            const dy = touch.clientY - state.lastY;
+            
+            if (!state.isDragging) {
+                const dist = Math.sqrt(
+                    Math.pow(touch.clientX - state.startX, 2) + 
+                    Math.pow(touch.clientY - state.startY, 2)
+                );
+                if (dist > 10) {
+                    state.isDragging = true;
+                }
+            }
+            
+            if (state.isDragging) {
+                state.translateX += dx;
+                state.translateY += dy;
+                state.lastX = touch.clientX;
+                state.lastY = touch.clientY;
+                updateTransform();
+            }
+            
+        } else if (e.touches.length === 2 && state.isPinching) {
+            e.preventDefault();
+            const newDist = getDistance(e);
+            const scaleChange = newDist / state.initialDistance;
+            let newScale = state.initialScale * scaleChange;
+            newScale = Math.max(0.5, Math.min(5, newScale));
+            state.scale = newScale;
+            updateTransform();
+        }
+    }, { passive: false });
+    
+    imageWrapper.addEventListener('touchend', function(e) {
+        state.isDragging = false;
+        state.isPinching = false;
+    });
+    
+    // 鼠标事件（PC端）
+    let mouseDown = false;
+    let mouseStartX = 0, mouseStartY = 0;
+    let mouseLastX = 0, mouseLastY = 0;
+    let isMouseDragging = false;
+    
+    imageWrapper.addEventListener('mousedown', function(e) {
+        if (e.button !== 0) return;
+        mouseDown = true;
+        isMouseDragging = false;
+        mouseStartX = e.clientX;
+        mouseStartY = e.clientY;
+        mouseLastX = e.clientX;
+        mouseLastY = e.clientY;
+        imageWrapper.style.cursor = 'grabbing';
+    });
+    
+    document.addEventListener('mousemove', function(e) {
+        if (!mouseDown) return;
+        const dx = e.clientX - mouseLastX;
+        const dy = e.clientY - mouseLastY;
+        
+        const dist = Math.sqrt(
+            Math.pow(e.clientX - mouseStartX, 2) + 
+            Math.pow(e.clientY - mouseStartY, 2)
+        );
+        if (dist > 5) {
+            isMouseDragging = true;
+        }
+        
+        if (isMouseDragging) {
+            state.translateX += dx;
+            state.translateY += dy;
+            mouseLastX = e.clientX;
+            mouseLastY = e.clientY;
+            updateTransform();
+        }
+    });
+    
+    document.addEventListener('mouseup', function(e) {
+        if (mouseDown) {
+            mouseDown = false;
+            imageWrapper.style.cursor = '';
+            if (!isMouseDragging) {
+                handleMouseClick(e);
+            }
+            isMouseDragging = false;
+        }
+    });
+    
+    // 鼠标滚轮缩放
+    imageWrapper.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        let newScale = state.scale + delta;
+        newScale = Math.max(0.5, Math.min(5, newScale));
+        state.scale = newScale;
+        updateTransform();
+    }, { passive: false });
+    
+    let mouseLastClickTime = 0;
+    function handleMouseClick(e) {
+        const now = Date.now();
+        const timeDiff = now - mouseLastClickTime;
+        mouseLastClickTime = now;
+        
+        if (timeDiff < 300 && timeDiff > 50) {
+            handleDoubleTap();
+            return;
+        }
+        
+        if (tapTimeout) clearTimeout(tapTimeout);
+        tapTimeout = setTimeout(() => {
+            tapTimeout = null;
+            handleSingleTap();
+        }, 300);
+    }
+    
+    function handleDoubleTap() {
+        if (state.isZoomed) {
+            state.isZoomed = false;
+            state.scale = 1;
+            state.translateX = 0;
+            state.translateY = 0;
+        } else {
+            state.isZoomed = true;
+            state.scale = 2;
+            state.translateX = 0;
+            state.translateY = 0;
+        }
+        updateTransform();
+    }
+    
+    function handleSingleTap() {
+        if (state.isZoomed || state.scale > 1.1) {
+            state.isZoomed = false;
+            state.scale = 1;
+            state.translateX = 0;
+            state.translateY = 0;
+            updateTransform();
+        } else {
+            closeImageFullscreen();
+        }
+    }
+    
+    // 键盘退出
+    document.addEventListener('keydown', function keyHandler(e) {
+        if (e.key === 'Escape') {
+            closeImageFullscreen();
+            document.removeEventListener('keydown', keyHandler);
+        }
+    });
+    
+    resetImageViewerState(img);
+}
+
+function closeImageFullscreen() {
+    const viewer = document.getElementById('imageFullscreenViewer');
+    if (viewer) {
+        viewer.remove();
+        document.body.style.overflow = '';
+    }
+    imageViewerState.isFullscreen = false;
+    imageViewerState.isZoomed = false;
+    imageViewerState.scale = 1;
+}
+
 // ========== Resource Detail Modal ==========
 let currentVideoElement = null;
 
 function openResourceDetail(resource, allResources) {
+    // 图片资源直接全屏显示
+    if (resource.type === 'image') {
+        currentImageResources = allResources.filter(r => r.type === 'image');
+        currentImageIdx = currentImageResources.findIndex(r => r.id === resource.id);
+        openImageFullscreen(resource, currentImageResources);
+        activeResourceId = resource.id;
+        startTimer(resource.id, resource.duration);
+        updateDetailProgress(resource.id);
+        return;
+    }
+    
+    // 视频和文章使用弹窗
     document.body.classList.add('modal-open');
     if (!detailModal || !detailTitle || !detailBody || !detailProgress) return;
     currentImageResources = allResources.filter(r => r.type === resource.type);
@@ -1256,80 +1753,6 @@ function openResourceDetail(resource, allResources) {
             if (e.name !== 'AbortError') console.warn('视频自动播放被阻止:', e);
         });
         activeResourceId = resource.id;
-    } else if (resource.type === 'image') {
-        const container = document.createElement('div');
-        container.style.cssText = 'width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; overflow:hidden; position:relative;';
-        
-        const img = document.createElement('img');
-        img.src = resource.file;
-        img.alt = resource.title;
-        img.draggable = false;
-        img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; border-radius:12px; cursor:pointer; transition:transform 0.3s ease; display:block;';
-        container.appendChild(img);
-        
-        let isFullscreen = false;
-        img.addEventListener('click', function(e) {
-            e.stopPropagation();
-            isFullscreen = !isFullscreen;
-            if (isFullscreen) {
-                this.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; max-width:100vw; max-height:100vh; object-fit:contain; z-index:9999; background:rgba(0,0,0,0.92); border-radius:0; cursor:zoom-out; padding:20px; box-sizing:border-box;';
-                document.body.style.overflow = 'hidden';
-            } else {
-                this.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; border-radius:12px; cursor:pointer; transition:transform 0.3s ease; display:block;';
-                document.body.style.overflow = '';
-            }
-        });
-        
-        const closeFullscreen = function(e) {
-            if (isFullscreen && !e.target.closest('img')) {
-                img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; border-radius:12px; cursor:pointer; transition:transform 0.3s ease; display:block;';
-                document.body.style.overflow = '';
-                isFullscreen = false;
-            }
-        };
-        document.addEventListener('click', closeFullscreen);
-        
-        if (currentImageResources.length > 1) {
-            const nav = document.createElement('div');
-            nav.style.cssText = 'flex-shrink:0; display:flex; justify-content:center; gap:16px; padding:10px 0 4px 0; width:100%;';
-            const prev = document.createElement('button');
-            prev.textContent = '◀ 上一张';
-            prev.style.cssText = 'padding:6px 20px; border:1px solid #dce3eb; border-radius:30px; background:#fff; cursor:pointer; font-size:15px; transition:0.2s;';
-            prev.addEventListener('mouseenter', function() { this.style.borderColor = '#1f7b4d'; this.style.background = '#eef5fa'; });
-            prev.addEventListener('mouseleave', function() { this.style.borderColor = '#dce3eb'; this.style.background = '#fff'; });
-            prev.addEventListener('click', function(e) {
-                e.stopPropagation();
-                if (isFullscreen) {
-                    img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; border-radius:12px; cursor:pointer; transition:transform 0.3s ease; display:block;';
-                    document.body.style.overflow = '';
-                    isFullscreen = false;
-                }
-                navigateImage(-1);
-            });
-            const next = document.createElement('button');
-            next.textContent = '下一张 ▶';
-            next.style.cssText = 'padding:6px 20px; border:1px solid #dce3eb; border-radius:30px; background:#fff; cursor:pointer; font-size:15px; transition:0.2s;';
-            next.addEventListener('mouseenter', function() { this.style.borderColor = '#1f7b4d'; this.style.background = '#eef5fa'; });
-            next.addEventListener('mouseleave', function() { this.style.borderColor = '#dce3eb'; this.style.background = '#fff'; });
-            next.addEventListener('click', function(e) {
-                e.stopPropagation();
-                if (isFullscreen) {
-                    img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; border-radius:12px; cursor:pointer; transition:transform 0.3s ease; display:block;';
-                    document.body.style.overflow = '';
-                    isFullscreen = false;
-                }
-                navigateImage(1);
-            });
-            nav.appendChild(prev);
-            nav.appendChild(next);
-            container.appendChild(nav);
-        }
-        
-        container._img = img;
-        detailBody.appendChild(container);
-        activeResourceId = resource.id;
-        startTimer(resource.id, resource.duration);
-        updateDetailProgress(resource.id);
     } else if (resource.type === 'article') {
         const div = document.createElement('div');
         div.className = 'article-content';
@@ -1349,12 +1772,6 @@ function closeDetailModal() {
     document.body.classList.remove('modal-open');
     if (!detailModal) return;
     detailModal.classList.remove('open');
-    
-    const fullImg = document.querySelector('#detailBody .image-container img');
-    if (fullImg && fullImg.style.position === 'fixed') {
-        fullImg.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; border-radius:12px; cursor:pointer; transition:transform 0.3s ease; display:block;';
-        document.body.style.overflow = '';
-    }
 
     if (currentVideoElement) {
         const safePos = Math.floor(currentVideoElement._lastValidTime || 0);
@@ -1828,15 +2245,12 @@ async function switchStageSync(stageId) {
 
     isSwitching = false;
 
-    // ★★★ 切换阶段后重置拦截状态 ★★★
     isProcessingPopState = false;
     sessionStorage.removeItem('backGuardState');
 
-    // 移除旧的toast
     const toast = document.getElementById('backToast');
     if (toast) toast.remove();
 
-    // 重新设置拦截
     setupBackButtonGuard();
 
     setTimeout(() => {
@@ -1849,7 +2263,6 @@ async function switchStageSync(stageId) {
 async function updateDashboard(user) {
     if (!user) return;
     
-    // ★★★ 确保使用最新的用户数据 ★★★
     if (user.id) {
         try {
             const { data, error } = await supabaseClient
@@ -1898,9 +2311,7 @@ async function updateDashboard(user) {
 
     const data = await loadStageData(currentViewStage);
     if (data) {
-        // ★★★ 延迟调用 updateStageUI，确保 currentUser 已完全更新 ★★★
         await updateStageUI(data);
-        // ★★★ 二次确认：再次调用 renderQuiz 刷新考核区域 ★★★
         if (data.quiz && data.quiz.length > 0) {
             await renderQuiz(data.quiz);
             console.log(`✅ 二次渲染考核完成，阶段 ${currentViewStage}`);
@@ -1932,23 +2343,20 @@ async function updateDashboard(user) {
         }, 800);
     }
 }
+
 // ========== 返回键拦截 ==========
 
-// 判断是否在微信中
 const isWechat = /MicroMessenger/i.test(navigator.userAgent);
 console.log('📱 是否微信环境:', isWechat);
 
 function setupBackButtonGuard() {
     if (isLoggingOut) return;
     
-    // 清除旧的状态
     sessionStorage.removeItem('backGuardState');
     
     try {
-        // 先清空历史记录状态
         history.replaceState(null, '', window.location.href);
         
-        // ★★★ 根据不同环境推入不同数量的拦截状态 ★★★
         const count = isWechat ? 10 : 3;
         for (let i = 0; i < count; i++) {
             history.pushState({ guard: true }, '');
@@ -1956,7 +2364,6 @@ function setupBackButtonGuard() {
         console.log(`🛡️ 返回键拦截已启动（${isWechat ? '微信' : '普通'}环境，推入${count}个拦截状态）`);
     } catch(e) {
         console.warn('推入历史记录失败:', e);
-        // 降级方案：至少推入1个
         try { history.pushState({ guard: true }, ''); } catch(e2) {}
     }
     
@@ -1976,7 +2383,6 @@ function handlePopState(event) {
     isProcessingPopState = true;
 
     try {
-        // 如果状态丢失，重新推入
         if (!event.state || !event.state.guard) {
             history.replaceState(null, '', window.location.href);
             const count = isWechat ? 10 : 3;
@@ -1997,13 +2403,10 @@ function handlePopState(event) {
         return;
     }
     
-    // ★★★ 每次返回都显示提示 ★★★
     showBackToast('⚠️ 请勿使用返回键，否则将退出此程序！');
     
-    // 清除 sessionStorage
     sessionStorage.removeItem('backGuardState');
     
-    // 重新推入拦截状态，保持堆叠
     try {
         const count = isWechat ? 3 : 1;
         for (let i = 0; i < count; i++) {
@@ -2017,13 +2420,11 @@ function handlePopState(event) {
         isProcessingPopState = false;
     }, 200);
 }
-// 显示轻提示
-// 显示警告提示
+
 function showBackToast() {
     const oldToast = document.getElementById('backToast');
     if (oldToast) oldToast.remove();
     
-    // 添加动画样式（只添加一次）
     const styleId = 'backToastStyle';
     if (!document.getElementById(styleId)) {
         const style = document.createElement('style');
@@ -2131,18 +2532,16 @@ async function handleAuth() {
             const stages = existing.completed_stages || [];
             currentViewStage = getCurrentStage(stages);
             if (currentViewStage > TOTAL_STAGES) currentViewStage = TOTAL_STAGES;
-            // 在登录成功后，添加额外刷新
-await updateDashboard(currentUser);
-// ★★★ 登录后强制刷新阶段 UI ★★★
-const loginStageData = stageData[currentViewStage];
-if (loginStageData) {
-    await updateStageUI(loginStageData);
-    if (loginStageData.quiz && loginStageData.quiz.length > 0) {
-        await renderQuiz(loginStageData.quiz);
-    }
-    console.log('✅ 登录后强制刷新阶段UI完成');
-}
-setupBackButtonGuard();
+            await updateDashboard(currentUser);
+            const loginStageData = stageData[currentViewStage];
+            if (loginStageData) {
+                await updateStageUI(loginStageData);
+                if (loginStageData.quiz && loginStageData.quiz.length > 0) {
+                    await renderQuiz(loginStageData.quiz);
+                }
+                console.log('✅ 登录后强制刷新阶段UI完成');
+            }
+            setupBackButtonGuard();
             saveRememberMe(phone, password);
             showAuthMsg(`欢迎回来，${existing.name}`, false);
 
@@ -2243,7 +2642,6 @@ function showAuthMsg(text, isError = true) {
 async function goToLatestStage() {
     if (!currentUser) return;
     try {
-        // ★★★ 重新获取用户最新数据 ★★★
         const { data, error } = await supabaseClient
             .from('merchants')
             .select('*')
@@ -2251,7 +2649,6 @@ async function goToLatestStage() {
             .single();
         if (error) throw error;
         
-        // ★★★ 更新 currentUser 为最新数据 ★★★
         currentUser = data;
         
         const stages = currentUser.completed_stages || [];
@@ -2261,30 +2658,23 @@ async function goToLatestStage() {
             return;
         }
         
-        // ★★★ 更新当前阶段 ★★★
         currentViewStage = nextStage;
         
-        // ★★★ 先更新 Dashboard（更新用户信息、进度等）★★★
         await updateDashboard(currentUser);
         
-        // ★★★ 额外保险：再次强制刷新阶段 UI ★★★
         const stageDataForRefresh = stageData[currentViewStage];
         if (stageDataForRefresh) {
-            // 先清除旧的 quizResult 状态
             if (quizResult) {
                 quizResult.classList.add('hidden');
                 quizResult.innerHTML = '';
             }
-            // 重新渲染
             await updateStageUI(stageDataForRefresh);
-            // 再次确保考核区域刷新
             if (stageDataForRefresh.quiz && stageDataForRefresh.quiz.length > 0) {
                 await renderQuiz(stageDataForRefresh.quiz);
             }
             console.log(`✅ 强制刷新阶段 ${currentViewStage} UI 完成`);
         }
         
-        // 更新阶段卡片的激活状态
         document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('active'));
         const cards = document.querySelectorAll('.stage-card');
         if (cards[nextStage - 1]) cards[nextStage - 1].classList.add('active');
@@ -2297,6 +2687,7 @@ async function goToLatestStage() {
         console.error('goToLatestStage 错误:', e);
     }
 }
+
 // ========== Avatar Upload ==========
 let selectedFile = null;
 
@@ -2437,7 +2828,6 @@ function logout() {
         isDataPreloaded = false;
         allStageData = {};
         
-        // ★★★ 清除 sessionStorage ★★★
         sessionStorage.removeItem('backGuardState');
         
         isLoggingOut = false;
