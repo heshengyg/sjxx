@@ -42,7 +42,7 @@ let isDataPreloaded = false;
 let allStageData = {};
 let isSwitching = false;
 
-// ========== 返回键拦截相关（简化版） ==========
+// ========== 返回键拦截相关 ==========
 let isLoggingOut = false;
 let isProcessingPopState = false;
 
@@ -707,7 +707,7 @@ function controlQuizAreaVisibility(stageId) {
     }
 }
 
-// ========== 替换 updateSubmitButtonState 函数 ==========
+// ========== updateSubmitButtonState ==========
 function updateSubmitButtonState() {
     const submitBtn = document.getElementById('submitQuizBtn');
     if (!submitBtn) return;
@@ -780,9 +780,8 @@ async function loadQuizStateFromSupabase(stageId) {
     return null;
 }
 
-// ========== renderQuiz 函数 ==========
+// ========== renderQuiz ==========
 async function renderQuiz(quiz) {
-    // ★★★ 强制刷新用户数据，确保 quiz_results 最新 ★★★
     if (currentUser && currentUser.id) {
         try {
             const { data, error } = await supabaseClient
@@ -1107,16 +1106,15 @@ async function renderQuiz(quiz) {
 
     updateSubmitButtonState();
 }
-
-// ========== 图片全屏查看器 ==========
+// ============================================================
+// 图片全屏查看器
+// ============================================================
 let imageViewerState = {
     isFullscreen: false,
     isZoomed: false,
     scale: 1
 };
 
-// ========== 图片全屏查看器 ==========
-// ========== 图片全屏查看器 ==========
 function openImageFullscreen(resource, allResources) {
     closeImageFullscreen();
     
@@ -1349,7 +1347,7 @@ function openImageFullscreen(resource, allResources) {
         lastY: 0,
         initialDistance: 0,
         initialScale: 1,
-        hasMoved: false  // ★★★ 是否发生了移动（拖拽或缩放）
+        hasMoved: false
     };
     
     let lastTapTime = 0;
@@ -1396,7 +1394,6 @@ function openImageFullscreen(resource, allResources) {
         return Math.sqrt(dx * dx + dy * dy);
     }
     
-    // ★★★ 清除单击延迟 ★★★
     function clearTapTimeout() {
         if (tapTimeout) {
             clearTimeout(tapTimeout);
@@ -1415,7 +1412,6 @@ function openImageFullscreen(resource, allResources) {
             state.lastX = touch.clientX;
             state.lastY = touch.clientY;
             
-            // 检测双击
             const now = Date.now();
             const timeDiff = now - lastTapTime;
             lastTapTime = now;
@@ -1427,11 +1423,9 @@ function openImageFullscreen(resource, allResources) {
                 return;
             }
             
-            // 单击检测（延迟执行，等待是否双击）
             clearTapTimeout();
             tapTimeout = setTimeout(() => {
                 tapTimeout = null;
-                // ★★★ 只有没有发生移动时才执行单击逻辑 ★★★
                 if (!state.hasMoved) {
                     handleSingleTap();
                 }
@@ -1441,7 +1435,7 @@ function openImageFullscreen(resource, allResources) {
             clearTapTimeout();
             e.preventDefault();
             state.isPinching = true;
-            state.hasMoved = true;  // ★★★ 双指操作标记为已移动
+            state.hasMoved = true;
             state.initialDistance = getDistance(e);
             state.initialScale = state.scale;
             state.isDragging = false;
@@ -1455,7 +1449,6 @@ function openImageFullscreen(resource, allResources) {
             const dx = touch.clientX - state.lastX;
             const dy = touch.clientY - state.lastY;
             
-            // ★★★ 检测是否发生了移动（超过阈值） ★★★
             if (!state.isDragging) {
                 const dist = Math.sqrt(
                     Math.pow(touch.clientX - state.startX, 2) + 
@@ -1464,7 +1457,7 @@ function openImageFullscreen(resource, allResources) {
                 if (dist > 10) {
                     state.isDragging = true;
                     state.hasMoved = true;
-                    clearTapTimeout();  // ★★★ 发生拖拽，取消单击定时器 ★★★
+                    clearTapTimeout();
                 }
             }
             
@@ -1483,7 +1476,7 @@ function openImageFullscreen(resource, allResources) {
             let newScale = state.initialScale * scaleChange;
             newScale = Math.max(0.5, Math.min(5, newScale));
             state.scale = newScale;
-            state.hasMoved = true;  // ★★★ 缩放也是移动 ★★★
+            state.hasMoved = true;
             updateTransform();
         }
     }, { passive: false });
@@ -1491,10 +1484,9 @@ function openImageFullscreen(resource, allResources) {
     imageWrapper.addEventListener('touchend', function(e) {
         state.isDragging = false;
         state.isPinching = false;
-        // ★★★ 注意：不在这里重置 hasMoved，因为我们需要在单击回调中判断 ★★★
     });
     
-    // ===== 鼠标事件（PC端） =====
+    // ===== 鼠标事件 =====
     let mouseDown = false;
     let mouseStartX = 0, mouseStartY = 0;
     let mouseLastX = 0, mouseLastY = 0;
@@ -1525,7 +1517,7 @@ function openImageFullscreen(resource, allResources) {
         if (dist > 5) {
             isMouseDragging = true;
             mouseHasMoved = true;
-            clearTapTimeout();  // ★★★ 发生拖拽，取消单击定时器 ★★★
+            clearTapTimeout();
         }
         
         if (isMouseDragging) {
@@ -1541,7 +1533,6 @@ function openImageFullscreen(resource, allResources) {
         if (mouseDown) {
             mouseDown = false;
             imageWrapper.style.cursor = '';
-            // ★★★ 只有没有发生移动时才处理点击 ★★★
             if (!mouseHasMoved) {
                 handleMouseClick(e);
             }
@@ -1557,7 +1548,7 @@ function openImageFullscreen(resource, allResources) {
         let newScale = state.scale + delta;
         newScale = Math.max(0.5, Math.min(5, newScale));
         state.scale = newScale;
-        state.hasMoved = true;  // ★★★ 滚轮缩放也是移动 ★★★
+        state.hasMoved = true;
         if (state.scale > 1.1 && !state.isZoomed) {
             state.isZoomed = true;
         } else if (state.scale <= 1.1 && state.isZoomed) {
@@ -1580,14 +1571,13 @@ function openImageFullscreen(resource, allResources) {
         clearTapTimeout();
         tapTimeout = setTimeout(() => {
             tapTimeout = null;
-            // ★★★ 只有没有发生移动时才执行单击逻辑 ★★★
             if (!mouseHasMoved) {
                 handleSingleTap();
             }
         }, 300);
     }
     
-    // ===== 核心操作函数 =====
+    // ===== 核心操作 =====
     function handleDoubleTap() {
         clearTapTimeout();
         if (state.isZoomed) {
@@ -1608,7 +1598,6 @@ function openImageFullscreen(resource, allResources) {
     
     function handleSingleTap() {
         if (state.isZoomed || state.scale > 1.1) {
-            // 放大/缩放状态 → 回到全屏原始大小
             state.isZoomed = false;
             state.scale = 1;
             state.translateX = 0;
@@ -1617,12 +1606,10 @@ function openImageFullscreen(resource, allResources) {
             updateTransform();
             updateProgressBarVisibility();
         } else {
-            // 全屏原始大小 → 退出
             closeImageFullscreen();
         }
     }
     
-    // 键盘退出
     document.addEventListener('keydown', function keyHandler(e) {
         if (e.key === 'Escape') {
             closeImageFullscreen();
@@ -1643,7 +1630,605 @@ function closeImageFullscreen() {
     imageViewerState.isZoomed = false;
     imageViewerState.scale = 1;
 }
-// ========== Resource Detail Modal ==========
+// ============================================================
+// 视频全屏播放器
+// ============================================================
+let videoViewerActive = false;
+
+function openVideoFullscreen(resource) {
+    closeVideoFullscreen();
+    
+    const viewer = document.createElement('div');
+    viewer.id = 'videoFullscreenViewer';
+    viewer.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        overflow: hidden;
+    `;
+    
+    const videoWrapper = document.createElement('div');
+    videoWrapper.style.cssText = `
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: #000;
+        position: relative;
+    `;
+    
+    const video = document.createElement('video');
+    video.src = resource.file;
+    video.controls = true;
+    video.playsInline = true;
+    video.style.cssText = `
+        width: 100%;
+        height: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        display: block;
+    `;
+    video.preload = 'metadata';
+    
+    videoWrapper.appendChild(video);
+    viewer.appendChild(videoWrapper);
+    
+    // 进度信息
+    const progressInfo = document.createElement('div');
+    progressInfo.id = 'videoProgressInfo';
+    progressInfo.style.cssText = `
+        position: absolute;
+        bottom: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.7);
+        color: #fff;
+        padding: 6px 16px;
+        border-radius: 16px;
+        font-size: 13px;
+        font-family: system-ui, -apple-system, sans-serif;
+        z-index: 10;
+        pointer-events: none;
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,0.1);
+        transition: opacity 0.3s ease;
+    `;
+    const prog = progressMap[resource.id];
+    progressInfo.textContent = prog ? `学习进度：${prog.progress}%` : '学习进度：0%';
+    viewer.appendChild(progressInfo);
+    
+    // 关闭按钮
+    const closeBtn = document.createElement('button');
+    closeBtn.id = 'videoViewerClose';
+    closeBtn.innerHTML = '✕';
+    closeBtn.style.cssText = `
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        width: 40px;
+        height: 40px;
+        border: none;
+        border-radius: 50%;
+        background: rgba(0,0,0,0.6);
+        color: #fff;
+        font-size: 22px;
+        cursor: pointer;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,0.15);
+        transition: background 0.2s;
+    `;
+    closeBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        closeVideoFullscreen();
+    });
+    viewer.appendChild(closeBtn);
+    
+    document.body.appendChild(viewer);
+    document.body.style.overflow = 'hidden';
+    videoViewerActive = true;
+    
+    // ===== 视频状态 =====
+    let savedPosition = 0;
+    const savedProg = progressMap[resource.id];
+    let maxWatchedTime = 0;
+    
+    if (savedProg && savedProg.last_position !== undefined) {
+        savedPosition = savedProg.last_position;
+        maxWatchedTime = savedProg.last_position;
+    }
+    
+    let lastValidTime = savedPosition;
+    let isInitialSeek = false;
+    let saveTimer = null;
+    let isVideoEnded = false;
+    let toastTimer = null;
+    
+    // ===== 限制拖拽到已观看区域 =====
+    function handleSeeking() {
+        if (isInitialSeek) return;
+        if (isVideoEnded) return;
+        if (savedProg && savedProg.completed) return;
+        
+        const currentTime = video.currentTime;
+        const maxAllowed = maxWatchedTime;
+        
+        if (currentTime > maxAllowed + 0.5) {
+            video.currentTime = maxAllowed;
+            video.pause();
+            showVideoToast('⛔ 请先观看前面的内容');
+            return;
+        }
+        
+        if (currentTime > 0) {
+            lastValidTime = currentTime;
+        }
+    }
+    
+    function handleTimeUpdate() {
+        if (isInitialSeek) return;
+        if (isVideoEnded) return;
+        if (savedProg && savedProg.completed) {
+            return;
+        }
+        
+        const currentTime = video.currentTime;
+        const duration = video.duration;
+        
+        if (currentTime > maxWatchedTime) {
+            maxWatchedTime = currentTime;
+            lastValidTime = currentTime;
+        }
+        
+        const pct = Math.round((maxWatchedTime / duration) * 100);
+        const infoEl = document.getElementById('videoProgressInfo');
+        if (infoEl) {
+            infoEl.textContent = `学习进度：${Math.min(100, pct)}%`;
+        }
+        
+        if (!saveTimer) {
+            saveTimer = setTimeout(() => {
+                const pct = Math.round((maxWatchedTime / duration) * 100);
+                updateResourceProgress(resource.id, Math.min(100, pct), maxWatchedTime);
+                saveTimer = null;
+            }, 3000);
+        }
+        
+        if (maxWatchedTime >= duration * 0.95 && duration > 0) {
+            isVideoEnded = true;
+            if (saveTimer) {
+                clearTimeout(saveTimer);
+                saveTimer = null;
+            }
+            markResourceCompleted(resource.id);
+            showVideoToast('✅ 视频学习完成！');
+            setTimeout(() => {
+                closeVideoFullscreen();
+            }, 1500);
+        }
+    }
+    
+    function handleLoadedMetadata() {
+        const duration = video.duration;
+        if (savedPosition > 0 && savedPosition < duration - 0.5) {
+            isInitialSeek = true;
+            video.currentTime = savedPosition;
+            maxWatchedTime = savedPosition;
+            lastValidTime = savedPosition;
+            setTimeout(() => {
+                isInitialSeek = false;
+            }, 500);
+        }
+        const pct = Math.round((maxWatchedTime / duration) * 100);
+        const infoEl = document.getElementById('videoProgressInfo');
+        if (infoEl) {
+            infoEl.textContent = `学习进度：${Math.min(100, pct)}%`;
+        }
+    }
+    
+    function checkIfCompleted() {
+        if (savedProg && savedProg.completed) {
+            const infoEl = document.getElementById('videoProgressInfo');
+            if (infoEl) {
+                infoEl.textContent = '✅ 已完成';
+            }
+            return true;
+        }
+        return false;
+    }
+    
+    // ===== Toast提示 =====
+    function showVideoToast(msg) {
+        if (toastTimer) {
+            clearTimeout(toastTimer);
+            toastTimer = null;
+        }
+        const oldToast = document.getElementById('videoToast');
+        if (oldToast) oldToast.remove();
+        const toast = document.createElement('div');
+        toast.id = 'videoToast';
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 20px;
+            font-size: 15px;
+            z-index: 999999;
+            font-family: system-ui, sans-serif;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.1);
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        `;
+        toast.textContent = msg;
+        document.body.appendChild(toast);
+        toastTimer = setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 400);
+            toastTimer = null;
+        }, 2000);
+    }
+    
+    // ===== 绑定事件 =====
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('seeking', handleSeeking);
+    
+    video.addEventListener('play', function() {
+        if (isVideoEnded) {
+            this.pause();
+            return;
+        }
+    });
+    
+    video.addEventListener('ended', function() {
+        if (savedProg && savedProg.completed) return;
+        isVideoEnded = true;
+        if (saveTimer) {
+            clearTimeout(saveTimer);
+            saveTimer = null;
+        }
+        markResourceCompleted(resource.id);
+        showVideoToast('✅ 视频学习完成！');
+        setTimeout(() => {
+            closeVideoFullscreen();
+        }, 1500);
+    });
+    
+    const isCompleted = checkIfCompleted();
+    if (!isCompleted) {
+        video.play().catch(e => {
+            if (e.name !== 'AbortError') console.warn('视频自动播放被阻止:', e);
+        });
+    } else {
+        video.load();
+    }
+    
+    // 双击全屏切换
+    videoWrapper.addEventListener('dblclick', function() {
+        if (!document.fullscreenElement) {
+            viewer.requestFullscreen?.().catch(() => {});
+        } else {
+            document.exitFullscreen?.().catch(() => {});
+        }
+    });
+}
+
+function closeVideoFullscreen() {
+    const viewer = document.getElementById('videoFullscreenViewer');
+    if (viewer) {
+        // 保存进度
+        const video = viewer.querySelector('video');
+        if (video && activeResourceId) {
+            const duration = video.duration;
+            const maxWatched = video._maxWatchedTime || 0;
+            if (duration > 0 && maxWatched > 0) {
+                const pct = Math.round((maxWatched / duration) * 100);
+                updateResourceProgress(activeResourceId, Math.min(100, pct), maxWatched);
+            }
+        }
+        viewer.remove();
+        document.body.style.overflow = '';
+    }
+    videoViewerActive = false;
+}
+// ============================================================
+// 文章全屏阅读器
+// ============================================================
+let articleViewerActive = false;
+
+function openArticleFullscreen(resource) {
+    closeArticleFullscreen();
+    
+    const viewer = document.createElement('div');
+    viewer.id = 'articleFullscreenViewer';
+    viewer.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(255, 255, 255, 0.98);
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        font-family: system-ui, -apple-system, sans-serif;
+    `;
+    
+    // 顶部工具栏
+    const toolbar = document.createElement('div');
+    toolbar.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 20px;
+        background: rgba(255,255,255,0.95);
+        border-bottom: 1px solid #eee;
+        flex-shrink: 0;
+        z-index: 10;
+    `;
+    
+    // 关闭按钮
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '✕';
+    closeBtn.style.cssText = `
+        width: 36px;
+        height: 36px;
+        border: none;
+        border-radius: 50%;
+        background: #f0f0f0;
+        font-size: 18px;
+        cursor: pointer;
+        transition: background 0.2s;
+    `;
+    closeBtn.addEventListener('mouseenter', function() { this.style.background = '#e0e0e0'; });
+    closeBtn.addEventListener('mouseleave', function() { this.style.background = '#f0f0f0'; });
+    closeBtn.addEventListener('click', closeArticleFullscreen);
+    toolbar.appendChild(closeBtn);
+    
+    // 文章标题
+    const titleEl = document.createElement('span');
+    titleEl.textContent = resource.title;
+    titleEl.style.cssText = `
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+        flex: 1;
+        margin: 0 16px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    `;
+    toolbar.appendChild(titleEl);
+    
+    // 字号控制
+    const fontSizeControls = document.createElement('div');
+    fontSizeControls.style.cssText = `
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    `;
+    const fontSizes = [14, 16, 18, 20, 22];
+    let currentFontSize = 17;
+    let fontSizeIndex = 2;
+    
+    const fontSizeBtn = document.createElement('button');
+    fontSizeBtn.textContent = 'Aa';
+    fontSizeBtn.style.cssText = `
+        padding: 4px 12px;
+        border: 1px solid #ddd;
+        border-radius: 16px;
+        background: #fff;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+    `;
+    fontSizeBtn.addEventListener('mouseenter', function() { this.style.borderColor = '#999'; });
+    fontSizeBtn.addEventListener('mouseleave', function() { this.style.borderColor = '#ddd'; });
+    fontSizeBtn.addEventListener('click', function() {
+        fontSizeIndex = (fontSizeIndex + 1) % fontSizes.length;
+        currentFontSize = fontSizes[fontSizeIndex];
+        contentEl.style.fontSize = currentFontSize + 'px';
+        updateArticleProgress();
+    });
+    fontSizeControls.appendChild(fontSizeBtn);
+    
+    // 进度显示
+    const progressDisplay = document.createElement('span');
+    progressDisplay.id = 'articleProgressDisplay';
+    progressDisplay.style.cssText = `
+        font-size: 13px;
+        color: #888;
+        margin-left: 12px;
+        min-width: 60px;
+        text-align: right;
+    `;
+    const prog = progressMap[resource.id];
+    progressDisplay.textContent = prog ? `${prog.progress}%` : '0%';
+    fontSizeControls.appendChild(progressDisplay);
+    
+    toolbar.appendChild(fontSizeControls);
+    viewer.appendChild(toolbar);
+    
+    // 文章内容
+    const contentWrapper = document.createElement('div');
+    contentWrapper.style.cssText = `
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 24px 40px;
+        background: #fff;
+        position: relative;
+    `;
+    
+    const contentEl = document.createElement('div');
+    contentEl.style.cssText = `
+        max-width: 720px;
+        margin: 0 auto;
+        font-size: 17px;
+        line-height: 1.9;
+        color: #222;
+        word-wrap: break-word;
+    `;
+    contentEl.innerHTML = resource.content || '暂无内容';
+    contentWrapper.appendChild(contentEl);
+    viewer.appendChild(contentWrapper);
+    
+    document.body.appendChild(viewer);
+    document.body.style.overflow = 'hidden';
+    articleViewerActive = true;
+    
+    // ===== 阅读追踪 =====
+    let scrollProgress = 0;
+    let readTime = 0;
+    let isCompleted = false;
+    let timeInterval = null;
+    let estimatedTime = resource.duration || 60;
+    let updateTimer = null;
+    let hasMarkedComplete = false;
+    
+    // 恢复滚动位置
+    if (prog && prog.progress > 0) {
+        scrollProgress = prog.progress || 0;
+        setTimeout(() => {
+            const totalHeight = contentWrapper.scrollHeight - contentWrapper.clientHeight;
+            contentWrapper.scrollTop = (scrollProgress / 100) * totalHeight;
+        }, 100);
+    }
+    
+    function updateArticleProgress() {
+        if (isCompleted || hasMarkedComplete) return;
+        
+        const totalHeight = contentWrapper.scrollHeight - contentWrapper.clientHeight;
+        const currentScroll = contentWrapper.scrollTop;
+        const scrollPct = totalHeight > 0 ? (currentScroll / totalHeight) * 100 : 0;
+        scrollProgress = Math.min(100, scrollPct);
+        
+        const timePct = Math.min(100, (readTime / estimatedTime) * 100);
+        const combinedProgress = Math.min(100, Math.round(scrollPct * 0.6 + timePct * 0.4));
+        const finalProgress = Math.min(100, combinedProgress);
+        
+        const display = document.getElementById('articleProgressDisplay');
+        if (display) {
+            display.textContent = `${finalProgress}%`;
+        }
+        
+        // 完成条件：滚动 >= 80% 且 阅读时间 >= 估算时间的 50%
+        if (scrollPct >= 80 && readTime >= estimatedTime * 0.5 && !hasMarkedComplete) {
+            hasMarkedComplete = true;
+            isCompleted = true;
+            if (timeInterval) {
+                clearInterval(timeInterval);
+                timeInterval = null;
+            }
+            updateResourceProgress(resource.id, 100, 0);
+            markResourceCompleted(resource.id);
+            showArticleToast('✅ 文章阅读完成！');
+            setTimeout(() => {
+                closeArticleFullscreen();
+            }, 1500);
+        } else {
+            updateResourceProgress(resource.id, finalProgress, 0);
+        }
+    }
+    
+    // 滚动事件
+    contentWrapper.addEventListener('scroll', function() {
+        if (isCompleted || hasMarkedComplete) return;
+        if (updateTimer) {
+            clearTimeout(updateTimer);
+        }
+        updateTimer = setTimeout(() => {
+            updateArticleProgress();
+            updateTimer = null;
+        }, 200);
+    });
+    
+    // 阅读计时
+    timeInterval = setInterval(() => {
+        if (isCompleted || hasMarkedComplete) return;
+        readTime += 1;
+        if (readTime % 3 === 0) {
+            updateArticleProgress();
+        }
+    }, 1000);
+    
+    // 窗口调整
+    window.addEventListener('resize', function() {
+        if (isCompleted || hasMarkedComplete) return;
+        updateArticleProgress();
+    });
+    
+    function showArticleToast(msg) {
+        const oldToast = document.getElementById('articleToast');
+        if (oldToast) oldToast.remove();
+        const toast = document.createElement('div');
+        toast.id = 'articleToast';
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 20px;
+            font-size: 15px;
+            z-index: 999999;
+            font-family: system-ui, sans-serif;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.1);
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        `;
+        toast.textContent = msg;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 400);
+        }, 2000);
+    }
+    
+    document.addEventListener('keydown', function keyHandler(e) {
+        if (e.key === 'Escape') {
+            closeArticleFullscreen();
+            document.removeEventListener('keydown', keyHandler);
+        }
+    });
+    
+    setTimeout(updateArticleProgress, 500);
+}
+
+function closeArticleFullscreen() {
+    const viewer = document.getElementById('articleFullscreenViewer');
+    if (viewer) {
+        viewer.remove();
+        document.body.style.overflow = '';
+    }
+    articleViewerActive = false;
+}
+// ============================================================
+// Resource Detail Modal（仅用于视频和文章，图片已独立处理）
+// ============================================================
 let currentVideoElement = null;
 
 function openResourceDetail(resource, allResources) {
@@ -1658,204 +2243,21 @@ function openResourceDetail(resource, allResources) {
         return;
     }
     
-    // 视频和文章使用弹窗
-    document.body.classList.add('modal-open');
-    if (!detailModal || !detailTitle || !detailBody || !detailProgress) return;
-    currentImageResources = allResources.filter(r => r.type === resource.type);
-    currentImageIdx = currentImageResources.findIndex(r => r.id === resource.id);
-
-    detailTitle.textContent = resource.title;
-    detailBody.innerHTML = '';
-    detailProgress.textContent = '';
-
+    // 视频资源使用全屏播放器
     if (resource.type === 'video') {
-        const videoWrapper = document.createElement('div');
-        videoWrapper.style.cssText = 'width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#000; border-radius:12px; overflow:hidden;';
-        
-        const video = document.createElement('video');
-        video.src = resource.file;
-        video.controls = true;
-        video.playsInline = true;
-        video.style.cssText = 'width:100%; height:100%; max-height:100%; object-fit:contain; display:block;';
-        video.preload = 'metadata';
-
-        let savedPosition = 0;
-        const prog = progressMap[resource.id];
-        if (prog && prog.last_position && !prog.completed) {
-            savedPosition = prog.last_position;
-        }
-
-        let lastValidTime = savedPosition;
-        let initialSeek = false;
-        let correctionPending = false;
-        let isCorrecting = false;
-
-        video.addEventListener('loadedmetadata', function() {
-            if (savedPosition > 0 && savedPosition < video.duration - 0.5) {
-                initialSeek = true;
-                video.currentTime = savedPosition;
-                const onSeeked = function() {
-                    initialSeek = false;
-                    video.removeEventListener('seeked', onSeeked);
-                };
-                video.addEventListener('seeked', onSeeked);
-                lastValidTime = savedPosition;
-                this._lastValidTime = savedPosition;
-            }
-            updateDetailProgress(resource.id);
-        });
-
-        let saveTimer = null;
-        function updateAndSave() {
-            if (!video.duration) return;
-            const pos = lastValidTime;
-            const pct = Math.round((pos / video.duration) * 100);
-            updateResourceProgress(resource.id, pct, pos);
-            updateDetailProgress(resource.id);
-        }
-
-        video.addEventListener('timeupdate', function() {
-            if (initialSeek || isCorrecting) return;
-
-            if (lastValidTime > 0 && video.currentTime > lastValidTime + 0.5) {
-                isCorrecting = true;
-                video.currentTime = lastValidTime;
-                video.pause();
-                isCorrecting = false;
-                return;
-            }
-
-            if (video.currentTime > lastValidTime) {
-                lastValidTime = video.currentTime;
-            }
-            this._lastValidTime = lastValidTime;
-
-            const pct = Math.round((video.currentTime / video.duration) * 100);
-            if (detailProgress) detailProgress.textContent = `学习进度：${pct}%`;
-
-            if (!saveTimer) {
-                saveTimer = setTimeout(() => {
-                    updateAndSave();
-                    saveTimer = null;
-                }, 3000);
-            }
-        });
-
-        video.addEventListener('seeking', function() {
-            if (initialSeek) return;
-            if (progressMap[resource.id] && progressMap[resource.id].completed) {
-                lastValidTime = video.duration;
-                this._lastValidTime = video.duration;
-                return;
-            }
-            if (video.currentTime > lastValidTime + 0.5) {
-                correctionPending = true;
-                requestAnimationFrame(() => {
-                    if (correctionPending) {
-                        isCorrecting = true;
-                        video.currentTime = lastValidTime;
-                        video.pause();
-                        isCorrecting = false;
-                        correctionPending = false;
-                    }
-                });
-            }
-        });
-
-        video.addEventListener('seeked', function() {
-            if (initialSeek) return;
-            if (progressMap[resource.id] && progressMap[resource.id].completed) {
-                lastValidTime = video.duration;
-                this._lastValidTime = video.duration;
-                correctionPending = false;
-                return;
-            }
-            if (video.currentTime > lastValidTime + 0.5) {
-                isCorrecting = true;
-                video.currentTime = lastValidTime;
-                video.pause();
-                isCorrecting = false;
-            }
-            correctionPending = false;
-        });
-
-        video.addEventListener('ended', function() {
-            if (this._lastValidTime < video.duration - 1) {
-                video.currentTime = this._lastValidTime;
-                video.pause();
-                return;
-            }
-            this._lastValidTime = video.duration;
-            lastValidTime = video.duration;
-            if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
-            markResourceCompleted(resource.id);
-        });
-
-        videoWrapper.appendChild(video);
-        detailBody.appendChild(videoWrapper);
-        currentVideoElement = video;
-        video.play().catch(e => {
-            if (e.name !== 'AbortError') console.warn('视频自动播放被阻止:', e);
-        });
+        openVideoFullscreen(resource);
         activeResourceId = resource.id;
-    } else if (resource.type === 'article') {
-        const div = document.createElement('div');
-        div.className = 'article-content';
-        div.style.cssText = 'width:100%; height:100%; overflow-y:auto; padding:12px 16px; background:#fff; border-radius:12px; font-size:17px; line-height:1.8; word-wrap:break-word; box-sizing:border-box;';
-        div.innerHTML = resource.content || '暂无内容';
-        detailBody.appendChild(div);
-        activeResourceId = resource.id;
-        startTimer(resource.id, resource.duration);
-        updateDetailProgress(resource.id);
-    }
-
-    detailModal.classList.add('open');
-    updateDetailProgress(resource.id);
-}
-
-function closeDetailModal() {
-    document.body.classList.remove('modal-open');
-    if (!detailModal) return;
-    detailModal.classList.remove('open');
-
-    if (currentVideoElement) {
-        const safePos = Math.floor(currentVideoElement._lastValidTime || 0);
-        currentVideoElement.pause();
-        if (currentVideoElement.duration) {
-            const pct = Math.round((safePos / currentVideoElement.duration) * 100);
-            updateResourceProgress(activeResourceId, pct, safePos);
-        }
-        currentVideoElement = null;
-    }
-    if (activeResourceId) {
-        stopTimer(activeResourceId);
-        activeResourceId = null;
-    }
-}
-
-function navigateImage(delta) {
-    const newIdx = currentImageIdx + delta;
-    if (newIdx < 0 || newIdx >= currentImageResources.length) return;
-    currentImageIdx = newIdx;
-    const newRes = currentImageResources[newIdx];
-    if (detailTitle) detailTitle.textContent = newRes.title;
-    
-    const container = detailBody ? detailBody.querySelector('.image-container') : null;
-    if (container) {
-        const img = container.querySelector('img');
-        if (img) {
-            img.src = newRes.file;
-            if (img.style.position === 'fixed') {
-                img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; border-radius:12px; cursor:pointer; transition:transform 0.3s ease; display:block;';
-                document.body.style.overflow = '';
-            }
-        }
+        // 视频的计时器由播放器自己管理
+        return;
     }
     
-    if (activeResourceId) stopTimer(activeResourceId);
-    activeResourceId = newRes.id;
-    startTimer(newRes.id, newRes.duration);
-    updateDetailProgress(newRes.id);
+    // 文章资源使用全屏阅读器
+    if (resource.type === 'article') {
+        openArticleFullscreen(resource);
+        activeResourceId = resource.id;
+        // 文章的计时器由阅读器自己管理
+        return;
+    }
 }
 
 // ========== Timer ==========
@@ -1985,7 +2387,7 @@ function updateStageProgress(stage, resources) {
     if (stageDesc) stageDesc.innerHTML = progressText;
 }
 
-// ========== submitQuiz 函数 ==========
+// ========== submitQuiz ==========
 async function submitQuiz() {
     if (!currentUser) return;
 
@@ -2390,7 +2792,6 @@ async function updateDashboard(user) {
 }
 
 // ========== 返回键拦截 ==========
-
 const isWechat = /MicroMessenger/i.test(navigator.userAgent);
 console.log('📱 是否微信环境:', isWechat);
 
@@ -3060,13 +3461,6 @@ if (logoutBtn) {
         e.stopPropagation();
         if (dropdownMenu) dropdownMenu.classList.remove('open');
         logout();
-    });
-}
-
-if (detailCloseBtn) detailCloseBtn.addEventListener('click', closeDetailModal);
-if (detailModal) {
-    detailModal.addEventListener('click', function(e) {
-        if (e.target === this) closeDetailModal();
     });
 }
 
