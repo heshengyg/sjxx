@@ -2222,11 +2222,35 @@ function closeVideoFullscreen() {
     videoViewerActive = false;
 }
 // ============================================================
-// 文章全屏阅读器（修复版 - 本次学习 + 已保存进度）
+// 文章全屏阅读器（滚动锁定版 - 必须阅读够时间才能滚动）
 // ============================================================
 let articleViewerActive = false;
 
 function openArticleFullscreen(resource) {
+    closeArticleFullscreen();
+    
+    // ===== 计算文章参数 =====
+    const contentText = resource.content || '';
+    // 获取纯文本（去除HTML标签）
+    const plainText = contentText.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ');
+    const totalChars = plainText.replace(/\s/g, '').length;
+    const totalWords = Math.ceil(totalChars / 2); // 中文按2字符=1词估算
+    
+    // 阅读速度：300字/分钟 = 5字/秒
+    const WORDS_PER_SECOND = 5;
+    const totalReadTime = Math.ceil(totalWords / WORDS_PER_SECOND); // 总阅读时间（秒）
+    
+    // 估算每屏字数（按视口高度计算）
+    const WORDS_PER_LINE = 30; // 每行约30字
+    const LINES_PER_SCREEN = 20; // 每屏约20行
+    const WORDS_PER_SCREEN = WORDS_PER_LINE * LINES_PER_SCREEN; // 每屏约600字
+    
+    // 每屏阅读时间（秒）
+    const TIME_PER_SCREEN = Math.ceil(WORDS_PER_SCREEN / WORDS_PER_SECOND);
+    
+    console.log(`📊 文章统计：总字数 ${totalWords}，总阅读时间 ${totalReadTime}秒，每屏约 ${TIME_PER_SCREEN}秒`);
+    
+    // ===== 创建UI =====
     closeArticleFullscreen();
     
     const viewer = document.createElement('div');
@@ -2258,7 +2282,6 @@ function openArticleFullscreen(resource) {
         z-index: 10;
     `;
     
-    // 文章标题
     const titleEl = document.createElement('span');
     titleEl.textContent = resource.title;
     titleEl.style.cssText = `
@@ -2273,7 +2296,7 @@ function openArticleFullscreen(resource) {
     `;
     toolbar.appendChild(titleEl);
     
-    // ===== ★★★ 双进度显示 ★★★ =====
+    // ===== 双进度显示 =====
     const progressContainer = document.createElement('div');
     progressContainer.style.cssText = `
         display: flex;
@@ -2285,30 +2308,25 @@ function openArticleFullscreen(resource) {
         flex-shrink: 0;
     `;
     
-    // ★★★ 本次学习进度（本次打开的综合进度） ★★★
-    const currentProgressSpan = document.createElement('span');
-    currentProgressSpan.id = 'currentProgressDisplay';
-    currentProgressSpan.textContent = '📖 本次：0%';
-    currentProgressSpan.style.cssText = `
+    const readProgressSpan = document.createElement('span');
+    readProgressSpan.id = 'readProgressDisplay';
+    readProgressSpan.textContent = '📖 阅读：0%';
+    readProgressSpan.style.cssText = `
         color: #4285f4;
         font-weight: 500;
         min-width: 75px;
     `;
-    progressContainer.appendChild(currentProgressSpan);
+    progressContainer.appendChild(readProgressSpan);
     
-    // ★★★ 已保存进度（数据库中的最大进度） ★★★
-    const savedProgressSpan = document.createElement('span');
-    savedProgressSpan.id = 'savedProgressDisplay';
-    // 从 progressMap 获取已保存的进度
-    const savedProg = progressMap[resource.id];
-    const savedProgress = savedProg ? savedProg.progress : 0;
-    savedProgressSpan.textContent = `💾 已保存：${savedProgress}%`;
-    savedProgressSpan.style.cssText = `
+    const learnProgressSpan = document.createElement('span');
+    learnProgressSpan.id = 'learnProgressDisplay';
+    learnProgressSpan.textContent = '🎯 学习：0%';
+    learnProgressSpan.style.cssText = `
         color: #22c55e;
         font-weight: 500;
         min-width: 75px;
     `;
-    progressContainer.appendChild(savedProgressSpan);
+    progressContainer.appendChild(learnProgressSpan);
     
     // 字号控制
     const fontSizeControls = document.createElement('div');
@@ -2333,12 +2351,12 @@ function openArticleFullscreen(resource) {
         font-size: 14px;
         transition: all 0.2s;
     `;
-    fontSizeBtn.addEventListener('mouseenter', function() { this.style.borderColor = '#999'; });
-    fontSizeBtn.addEventListener('mouseleave', function() { this.style.borderColor = '#ddd'; });
     fontSizeBtn.addEventListener('click', function() {
         fontSizeIndex = (fontSizeIndex + 1) % fontSizes.length;
         currentFontSize = fontSizes[fontSizeIndex];
         contentEl.style.fontSize = currentFontSize + 'px';
+        // 重新计算每屏参数
+        updateScreenParams();
         updateArticleProgress();
     });
     fontSizeControls.appendChild(fontSizeBtn);
@@ -2366,11 +2384,39 @@ function openArticleFullscreen(resource) {
         color: #222;
         word-wrap: break-word;
     `;
-    contentEl.innerHTML = resource.content || '暂无内容';
+    contentEl.innerHTML = contentText || '暂无内容';
     contentWrapper.appendChild(contentEl);
     viewer.appendChild(contentWrapper);
     
-    // ===== 退出按钮（右下1/3处，始终显示） =====
+    // ===== 底部锁定提示 =====
+    const lockToast = document.createElement('div');
+    lockToast.id = 'articleLockToast';
+    lockToast.style.cssText = `
+        position: absolute;
+        bottom: 100px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255, 100, 50, 0.92);
+        color: #fff;
+        padding: 10px 24px;
+        border-radius: 20px;
+        font-size: 15px;
+        font-weight: 500;
+        z-index: 15;
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,0.2);
+        transition: all 0.3s ease;
+        font-family: system-ui, -apple-system, sans-serif;
+        box-shadow: 0 4px 20px rgba(255, 100, 50, 0.3);
+        display: none;
+        pointer-events: none;
+        text-align: center;
+        max-width: 80%;
+    `;
+    lockToast.textContent = '📖 请继续阅读...';
+    viewer.appendChild(lockToast);
+    
+    // ===== 退出按钮 =====
     const exitBtn = document.createElement('button');
     exitBtn.id = 'articleExitBtn';
     exitBtn.textContent = '退出';
@@ -2408,109 +2454,268 @@ function openArticleFullscreen(resource) {
     document.body.style.overflow = 'hidden';
     articleViewerActive = true;
     
-    // ===== 阅读追踪 =====
-    let currentProgress = 0;        // 本次学习的综合进度（从0开始）
-    let scrollProgress = 0;         // 滚动进度
-    let readTime = 0;              // 阅读时间（秒）
-    let isCompleted = false;
-    let timeInterval = null;
-    let estimatedTime = resource.duration || 60;
-    let updateTimer = null;
+    // ===== 核心状态 =====
+    const savedProg = progressMap[resource.id] || { progress: 0, last_position: 0 };
+    
+    // ★★★ 阅读进度（基于已阅读的字数/滚动位置） ★★★
+    let readProgress = savedProg.progress || 0;
+    // ★★★ 学习进度（综合进度） ★★★
+    let learnProgress = savedProg.last_position || savedProg.progress || 0;
+    // ★★★ 当前解锁的滚动位置（百分比） ★★★
+    let unlockedScrollPct = readProgress;
+    // ★★★ 本次阅读时间（秒） ★★★
+    let readTime = 0;
+    // ★★★ 锁定状态 ★★★
+    let isLocked = false;
+    let lockCountdown = 0;
+    let lockTimer = null;
+    let isCompleted = savedProg.completed || false;
     let hasMarkedComplete = false;
-    let lastSavedProgress = savedProgress;  // 数据库中的最大进度
+    let timeInterval = null;
+    let updateTimer = null;
+    let lastScrollPct = 0;
+    let isFirstLoad = true;
     
-    // ★★★ 初始显示已保存进度 ★★★
-    const savedDisplay = document.getElementById('savedProgressDisplay');
-    if (savedDisplay) {
-        savedDisplay.textContent = `💾 已保存：${lastSavedProgress}%`;
+    // ★★★ 动态计算每屏参数 ★★★
+    function updateScreenParams() {
+        // 获取视口高度和内容高度
+        const wrapperHeight = contentWrapper.clientHeight;
+        const lineHeight = parseFloat(getComputedStyle(contentEl).lineHeight) || 34;
+        const fontSize = parseFloat(getComputedStyle(contentEl).fontSize) || 17;
+        const linesPerScreen = Math.floor(wrapperHeight / lineHeight);
+        const charsPerLine = Math.floor((contentWrapper.clientWidth - 48) / (fontSize * 0.6));
+        const wordsPerScreen = Math.ceil((charsPerLine * linesPerScreen) / 2);
+        return Math.max(10, Math.ceil(wordsPerScreen / WORDS_PER_SECOND));
     }
     
-    // 恢复滚动位置（从已保存进度恢复）
-    if (savedProg && savedProg.progress > 0) {
-        scrollProgress = savedProg.progress || 0;
-        setTimeout(() => {
-            const totalHeight = contentWrapper.scrollHeight - contentWrapper.clientHeight;
-            contentWrapper.scrollTop = (scrollProgress / 100) * totalHeight;
-        }, 100);
+    let timePerScreen = updateScreenParams();
+    
+    // ★★★ 显示锁定提示 ★★★
+    function showLockToast(message, isWarning = true) {
+        lockToast.textContent = message;
+        lockToast.style.display = 'block';
+        if (isWarning) {
+            lockToast.style.background = 'rgba(255, 100, 50, 0.92)';
+        } else {
+            lockToast.style.background = 'rgba(34, 197, 94, 0.92)';
+        }
+        // 自动隐藏（但倒计时会持续更新）
     }
     
+    function hideLockToast() {
+        lockToast.style.display = 'none';
+    }
+    
+    function updateLockToast(countdown) {
+        if (countdown > 0) {
+            showLockToast(`📖 还需阅读 ${countdown} 秒才能继续向下滚动`, true);
+        } else {
+            hideLockToast();
+        }
+    }
+    
+    // ★★★ 核心更新函数 ★★★
     function updateArticleProgress() {
         if (isCompleted || hasMarkedComplete) return;
         
-        // 计算滚动进度
+        // 1. 计算当前滚动百分比
         const totalHeight = contentWrapper.scrollHeight - contentWrapper.clientHeight;
         const currentScroll = contentWrapper.scrollTop;
-        const scrollPct = totalHeight > 0 ? (currentScroll / totalHeight) * 100 : 0;
-        scrollProgress = Math.min(100, scrollPct);
+        const currentScrollPct = totalHeight > 0 ? (currentScroll / totalHeight) * 100 : 0;
         
-        // 计算时间进度
-        const timePct = Math.min(100, (readTime / estimatedTime) * 100);
-        
-        // ★★★ 本次学习综合进度 = 滚动×60% + 时间×40% ★★★
-        const combinedProgress = Math.min(100, Math.round(scrollPct * 0.6 + timePct * 0.4));
-        currentProgress = Math.min(100, combinedProgress);
-        
-        // ===== ★★★ 更新两个进度显示 ★★★ =====
-        const currentDisplay = document.getElementById('currentProgressDisplay');
-        if (currentDisplay) {
-            currentDisplay.textContent = `📖 本次：${currentProgress}%`;
+        // ★★★ 2. 检查是否尝试滚动到未解锁区域 ★★★
+        if (currentScrollPct > unlockedScrollPct + 2 && !isLocked) {
+            // 尝试滚动到未解锁区域 → 触发锁定
+            isLocked = true;
+            // 计算需要阅读的时间（基于滚动距离）
+            const scrollDiff = currentScrollPct - unlockedScrollPct;
+            const estimatedTimeNeeded = Math.ceil((scrollDiff / 100) * totalReadTime * 0.3);
+            lockCountdown = Math.max(5, Math.min(30, estimatedTimeNeeded));
+            
+            // 强制拉回到解锁位置
+            const targetScroll = (unlockedScrollPct / 100) * totalHeight;
+            contentWrapper.scrollTop = targetScroll;
+            
+            // 显示锁定提示
+            updateLockToast(lockCountdown);
+            
+            // 开始倒计时
+            if (lockTimer) clearInterval(lockTimer);
+            lockTimer = setInterval(() => {
+                lockCountdown -= 1;
+                updateLockToast(lockCountdown);
+                
+                if (lockCountdown <= 0) {
+                    clearInterval(lockTimer);
+                    lockTimer = null;
+                    isLocked = false;
+                    // 解锁新区域
+                    unlockedScrollPct = Math.min(100, currentScrollPct);
+                    readProgress = Math.max(readProgress, unlockedScrollPct);
+                    hideLockToast();
+                    
+                    // 更新进度
+                    updateDisplayAndSave();
+                    showLockToast('✅ 已解锁，可以继续阅读！', false);
+                    setTimeout(hideLockToast, 1500);
+                }
+            }, 1000);
+            
+            return;
         }
         
-        // ★★★ 已保存进度 = max(数据库进度, 本次进度) ★★★
-        const newSavedProgress = Math.max(lastSavedProgress, currentProgress);
-        const savedDisplay = document.getElementById('savedProgressDisplay');
-        if (savedDisplay) {
-            savedDisplay.textContent = `💾 已保存：${newSavedProgress}%`;
+        // ★★★ 3. 如果滚动在已解锁区域内，更新阅读进度 ★★★
+        if (currentScrollPct > readProgress) {
+            readProgress = Math.min(100, currentScrollPct);
+            unlockedScrollPct = readProgress;
         }
         
-        // ★★★ 如果本次进度超过已保存进度，更新数据库 ★★★
-        if (currentProgress > lastSavedProgress) {
-            lastSavedProgress = currentProgress;
-            // 更新数据库
-            updateResourceProgress(resource.id, lastSavedProgress, 0);
-            // 刷新缩微图列表
-            renderCurrentStageResources();
-            updateDetailProgress(resource.id);
+        // ★★★ 4. 计算学习进度（阅读进度 + 时间奖励） ★★★
+        // 时间奖励：每30秒+1%，上限10%
+        const timeBonus = Math.min(10, Math.floor(readTime / 30));
+        const rawLearnProgress = Math.min(100, readProgress + timeBonus);
+        learnProgress = Math.max(learnProgress, rawLearnProgress);
+        
+        // ★★★ 5. 更新显示和保存 ★★★
+        updateDisplayAndSave();
+    }
+    
+    function updateDisplayAndSave() {
+        // 更新显示
+        const readDisplay = document.getElementById('readProgressDisplay');
+        const learnDisplay = document.getElementById('learnProgressDisplay');
+        
+        if (readDisplay) {
+            const displayVal = Math.round(readProgress);
+            readDisplay.textContent = readProgress >= 100 ? '📖 阅读：100% ✅' : `📖 阅读：${displayVal}%`;
         }
         
-        // ★★★ 完成条件：本次学习 >= 100% ★★★
-        if (currentProgress >= 100 && !hasMarkedComplete) {
-            hasMarkedComplete = true;
-            isCompleted = true;
-            if (timeInterval) {
-                clearInterval(timeInterval);
-                timeInterval = null;
-            }
-            // 更新为完成状态
-            if (currentDisplay) currentDisplay.textContent = '📖 本次：100% ✅';
-            if (savedDisplay) savedDisplay.textContent = '💾 已保存：100% ✅';
-            updateResourceProgress(resource.id, 100, 0);
-            markResourceCompleted(resource.id);
-            renderCurrentStageResources();
-            showArticleToast('✅ 文章学习完成！');
-            setTimeout(() => {
-                closeArticleFullscreen();
-            }, 1500);
+        if (learnDisplay) {
+            const displayVal = Math.round(learnProgress);
+            learnDisplay.textContent = learnProgress >= 100 ? '🎯 学习：100% ✅' : `🎯 学习：${displayVal}%`;
+        }
+        
+        // 保存到数据库
+        const currentSavedRead = progressMap[resource.id] ? progressMap[resource.id].progress : 0;
+        const currentSavedLearn = progressMap[resource.id] ? progressMap[resource.id].last_position : 0;
+        
+        if (Math.abs(readProgress - currentSavedRead) >= 1 || Math.abs(learnProgress - currentSavedLearn) >= 1) {
+            updateResourceProgressWithBoth(resource.id, Math.round(readProgress), Math.round(learnProgress));
+        }
+        
+        // 完成检查
+        if (learnProgress >= 100 && !hasMarkedComplete) {
+            completeArticle();
         }
     }
     
-    // 滚动事件
+    function completeArticle() {
+        hasMarkedComplete = true;
+        isCompleted = true;
+        
+        if (timeInterval) {
+            clearInterval(timeInterval);
+            timeInterval = null;
+        }
+        if (lockTimer) {
+            clearInterval(lockTimer);
+            lockTimer = null;
+        }
+        
+        const readDisplay = document.getElementById('readProgressDisplay');
+        const learnDisplay = document.getElementById('learnProgressDisplay');
+        if (readDisplay) readDisplay.textContent = '📖 阅读：100% ✅';
+        if (learnDisplay) learnDisplay.textContent = '🎯 学习：100% ✅';
+        hideLockToast();
+        
+        updateResourceProgress(resource.id, 100, 100);
+        markResourceCompleted(resource.id);
+        renderCurrentStageResources();
+        
+        showLockToast('✅ 文章学习完成！', false);
+        setTimeout(() => {
+            closeArticleFullscreen();
+        }, 1500);
+    }
+    
+    // ★★★ 特殊进度更新函数 ★★★
+    async function updateResourceProgressWithBoth(resourceId, readPct, learnPct) {
+        if (!currentUser) return;
+        
+        if (!progressMap[resourceId]) {
+            progressMap[resourceId] = { progress: 0, completed: false, last_position: 0 };
+        }
+        
+        progressMap[resourceId].progress = Math.min(100, readPct);
+        progressMap[resourceId].last_position = Math.min(100, learnPct);
+        
+        try {
+            await supabaseClient
+                .from('user_learning_progress')
+                .upsert({
+                    user_id: currentUser.id,
+                    resource_id: resourceId,
+                    progress_percent: Math.min(100, readPct),
+                    last_position: Math.min(100, learnPct),
+                    completed: progressMap[resourceId].completed,
+                    last_updated: new Date().toISOString()
+                }, { onConflict: 'user_id, resource_id' });
+        } catch (e) {
+            console.warn('保存文章进度失败:', e);
+        }
+        
+        renderCurrentStageResources();
+        updateDetailProgress(resourceId);
+    }
+    
+    // ===== 恢复进度 =====
+    function restoreProgress() {
+        const savedRead = savedProg.progress || 0;
+        const savedLearn = savedProg.last_position || savedProg.progress || 0;
+        readProgress = savedRead;
+        learnProgress = savedLearn;
+        unlockedScrollPct = savedRead;
+        
+        // 恢复滚动位置
+        if (savedRead > 0) {
+            const totalHeight = contentWrapper.scrollHeight - contentWrapper.clientHeight;
+            contentWrapper.scrollTop = (savedRead / 100) * totalHeight;
+        }
+        
+        updateDisplayAndSave();
+        isFirstLoad = false;
+    }
+    
+    // ===== 事件绑定 =====
+    
+    // 滚动事件（核心：检测是否尝试滚动到未解锁区域）
     contentWrapper.addEventListener('scroll', function() {
         if (isCompleted || hasMarkedComplete) return;
+        if (isLocked) {
+            // 锁定状态下，强制拉回
+            const totalHeight = contentWrapper.scrollHeight - contentWrapper.clientHeight;
+            const targetScroll = (unlockedScrollPct / 100) * totalHeight;
+            if (Math.abs(contentWrapper.scrollTop - targetScroll) > 5) {
+                contentWrapper.scrollTop = targetScroll;
+            }
+            return;
+        }
+        
         if (updateTimer) {
             clearTimeout(updateTimer);
         }
         updateTimer = setTimeout(() => {
             updateArticleProgress();
             updateTimer = null;
-        }, 200);
-    });
+        }, 150);
+    }, { passive: false });
     
-    // 阅读计时（每秒增加，每3秒更新一次进度）
+    // 阅读计时
     timeInterval = setInterval(() => {
         if (isCompleted || hasMarkedComplete) return;
         readTime += 1;
-        if (readTime % 3 === 0) {
+        // 每2秒更新一次
+        if (readTime % 2 === 0) {
             updateArticleProgress();
         }
     }, 1000);
@@ -2518,38 +2723,29 @@ function openArticleFullscreen(resource) {
     // 窗口调整
     window.addEventListener('resize', function() {
         if (isCompleted || hasMarkedComplete) return;
+        timePerScreen = updateScreenParams();
         updateArticleProgress();
     });
     
-    function showArticleToast(msg) {
-        const oldToast = document.getElementById('articleToast');
-        if (oldToast) oldToast.remove();
-        const toast = document.createElement('div');
-        toast.id = 'articleToast';
-        toast.style.cssText = `
-            position: fixed;
-            bottom: 120px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: #fff;
-            padding: 10px 24px;
-            border-radius: 20px;
-            font-size: 15px;
-            z-index: 999999;
-            font-family: system-ui, sans-serif;
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(255,255,255,0.1);
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-        `;
-        toast.textContent = msg;
-        document.body.appendChild(toast);
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            setTimeout(() => toast.remove(), 400);
-        }, 2000);
-    }
+    // 页面可见性
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            if (timeInterval) {
+                clearInterval(timeInterval);
+                timeInterval = null;
+            }
+        } else {
+            if (!timeInterval && !isCompleted && !hasMarkedComplete) {
+                timeInterval = setInterval(() => {
+                    if (isCompleted || hasMarkedComplete) return;
+                    readTime += 1;
+                    if (readTime % 2 === 0) {
+                        updateArticleProgress();
+                    }
+                }, 1000);
+            }
+        }
+    });
     
     document.addEventListener('keydown', function keyHandler(e) {
         if (e.key === 'Escape') {
@@ -2558,7 +2754,11 @@ function openArticleFullscreen(resource) {
         }
     });
     
-    setTimeout(updateArticleProgress, 500);
+    // 初始化
+    restoreProgress();
+    setTimeout(() => {
+        timePerScreen = updateScreenParams();
+    }, 300);
 }
 
 function closeArticleFullscreen() {
