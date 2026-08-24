@@ -1107,7 +1107,7 @@ async function renderQuiz(quiz) {
     updateSubmitButtonState();
 }
 // ============================================================
-// 图片全屏查看器
+// 图片全屏查看器（修复版）
 // ============================================================
 let imageViewerState = {
     isFullscreen: false,
@@ -1117,6 +1117,12 @@ let imageViewerState = {
 
 function openImageFullscreen(resource, allResources) {
     closeImageFullscreen();
+    
+    // 清空之前的计时器
+    if (activeResourceId) {
+        stopTimer(activeResourceId);
+        activeResourceId = null;
+    }
     
     const viewer = document.createElement('div');
     viewer.id = 'imageFullscreenViewer';
@@ -1169,7 +1175,7 @@ function openImageFullscreen(resource, allResources) {
     imageWrapper.appendChild(img);
     viewer.appendChild(imageWrapper);
     
-    // 进度条
+    // ===== 进度条（实时更新） =====
     const progressBar = document.createElement('div');
     progressBar.id = 'imageProgressBar';
     progressBar.style.cssText = `
@@ -1190,11 +1196,36 @@ function openImageFullscreen(resource, allResources) {
         transition: opacity 0.3s ease;
     `;
     
+    // 从进度Map获取初始进度
     const prog = progressMap[resource.id];
-    progressBar.textContent = prog ? `学习进度：${prog.progress}%` : '学习进度：0%';
+    let initialProgress = prog ? prog.progress : 0;
+    progressBar.textContent = `学习进度：${initialProgress}%`;
     viewer.appendChild(progressBar);
     
-    // 图片计数
+    // ===== 在图片加载完成后启动计时器 =====
+    let timerStarted = false;
+    let imageLoaded = false;
+    
+    img.addEventListener('load', function() {
+        imageLoaded = true;
+        // 图片加载完成，开始计时
+        if (!timerStarted && activeResourceId === resource.id) {
+            timerStarted = true;
+            // 启动计时器，并传入回调更新进度条
+            startImageTimer(resource.id, resource.duration);
+        }
+    });
+    
+    // 如果图片已缓存，load事件可能不会触发
+    if (img.complete) {
+        imageLoaded = true;
+        if (!timerStarted) {
+            timerStarted = true;
+            startImageTimer(resource.id, resource.duration);
+        }
+    }
+    
+    // ===== 图片计数 =====
     if (allResources && allResources.length > 1) {
         const counter = document.createElement('div');
         counter.id = 'imageCounter';
@@ -1282,6 +1313,9 @@ function openImageFullscreen(resource, allResources) {
             const currentIdx = allResources.findIndex(r => r.id === resource.id);
             if (currentIdx > 0) {
                 const prevResource = allResources[currentIdx - 1];
+                // 停止当前计时器
+                stopTimer(resource.id);
+                // 切换图片
                 img.src = prevResource.file;
                 const counter = document.getElementById('imageCounter');
                 if (counter) counter.textContent = `${currentIdx} / ${allResources.length}`;
@@ -1290,6 +1324,25 @@ function openImageFullscreen(resource, allResources) {
                 if (bar) bar.textContent = newProg ? `学习进度：${newProg.progress}%` : '学习进度：0%';
                 resetImageViewerState();
                 resource = prevResource;
+                activeResourceId = prevResource.id;
+                // 重新启动计时器
+                timerStarted = false;
+                imageLoaded = false;
+                if (img.complete) {
+                    imageLoaded = true;
+                    if (!timerStarted) {
+                        timerStarted = true;
+                        startImageTimer(prevResource.id, prevResource.duration);
+                    }
+                } else {
+                    img.addEventListener('load', function() {
+                        imageLoaded = true;
+                        if (!timerStarted && activeResourceId === prevResource.id) {
+                            timerStarted = true;
+                            startImageTimer(prevResource.id, prevResource.duration);
+                        }
+                    });
+                }
             }
         });
         
@@ -1314,6 +1367,7 @@ function openImageFullscreen(resource, allResources) {
             const currentIdx = allResources.findIndex(r => r.id === resource.id);
             if (currentIdx < allResources.length - 1) {
                 const nextResource = allResources[currentIdx + 1];
+                stopTimer(resource.id);
                 img.src = nextResource.file;
                 const counter = document.getElementById('imageCounter');
                 if (counter) counter.textContent = `${currentIdx + 2} / ${allResources.length}`;
@@ -1322,6 +1376,24 @@ function openImageFullscreen(resource, allResources) {
                 if (bar) bar.textContent = newProg ? `学习进度：${newProg.progress}%` : '学习进度：0%';
                 resetImageViewerState();
                 resource = nextResource;
+                activeResourceId = nextResource.id;
+                timerStarted = false;
+                imageLoaded = false;
+                if (img.complete) {
+                    imageLoaded = true;
+                    if (!timerStarted) {
+                        timerStarted = true;
+                        startImageTimer(nextResource.id, nextResource.duration);
+                    }
+                } else {
+                    img.addEventListener('load', function() {
+                        imageLoaded = true;
+                        if (!timerStarted && activeResourceId === nextResource.id) {
+                            timerStarted = true;
+                            startImageTimer(nextResource.id, nextResource.duration);
+                        }
+                    });
+                }
             }
         });
         
@@ -1332,6 +1404,9 @@ function openImageFullscreen(resource, allResources) {
     
     document.body.appendChild(viewer);
     document.body.style.overflow = 'hidden';
+    
+    // 设置 activeResourceId
+    activeResourceId = resource.id;
     
     // ===== 状态管理 =====
     let state = {
@@ -1618,6 +1693,14 @@ function openImageFullscreen(resource, allResources) {
     });
     
     resetImageViewerState();
+    
+    // 如果图片已经加载完成但计时器还没启动（兜底）
+    setTimeout(function() {
+        if (img.complete && !timerStarted && activeResourceId === resource.id) {
+            timerStarted = true;
+            startImageTimer(resource.id, resource.duration);
+        }
+    }, 500);
 }
 
 function closeImageFullscreen() {
@@ -1626,9 +1709,109 @@ function closeImageFullscreen() {
         viewer.remove();
         document.body.style.overflow = '';
     }
+    // ★★★ 关键修复：退出全屏时停止计时器 ★★★
+    if (activeResourceId) {
+        stopTimer(activeResourceId);
+        activeResourceId = null;
+    }
     imageViewerState.isFullscreen = false;
     imageViewerState.isZoomed = false;
     imageViewerState.scale = 1;
+}
+
+// ===== 图片专用计时器（带进度条实时更新） =====
+function startImageTimer(resourceId, duration) {
+    // 检查是否已有计时器
+    if (timerIntervals[resourceId]) {
+        console.log(`⏱️ 图片计时器已存在，跳过: ${resourceId}`);
+        return;
+    }
+    
+    const prog = progressMap[resourceId];
+    if (prog && prog.completed) {
+        console.log(`✅ 图片资源已完成，跳过: ${resourceId}`);
+        return;
+    }
+
+    if (typeof duration !== 'number' || duration <= 0 || isNaN(duration)) {
+        console.warn(`⚠️ duration 无效 (${duration})，强制设为 60 秒，资源: ${resourceId}`);
+        duration = 60;
+    }
+
+    let elapsed = 0;
+    if (prog && prog.progress > 0 && prog.progress < 100) {
+        elapsed = Math.floor((prog.progress / 100) * duration);
+    }
+    timerElapsed[resourceId] = elapsed;
+
+    console.log(`▶️ 启动图片计时器: ${resourceId}，总时长 ${duration} 秒，当前进度 ${prog ? prog.progress : 0}%`);
+
+    const interval = setInterval(async () => {
+        timerElapsed[resourceId] += 1;
+        const elapsedNow = timerElapsed[resourceId];
+        const progress = Math.min(100, Math.round((elapsedNow / duration) * 100));
+        
+        // ★★★ 更新进度到 Supabase ★★★
+        await updateResourceProgress(resourceId, progress, 0);
+        
+        // ★★★ 实时更新图片查看器中的进度条 ★★★
+        const progressBar = document.getElementById('imageProgressBar');
+        if (progressBar) {
+            progressBar.textContent = `学习进度：${progress}%`;
+        }
+        
+        // 更新 detailProgress（兼容旧逻辑）
+        updateDetailProgress(resourceId);
+        
+        if (progress >= 100) {
+            stopTimer(resourceId);
+            await markResourceCompleted(resourceId);
+            
+            // 更新进度条为完成状态
+            const bar = document.getElementById('imageProgressBar');
+            if (bar) {
+                bar.textContent = '✅ 学习完成！';
+            }
+            
+            const data = stageData[currentViewStage];
+            if (data && data.resources) {
+                const allCompleted = data.resources.every(r => progressMap[r.id] && progressMap[r.id].completed);
+                console.log(`📊 图片资源 ${resourceId} 完成，全部完成: ${allCompleted}`);
+                
+                if (allCompleted) {
+                    const isExamStage = EXAM_STAGES.includes(currentViewStage);
+                    console.log(`📌 阶段 ${currentViewStage}, 有考核: ${isExamStage}`);
+                    
+                    if (!isExamStage) {
+                        console.log(`🚀 无考核，自动晋级...`);
+                        await autoAdvanceStage(currentViewStage);
+                    } else {
+                        const isPassed = currentUser.completed_stages && currentUser.completed_stages.includes(currentViewStage);
+                        if (isPassed) {
+                            console.log(`✅ 考核已通过，自动晋级...`);
+                            await autoAdvanceStage(currentViewStage);
+                        } else {
+                            console.log(`📝 请完成考核后晋级`);
+                            if (learnMsg) {
+                                learnMsg.classList.remove('hidden');
+                                learnMsg.textContent = '🎉 本阶段所有学习资源已完成，请完成考核以晋级！';
+                            }
+                            renderCurrentStageResources();
+                        }
+                    }
+                }
+            }
+            
+            // 完成后延迟关闭查看器
+            setTimeout(() => {
+                if (document.getElementById('imageFullscreenViewer')) {
+                    closeImageFullscreen();
+                }
+            }, 1500);
+        }
+    }, 1000);
+    
+    timerIntervals[resourceId] = interval;
 }
 // ============================================================
 // 视频全屏播放器
@@ -2236,9 +2419,9 @@ function openResourceDetail(resource, allResources) {
     if (resource.type === 'image') {
         currentImageResources = allResources.filter(r => r.type === 'image');
         currentImageIdx = currentImageResources.findIndex(r => r.id === resource.id);
+        // ★★★ 注意：不再调用 startTimer，计时器在图片加载完成后启动 ★★★
         openImageFullscreen(resource, currentImageResources);
-        activeResourceId = resource.id;
-        startTimer(resource.id, resource.duration);
+        // 更新详情进度（但图片查看器有自己的进度条）
         updateDetailProgress(resource.id);
         return;
     }
@@ -2247,7 +2430,6 @@ function openResourceDetail(resource, allResources) {
     if (resource.type === 'video') {
         openVideoFullscreen(resource);
         activeResourceId = resource.id;
-        // 视频的计时器由播放器自己管理
         return;
     }
     
@@ -2255,11 +2437,9 @@ function openResourceDetail(resource, allResources) {
     if (resource.type === 'article') {
         openArticleFullscreen(resource);
         activeResourceId = resource.id;
-        // 文章的计时器由阅读器自己管理
         return;
     }
 }
-
 // ========== Timer ==========
 function startTimer(resourceId, duration) {
     if (timerIntervals[resourceId]) {
