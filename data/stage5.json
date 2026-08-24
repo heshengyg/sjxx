@@ -6,239 +6,169 @@
     {
       "id": "r1",
       "type": "article",
-      "title": "实操手册",
-      "content": "<p style=\"text-align: left;\"><span style=\"font-family: Arial;\">本阶段聚焦商家端后台实操，零基础适配，手把手教会商家玩转平台所有经营功能，实现自主运营：</span></p><p style=\"text-align: left;\"><strong>5.1 基础入驻与店铺搭建</strong></p><p style=\"text-indent: 2em; text-align: left;\"><span style=\"font-family: Arial;\">账号注册、店铺认证、门店信息完善、头像简介设置、自提点开通、店铺装修基础操作，快速搭建标准化线上门店。</span></p><p style=\"text-align: left;\"><strong>5.2 自营店铺核心操作</strong></p><p style=\"text-indent: 2em; text-align: left;\"><span style=\"font-family: Arial;\">商品/服务上架、价格设置、库存管理、订单接收、接单核销、售后处理、评价管理，熟练掌握线上交易全流程。</span></p><p style=\"text-align: left;\"><strong>5.3 平台供应链运营操作</strong></p><p style=\"text-indent: 2em; text-align: left;\"><span style=\"font-family: Arial;\">次日达商品推广素材获取、佣金查看、订单数据查询、自提核销流程、收益提现规则，轻松实现无货源增收。</span></p><p style=\"text-align: left;\"><strong>5.4 客户私域管理功能</strong></p><p style=\"text-indent: 2em; text-align: left;\"><span style=\"font-family: Arial;\">平台客户数据沉淀、邻里粉丝管理、客户消费标签查看、精准客户维护，把社区客流转化为专属私域资产。</span></p><p style=\"text-align: left;\"><strong>5.5 平台工具赋能使用</strong><span style=\"font-family: Arial;\">官方营销素材、社区推广工具、活动报名入口、店铺数据复盘、收益数据统计等功能实操。</span></p>"
+      "title": "实操手册详解",
+      "content": "<h2 style=\"text-align: start;\">一、基础入驻与店铺搭建</h2><h3 style=\"text-align: start;\">步骤1：账号注册与店铺认证</h3><ul><li style=\"text-align: start;\">下载松鼠逛逛APP，使用手机号完成商家注册</li><li style=\"text-align: start;\">提交门店基本信息（店名、地址、联系方式）</li><li style=\"text-align: start;\">完成身份认证（营业执照或个体户信息）</li></ul><h3 style=\"text-align: start;\">步骤2：门店信息完善</h3><ul><li style=\"text-align: start;\">设置店铺头像（建议使用门店实拍照片，有辨识度）</li><li style=\"text-align: start;\">完善店铺简介（简单介绍你的店、主营什么、有什么特色）</li><li style=\"text-align: start;\">开通自提点功能（让邻居可以在线订购后到店取货）</li></ul><p style=\"text-indent: 2em; text-align: start;\"><strong>为什么要认真做好这一步？</strong> 店铺信息是邻居对你的“第一印象”。一个信息完整、有照片、有介绍的门店，比一个空白页面让人信任得多。信任是成交的前提。</p><h3 style=\"text-align: start;\">步骤3：店铺基础装修</h3><ul><li style=\"text-align: start;\">设置店铺分类（比如：生鲜、日用品、便民服务等）</li><li style=\"text-align: start;\">上传店铺环境照片（让线上访客“看见”你的店）</li><li style=\"text-align: start;\">设置营业时间和联系方式</li></ul><h2 style=\"text-align: start;\">二、自营店铺核心操作</h2><h3 style=\"text-align: start;\">上架商品/服务</h3><ul><li style=\"text-align: start;\">点击“商品管理”→“新增商品”</li><li style=\"text-align: start;\">填写商品名称、价格、库存、规格</li><li style=\"text-align: start;\">上传清晰的产品图片（实物拍摄最佳）</li><li style=\"text-align: start;\">选择商品分类，填写简短描述</li></ul><p style=\"text-align: start;\"><strong>实操标准</strong>：资深商家必须完成至少3款商品/服务的上架。</p><h3 style=\"text-align: start;\">接单与核销</h3><ul><li style=\"text-align: start;\">在“订单管理”中查看新订单</li><li style=\"text-align: start;\">确认订单信息，备货/准备服务</li><li style=\"text-align: start;\">顾客到店后，点击“核销”完成订单</li><li style=\"text-align: start;\">处理售后问题（退换货、退款等）</li></ul><p style=\"text-align: start;\"><strong>实操提示</strong>：线上订单和线下订单一样处理，只是多了一个“核销”的动作。熟悉3-5单后即可熟练掌握。</p><h2 style=\"text-align: start;\">三、次日达供应链运营操作</h2><h3 style=\"text-align: start;\">获取推广素材</h3><ul><li style=\"text-align: start;\">在“供应链”板块查看当日可推广商品</li><li style=\"text-align: start;\">下载平台提供的商品图片、文案素材</li><li style=\"text-align: start;\">转发到你的微信群，附上专属推广链接</li></ul><h3 style=\"text-align: start;\">查看佣金与提现</h3><ul><li style=\"text-align: start;\">在“佣金中心”查看每一笔推广订单的佣金</li><li style=\"text-align: start;\">佣金数据实时更新，可自主查询</li><li style=\"text-align: start;\">满足提现条件后，点击“提现”即可到账</li></ul><p style=\"text-align: start;\"><strong>实操标准</strong>：熟悉推广素材获取、佣金查询、提现操作全流程。</p><h3 style=\"text-align: start;\">自提点订单核销</h3><ul><li style=\"text-align: start;\">顾客在平台下单次日达商品后，选择你的门店作为自提点</li><li style=\"text-align: start;\">商品由平台统一配送到店</li><li style=\"text-align: start;\">顾客到店后，你在后台点击“核销”</li><li style=\"text-align: start;\">核销后佣金自动计入账户</li></ul><p style=\"text-align: start;\"><strong>注意</strong>：次日达商品不需要你打包、不需要你配送、不需要你承担售后——你只需要核销取货，佣金就到手了。</p><h2 style=\"text-align: start;\">四、客户管理与数据复盘</h2><h3 style=\"text-align: start;\">客户沉淀</h3><ul><li style=\"text-align: start;\">平台自动记录每一位在店铺下单的客户信息</li><li style=\"text-align: start;\">可查看客户购买记录、消费偏好</li><li style=\"text-align: start;\">客户数据永久沉淀，随时可调取</li></ul><h3 style=\"text-align: start;\">数据查看</h3><ul><li style=\"text-align: start;\">在“数据中心”查看订单统计、收入分析</li><li style=\"text-align: start;\">查看哪些商品卖得好、哪些时间段订单多</li><li style=\"text-align: start;\">根据数据优化你的商品结构和推广策略</li></ul><p style=\"text-align: start;\"><strong>实操价值</strong>：过去你只能“凭感觉”判断生意好不好，现在你有数据了——知道谁买了什么、什么时候买、花了多少钱。这些数据是精细化运营的基础。</p><h2 style=\"text-align: start;\">五、实操落地检查清单</h2><p style=\"text-align: start;\"><span style=\"color: rgb(0, 0, 0);\"><strong>完成以下全部项，才算真正“实操达标”：</strong></span></p><p style=\"text-align: start;\"><span style=\"color: rgb(0, 0, 0);\">□ 账号注册完成，店铺认证通过</span></p><p style=\"text-align: start;\"><span style=\"color: rgb(0, 0, 0);\">□ 门店信息完善（头像、简介、联系方式、自提点）</span></p><p style=\"text-align: start;\"><span style=\"color: rgb(0, 0, 0);\">□ 上架至少3款自营商品或服务</span></p><p style=\"text-align: start;\"><span style=\"color: rgb(0, 0, 0);\">□ 完成至少1笔线上订单的核销</span></p><p style=\"text-align: start;\"><span style=\"color: rgb(0, 0, 0);\">□ 熟悉次日达商品推广素材获取方式</span></p><p style=\"text-align: start;\"><span style=\"color: rgb(0, 0, 0);\">□ 了解佣金查询和提现流程</span></p><p style=\"text-align: start;\"><span style=\"color: rgb(0, 0, 0);\">□ 查看过客户管理数据</span></p><p style=\"text-align: start;\"><span style=\"color: rgb(0, 0, 0);\">□ 无违规操作记录</span></p>"
     }
   ],
   "quiz": [
     {
       "id": "q1",
-      "question": "商家入驻松鼠逛逛、开通线上店铺完全免费。",
+      "question": "社区社群运营的核心原则是？（ ）",
       "options": [
-        "A、正确",
-        "B、错误"
+        "A、频繁推送硬广，最大化曝光商品",
+        "B、便民服务为主、营销为辅，保持社群活跃度和实用性",
+        "C、长期不发言、不互动，避免打扰群友",
+        "D、只在群里发广告，不做任何维护"
       ],
       "correct": [
-        0
+        1
       ],
-      "type": "judge",
-      "score": 4
+      "type": "single",
+      "score": 5
     },
     {
       "id": "q2",
-      "question": "次日达供应链商品需要商家自行备货、发货。",
+      "question": "社区商家引流的最核心优势是？（ ）",
       "options": [
-        "A、正确",
-        "B、错误"
+        "A、通过低价内卷吸引顾客",
+        "B、本地地缘信任、近距离服务、邻里口碑传播",
+        "C、线上流量来源更广",
+        "D、商品种类比大平台更丰富"
       ],
       "correct": [
         1
       ],
-      "type": "judge",
-      "score": 4
+      "type": "single",
+      "score": 5
     },
     {
       "id": "q3",
-      "question": "商家自营店铺可以24小时线上接单售卖。",
+      "question": "实现客户复购锁客的关键是？（ ）",
       "options": [
-        "A、正确",
-        "B、错误"
+        "A、不断用低价促销吸引",
+        "B、优质服务+邻里口碑+精准客户维护",
+        "C、频繁刷屏提醒顾客下单",
+        "D、夸大宣传，制造紧迫感"
       ],
       "correct": [
-        0
+        1
       ],
-      "type": "judge",
-      "score": 4
+      "type": "single",
+      "score": 5
     },
     {
       "id": "q4",
-      "question": "平台可以沉淀客户消费数据，方便商家精细化运营。",
+      "question": "商家打造社区便民IP的核心渠道是？（ ）",
       "options": [
-        "A、正确",
-        "B、错误"
+        "A、在邻里信息板块持续发布便民服务与本地资讯",
+        "B、仅靠线下发传单宣传",
+        "C、在微信社群中密集发布商品广告",
+        "D、不通过任何渠道运营"
       ],
       "correct": [
         0
       ],
-      "type": "judge",
-      "score": 4
+      "type": "single",
+      "score": 5
     },
     {
       "id": "q5",
-      "question": "微信群推广的平台商品佣金可在后台自主查询、提现。",
+      "question": "社区新零售实现长期稳定经营的核心是？（ ）",
       "options": [
-        "A、正确",
-        "B、错误"
+        "A、过度营销，追求短期快速获利",
+        "B、服务为本、口碑沉淀、长期深耕社区",
+        "C、三天打鱼两天晒网，偶尔经营",
+        "D、只做平台佣金推广，不做自营业务"
       ],
       "correct": [
-        0
+        1
       ],
-      "type": "judge",
-      "score": 4
+      "type": "single",
+      "score": 5
     },
     {
       "id": "q6",
-      "question": "店铺完善信息、开通自提点是进阶商家必做实操。",
+      "question": "以下哪项不属于精英商家保级的核心要求？（ ）",
       "options": [
-        "A、正确",
-        "B、错误"
+        "A、店铺保持常态化运营",
+        "B、社群保持基本活跃度，月度有成交",
+        "C、大量虚假宣传、夸大引流",
+        "D、零重大客诉、零违规操作"
       ],
       "correct": [
-        0
+        2
       ],
-      "type": "judge",
-      "score": 4
+      "type": "single",
+      "score": 5
     },
     {
       "id": "q7",
-      "question": "自营商品上架后无法修改价格和库存。",
+      "question": "线上线下双向引流的正确方式是？（ ）",
       "options": [
-        "A、正确",
-        "B、错误"
+        "A、线下客流引导至线上关注，线上流量承接线下服务",
+        "B、只做线下，放弃线上",
+        "C、只做线上，放弃线下",
+        "D、不做任何引流动作"
       ],
       "correct": [
-        1
+        0
       ],
-      "type": "judge",
-      "score": 4
+      "type": "single",
+      "score": 5
     },
     {
       "id": "q8",
-      "question": "商家可以使用平台官方营销素材开展推广。",
+      "question": "平台官方活动的核心价值是？（ ）",
       "options": [
-        "A、正确",
-        "B、错误"
+        "A、增加商家的营销投入成本",
+        "B、官方扶持，帮助商家降低营销成本、提升转化效果",
+        "C、没有任何实际作用",
+        "D、限制商家的自主运营"
       ],
       "correct": [
-        0
+        1
       ],
-      "type": "judge",
-      "score": 4
+      "type": "single",
+      "score": 5
     },
     {
       "id": "q9",
-      "question": "线上订单核销、售后处理是商家基础实操能力。",
+      "question": "私域流量转化的核心目的是？（ ）",
       "options": [
-        "A、正确",
-        "B、错误"
+        "A、单纯增加微信群的成员人数",
+        "B、把社群中的零散流量沉淀为店铺专属粉丝，实现长效复购",
+        "C、提升广告内容的曝光量",
+        "D、完成平台布置的运营任务"
       ],
       "correct": [
-        0
+        1
       ],
-      "type": "judge",
-      "score": 4
+      "type": "single",
+      "score": 5
     },
     {
       "id": "q10",
-      "question": "无违规操作是商家晋级资深、精英商家的基础条件。",
+      "question": "双渠道增收指的是？（ ）",
       "options": [
-        "A、正确",
-        "B、错误"
+        "A、仅靠线下门店盈利",
+        "B、自营业务盈利+平台供应链佣金增收",
+        "C、仅靠平台推广佣金",
+        "D、不追求多元增收渠道"
       ],
       "correct": [
-        0
+        1
       ],
-      "type": "judge",
-      "score": 4
+      "type": "single",
+      "score": 5
     },
     {
       "id": "q11",
-      "question": "商家开通次日达服务的核心权益是？（ ）",
+      "question": "微信群精细化运营的有效技巧包含？（ ）",
       "options": [
-        "A、自行囤货售卖",
-        "B、推广平台商品赚取佣金，门店作为自提点",
-        "C、承担物流配送",
-        "D、缴纳入驻费用"
-      ],
-      "correct": [
-        1
-      ],
-      "type": "single",
-      "score": 5
-    },
-    {
-      "id": "q12",
-      "question": "自营店铺商家必须完成的基础实操是？（ ）",
-      "options": [
-        "A、上架至少3款商品/服务",
-        "B、开通直播带货",
-        "C、大规模线下地推",
-        "D、充值推广费用"
-      ],
-      "correct": [
-        0
-      ],
-      "type": "single",
-      "score": 5
-    },
-    {
-      "id": "q13",
-      "question": "商家后台无法实现的功能是？（ ）",
-      "options": [
-        "A、订单管理、核销售后",
-        "B、佣金查询、收益提现",
-        "C、客户数据沉淀",
-        "D、恶意修改平台数据"
-      ],
-      "correct": [
-        3
-      ],
-      "type": "single",
-      "score": 5
-    },
-    {
-      "id": "q14",
-      "question": "店铺线上装修、信息完善的目的是？（ ）",
-      "options": [
-        "A、提升门店线上形象，增强邻里信任",
-        "B、满足平台形式要求",
-        "C、无实际经营意义",
-        "D、仅用于装饰展示"
-      ],
-      "correct": [
-        0
-      ],
-      "type": "single",
-      "score": 5
-    },
-    {
-      "id": "q15",
-      "question": "平台客户管理功能的核心价值是？（ ）",
-      "options": [
-        "A、随意删除客户数据",
-        "B、沉淀私域粉丝，实现精准维护与复购",
-        "C、公开客户隐私信息",
-        "D、统计无效数据"
-      ],
-      "correct": [
-        1
-      ],
-      "type": "single",
-      "score": 5
-    },
-    {
-      "id": "q16",
-      "question": "商家实操考核的核心标准是？（ ）",
-      "options": [
-        "A、仅看完课程即可",
-        "B、店铺搭建完成、功能熟练、实操落地无违规",
-        "C、无需上架商品",
-        "D、无需熟悉订单流程"
-      ],
-      "correct": [
-        1
-      ],
-      "type": "single",
-      "score": 5
-    },
-    {
-      "id": "q17",
-      "question": "属于商家自营店铺操作的有？（ ）",
-      "options": [
-        "A、商品上架",
-        "B、订单核销",
-        "C、售后处理",
-        "D、修改商品价格库存"
+        "A、通过便民互动提升社群活跃度",
+        "B、精准适时推送产品与服务信息",
+        "C、引导群友入驻平台，沉淀粉丝关系",
+        "D、杜绝硬广刷屏，避免扰民"
       ],
       "correct": [
         0,
@@ -250,72 +180,141 @@
       "score": 6
     },
     {
-      "id": "q18",
-      "question": "次日达供应链商家可以在后台做哪些操作？（ ）",
+      "id": "q12",
+      "question": "社区本地化引流的方法包含？（ ）",
       "options": [
-        "A、获取推广素材",
-        "B、查询佣金收益",
-        "C、自提点订单核销",
-        "D、平台商品采购备货"
+        "A、引导线下到店客户关注线上店铺",
+        "B、在邻里板块发布便民内容，打造个人IP",
+        "C、推出邻里专属优惠、到店自提福利",
+        "D、线上线下相互导流，形成循环"
       ],
       "correct": [
         0,
         1,
-        2
+        2,
+        3
       ],
       "type": "multiple",
       "score": 6
+    },
+    {
+      "id": "q13",
+      "question": "常态化锁客复购的方式有？（ ）",
+      "options": [
+        "A、老客专属福利、节日轻营销",
+        "B、新品新服务精准推送",
+        "C、借助平台活动借力引流",
+        "D、优质服务积累口碑，带动裂变"
+      ],
+      "correct": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "type": "multiple",
+      "score": 6
+    },
+    {
+      "id": "q14",
+      "question": "精英商家可享受的专属权益有？（ ）",
+      "options": [
+        "A、平台流量倾斜扶持",
+        "B、一对一官方运营指导",
+        "C、节日专属活动权益",
+        "D、优秀商家评优及曝光机会"
+      ],
+      "correct": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "type": "multiple",
+      "score": 6
+    },
+    {
+      "id": "q15",
+      "question": "轻量化增收运营思维包含？（ ）",
+      "options": [
+        "A、便民为先、服务为本",
+        "B、自营+佣金双渠道盈利",
+        "C、长期深耕社区，沉淀口碑",
+        "D、拒绝过度营销，诚信经营"
+      ],
+      "correct": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "type": "multiple",
+      "score": 6
+    },
+    {
+      "id": "q16",
+      "question": "微信群运营应该以广告刷屏为主，频繁推送商品链接才能提高转化。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        1
+      ],
+      "type": "judge",
+      "score": 4
+    },
+    {
+      "id": "q17",
+      "question": "社区商家可以利用邻里信息板块发布便民内容，提升自身社区影响力。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "judge",
+      "score": 4
+    },
+    {
+      "id": "q18",
+      "question": "做好售后服务和邻里互动，有利于社区商家实现口碑裂变式增长。",
+      "options": [
+        "A、正确",
+        "B、错误"
+      ],
+      "correct": [
+        0
+      ],
+      "type": "judge",
+      "score": 4
     },
     {
       "id": "q19",
-      "question": "商家端后台的数据统计可以查看哪些信息？（ ）",
+      "question": "精英商家不需要维护社群，只要上架了商品就可以自动保级。",
       "options": [
-        "A、订单记录",
-        "B、佣金收益",
-        "C、客户相关数据",
-        "D、修改平台规则"
+        "A、正确",
+        "B、错误"
       ],
       "correct": [
-        0,
-        1,
-        2
+        1
       ],
-      "type": "multiple",
-      "score": 6
+      "type": "judge",
+      "score": 4
     },
     {
       "id": "q20",
-      "question": "下面哪些行为属于商家违规行为？（ ）",
+      "question": "社区新零售的核心原则是坚持服务优先，而不是过度营销。",
       "options": [
-        "A、虚假上架商品",
-        "B、拒不处理售后客诉",
-        "C、恶意修改订单数据",
-        "D、正常上架门店服务"
+        "A、正确",
+        "B、错误"
       ],
       "correct": [
-        0,
-        1,
-        2
+        0
       ],
-      "type": "multiple",
-      "score": 6
-    },
-    {
-      "id": "q21",
-      "question": "开通自提点给商家带来的好处包含？（ ）",
-      "options": [
-        "A、获得平台商品推广佣金",
-        "B、增加门店到店客流",
-        "C、提升门店在社区曝光",
-        "D、必须承担商品仓储成本"
-      ],
-      "correct": [
-        0,
-        1,
-        2
-      ],
-      "type": "multiple",
-      "score": 6
+      "type": "judge",
+      "score": 4
     }
   ]
 }
