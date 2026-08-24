@@ -1115,6 +1115,7 @@ let imageViewerState = {
     scale: 1
 };
 
+// ========== 图片全屏查看器 ==========
 function openImageFullscreen(resource, allResources) {
     closeImageFullscreen();
     
@@ -1288,7 +1289,7 @@ function openImageFullscreen(resource, allResources) {
                 const newProg = progressMap[prevResource.id];
                 const bar = document.getElementById('imageProgressBar');
                 if (bar) bar.textContent = newProg ? `学习进度：${newProg.progress}%` : '学习进度：0%';
-                resetImageViewerState(img);
+                resetImageViewerState();
                 resource = prevResource;
             }
         });
@@ -1320,7 +1321,7 @@ function openImageFullscreen(resource, allResources) {
                 const newProg = progressMap[nextResource.id];
                 const bar = document.getElementById('imageProgressBar');
                 if (bar) bar.textContent = newProg ? `学习进度：${newProg.progress}%` : '学习进度：0%';
-                resetImageViewerState(img);
+                resetImageViewerState();
                 resource = nextResource;
             }
         });
@@ -1333,24 +1334,39 @@ function openImageFullscreen(resource, allResources) {
     document.body.appendChild(viewer);
     document.body.style.overflow = 'hidden';
     
-    // 状态管理
+    // ===== 状态管理 =====
     let state = {
         scale: 1,
         translateX: 0,
         translateY: 0,
-        isZoomed: false,
-        isDragging: false,
+        isZoomed: false,        // 是否双击放大状态
+        isDragging: false,      // 是否正在拖拽
+        isPinching: false,      // 是否正在双指缩放
         startX: 0,
         startY: 0,
         lastX: 0,
         lastY: 0,
         initialDistance: 0,
         initialScale: 1,
-        isPinching: false
+        // ★★★ 新增：标记本次触摸/点击是否发生了拖拽 ★★★
+        wasDragging: false
     };
     
     let lastTapTime = 0;
     let tapTimeout = null;
+    
+    // ★★★ 重置状态函数 ★★★
+    function resetImageViewerState() {
+        state.scale = 1;
+        state.translateX = 0;
+        state.translateY = 0;
+        state.isZoomed = false;
+        state.isDragging = false;
+        state.isPinching = false;
+        state.wasDragging = false;
+        img.style.transform = `translate(0px, 0px) scale(1)`;
+        updateProgressBarVisibility();
+    }
     
     function updateTransform() {
         img.style.transform = `translate(${state.translateX}px, ${state.translateY}px) scale(${state.scale})`;
@@ -1360,6 +1376,7 @@ function openImageFullscreen(resource, allResources) {
     function updateProgressBarVisibility() {
         const bar = document.getElementById('imageProgressBar');
         if (!bar) return;
+        // 放大状态（scale > 1.1）或双击放大状态 隐藏进度条
         if (state.isZoomed || state.scale > 1.1) {
             bar.style.opacity = '0';
             bar.style.pointerEvents = 'none';
@@ -1367,16 +1384,6 @@ function openImageFullscreen(resource, allResources) {
             bar.style.opacity = '1';
             bar.style.pointerEvents = 'none';
         }
-    }
-    
-    function resetImageViewerState(imgEl) {
-        state.scale = 1;
-        state.translateX = 0;
-        state.translateY = 0;
-        state.isZoomed = false;
-        state.isDragging = false;
-        imgEl.style.transform = `translate(0px, 0px) scale(1)`;
-        updateProgressBarVisibility();
     }
     
     function getDistance(event) {
@@ -1387,16 +1394,18 @@ function openImageFullscreen(resource, allResources) {
         return Math.sqrt(dx * dx + dy * dy);
     }
     
-    // 触摸事件
+    // ===== 触摸事件 =====
     imageWrapper.addEventListener('touchstart', function(e) {
         if (e.touches.length === 1) {
             const touch = e.touches[0];
             state.isDragging = false;
+            state.wasDragging = false;  // ★★★ 重置拖拽标记
             state.startX = touch.clientX;
             state.startY = touch.clientY;
             state.lastX = touch.clientX;
             state.lastY = touch.clientY;
             
+            // 检测双击
             const now = Date.now();
             const timeDiff = now - lastTapTime;
             lastTapTime = now;
@@ -1411,10 +1420,14 @@ function openImageFullscreen(resource, allResources) {
                 return;
             }
             
+            // 单击检测（延迟执行，等待是否双击）
             if (tapTimeout) clearTimeout(tapTimeout);
             tapTimeout = setTimeout(() => {
                 tapTimeout = null;
-                handleSingleTap();
+                // ★★★ 只有没有拖拽时才执行单击逻辑 ★★★
+                if (!state.wasDragging) {
+                    handleSingleTap();
+                }
             }, 300);
             
         } else if (e.touches.length === 2) {
@@ -1424,6 +1437,7 @@ function openImageFullscreen(resource, allResources) {
             }
             e.preventDefault();
             state.isPinching = true;
+            state.wasDragging = true;  // ★★★ 双指操作标记为拖拽
             state.initialDistance = getDistance(e);
             state.initialScale = state.scale;
             state.isDragging = false;
@@ -1437,6 +1451,7 @@ function openImageFullscreen(resource, allResources) {
             const dx = touch.clientX - state.lastX;
             const dy = touch.clientY - state.lastY;
             
+            // ★★★ 检测是否发生了拖拽（移动距离超过阈值） ★★★
             if (!state.isDragging) {
                 const dist = Math.sqrt(
                     Math.pow(touch.clientX - state.startX, 2) + 
@@ -1444,6 +1459,7 @@ function openImageFullscreen(resource, allResources) {
                 );
                 if (dist > 10) {
                     state.isDragging = true;
+                    state.wasDragging = true;  // ★★★ 标记发生了拖拽
                 }
             }
             
@@ -1471,16 +1487,18 @@ function openImageFullscreen(resource, allResources) {
         state.isPinching = false;
     });
     
-    // 鼠标事件（PC端）
+    // ===== 鼠标事件（PC端） =====
     let mouseDown = false;
     let mouseStartX = 0, mouseStartY = 0;
     let mouseLastX = 0, mouseLastY = 0;
     let isMouseDragging = false;
+    let mouseWasDragging = false;  // ★★★ PC端拖拽标记
     
     imageWrapper.addEventListener('mousedown', function(e) {
         if (e.button !== 0) return;
         mouseDown = true;
         isMouseDragging = false;
+        mouseWasDragging = false;  // ★★★ 重置
         mouseStartX = e.clientX;
         mouseStartY = e.clientY;
         mouseLastX = e.clientX;
@@ -1499,6 +1517,7 @@ function openImageFullscreen(resource, allResources) {
         );
         if (dist > 5) {
             isMouseDragging = true;
+            mouseWasDragging = true;  // ★★★ 标记发生了拖拽
         }
         
         if (isMouseDragging) {
@@ -1514,10 +1533,12 @@ function openImageFullscreen(resource, allResources) {
         if (mouseDown) {
             mouseDown = false;
             imageWrapper.style.cursor = '';
-            if (!isMouseDragging) {
+            // ★★★ 只有没有拖拽时才处理点击 ★★★
+            if (!mouseWasDragging) {
                 handleMouseClick(e);
             }
             isMouseDragging = false;
+            mouseWasDragging = false;
         }
     });
     
@@ -1528,6 +1549,12 @@ function openImageFullscreen(resource, allResources) {
         let newScale = state.scale + delta;
         newScale = Math.max(0.5, Math.min(5, newScale));
         state.scale = newScale;
+        // ★★★ 滚轮缩放时，如果放大超过阈值，自动标记 isZoomed 以便隐藏进度条 ★★★
+        if (state.scale > 1.1 && !state.isZoomed) {
+            state.isZoomed = true;
+        } else if (state.scale <= 1.1 && state.isZoomed) {
+            state.isZoomed = false;
+        }
         updateTransform();
     }, { passive: false });
     
@@ -1545,33 +1572,43 @@ function openImageFullscreen(resource, allResources) {
         if (tapTimeout) clearTimeout(tapTimeout);
         tapTimeout = setTimeout(() => {
             tapTimeout = null;
-            handleSingleTap();
+            // ★★★ 只有没有拖拽时才执行单击逻辑 ★★★
+            if (!mouseWasDragging) {
+                handleSingleTap();
+            }
         }, 300);
     }
     
+    // ===== 核心操作函数 =====
     function handleDoubleTap() {
         if (state.isZoomed) {
+            // 已放大 → 回到全屏原始大小
             state.isZoomed = false;
             state.scale = 1;
             state.translateX = 0;
             state.translateY = 0;
         } else {
+            // 未放大 → 放大到2倍
             state.isZoomed = true;
             state.scale = 2;
             state.translateX = 0;
             state.translateY = 0;
         }
         updateTransform();
+        updateProgressBarVisibility();
     }
     
     function handleSingleTap() {
         if (state.isZoomed || state.scale > 1.1) {
+            // 放大/缩放状态 → 回到全屏原始大小
             state.isZoomed = false;
             state.scale = 1;
             state.translateX = 0;
             state.translateY = 0;
             updateTransform();
+            updateProgressBarVisibility();
         } else {
+            // 全屏原始大小 → 退出
             closeImageFullscreen();
         }
     }
@@ -1584,7 +1621,7 @@ function openImageFullscreen(resource, allResources) {
         }
     });
     
-    resetImageViewerState(img);
+    resetImageViewerState();
 }
 
 function closeImageFullscreen() {
@@ -1597,7 +1634,6 @@ function closeImageFullscreen() {
     imageViewerState.isZoomed = false;
     imageViewerState.scale = 1;
 }
-
 // ========== Resource Detail Modal ==========
 let currentVideoElement = null;
 
