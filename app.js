@@ -1246,37 +1246,7 @@ function openImageFullscreen(resource, allResources) {
         counter.textContent = `${idx + 1} / ${allResources.length}`;
         viewer.appendChild(counter);
     }
-    
-    // 关闭按钮
-    const closeBtn = document.createElement('button');
-    closeBtn.id = 'imageViewerClose';
-    closeBtn.innerHTML = '✕';
-    closeBtn.style.cssText = `
-        position: absolute;
-        top: 16px;
-        left: 16px;
-        width: 40px;
-        height: 40px;
-        border: none;
-        border-radius: 50%;
-        background: rgba(0,0,0,0.6);
-        color: #fff;
-        font-size: 22px;
-        cursor: pointer;
-        z-index: 20;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        backdrop-filter: blur(8px);
-        border: 1px solid rgba(255,255,255,0.15);
-        transition: background 0.2s;
-    `;
-    closeBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        closeImageFullscreen();
-    });
-    viewer.appendChild(closeBtn);
-    
+        
     // 上一张/下一张
     if (allResources && allResources.length > 1) {
         const navContainer = document.createElement('div');
@@ -1814,9 +1784,11 @@ function startImageTimer(resourceId, duration) {
     timerIntervals[resourceId] = interval;
 }
 // ============================================================
-// 视频全屏播放器
+// 视频全屏播放器（优化版）
 // ============================================================
 let videoViewerActive = false;
+let videoHideTimeout = null;
+let videoButtonVisible = true;
 
 function openVideoFullscreen(resource) {
     closeVideoFullscreen();
@@ -1842,6 +1814,7 @@ function openVideoFullscreen(resource) {
     `;
     
     const videoWrapper = document.createElement('div');
+    videoWrapper.id = 'videoWrapper';
     videoWrapper.style.cssText = `
         width: 100%;
         height: 100%;
@@ -1868,7 +1841,7 @@ function openVideoFullscreen(resource) {
     videoWrapper.appendChild(video);
     viewer.appendChild(videoWrapper);
     
-    // 进度信息
+    // ===== 进度信息 =====
     const progressInfo = document.createElement('div');
     progressInfo.id = 'videoProgressInfo';
     progressInfo.style.cssText = `
@@ -1892,35 +1865,116 @@ function openVideoFullscreen(resource) {
     progressInfo.textContent = prog ? `学习进度：${prog.progress}%` : '学习进度：0%';
     viewer.appendChild(progressInfo);
     
-    // 关闭按钮
-    const closeBtn = document.createElement('button');
-    closeBtn.id = 'videoViewerClose';
-    closeBtn.innerHTML = '✕';
-    closeBtn.style.cssText = `
+    // ===== ★★★ 退出按钮（右下约1/3处）★★★ =====
+    const exitBtn = document.createElement('button');
+    exitBtn.id = 'videoExitBtn';
+    exitBtn.textContent = '退出';
+    exitBtn.style.cssText = `
         position: absolute;
-        top: 16px;
-        left: 16px;
-        width: 40px;
-        height: 40px;
-        border: none;
-        border-radius: 50%;
-        background: rgba(0,0,0,0.6);
+        bottom: 30%;
+        right: 20px;
+        padding: 10px 20px;
+        background: rgba(255, 255, 255, 0.2);
         color: #fff;
-        font-size: 22px;
+        border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 30px;
+        font-size: 16px;
+        font-weight: 500;
         cursor: pointer;
         z-index: 20;
-        display: flex;
-        align-items: center;
-        justify-content: center;
         backdrop-filter: blur(8px);
-        border: 1px solid rgba(255,255,255,0.15);
-        transition: background 0.2s;
+        transition: all 0.3s ease;
+        font-family: system-ui, -apple-system, sans-serif;
+        letter-spacing: 0.5px;
     `;
-    closeBtn.addEventListener('click', function(e) {
+    exitBtn.addEventListener('mouseenter', function() {
+        this.style.background = 'rgba(255, 255, 255, 0.35)';
+    });
+    exitBtn.addEventListener('mouseleave', function() {
+        this.style.background = 'rgba(255, 255, 255, 0.2)';
+    });
+    exitBtn.addEventListener('click', function(e) {
         e.stopPropagation();
         closeVideoFullscreen();
     });
-    viewer.appendChild(closeBtn);
+    viewer.appendChild(exitBtn);
+    
+    // ===== ★★★ 1秒后收缩到右侧边缘 ★★★ =====
+    videoButtonVisible = true;
+    let isButtonExpanded = true;
+    let hideTimer = null;
+    
+    function collapseButton() {
+        if (!videoButtonVisible) return;
+        isButtonExpanded = false;
+        exitBtn.style.transform = 'translateX(calc(100% - 20px))';
+        exitBtn.style.opacity = '0.4';
+        exitBtn.style.width = 'auto';
+        exitBtn.style.padding = '8px 12px';
+        exitBtn.textContent = '◀';
+        exitBtn.style.fontSize = '14px';
+        exitBtn.style.borderRadius = '30px';
+        exitBtn.style.background = 'rgba(255,255,255,0.15)';
+    }
+    
+    function expandButton() {
+        if (!videoButtonVisible) return;
+        isButtonExpanded = true;
+        exitBtn.style.transform = 'translateX(0)';
+        exitBtn.style.opacity = '1';
+        exitBtn.style.padding = '10px 20px';
+        exitBtn.textContent = '退出';
+        exitBtn.style.fontSize = '16px';
+        exitBtn.style.borderRadius = '30px';
+        exitBtn.style.background = 'rgba(255, 255, 255, 0.2)';
+        // 重置隐藏计时器
+        if (hideTimer) {
+            clearTimeout(hideTimer);
+            hideTimer = null;
+        }
+        hideTimer = setTimeout(() => {
+            collapseButton();
+        }, 1000);
+    }
+    
+    // 初始：1秒后收缩
+    hideTimer = setTimeout(() => {
+        collapseButton();
+    }, 1000);
+    
+    // ===== ★★★ 触碰屏幕任意位置展开按钮 ★★★ =====
+    viewer.addEventListener('click', function(e) {
+        // 如果点击的是退出按钮本身，不处理（由按钮自己的点击事件处理）
+        if (e.target === exitBtn) return;
+        if (!isButtonExpanded) {
+            expandButton();
+        } else {
+            // 如果已经展开，重置计时器
+            if (hideTimer) {
+                clearTimeout(hideTimer);
+                hideTimer = null;
+            }
+            hideTimer = setTimeout(() => {
+                collapseButton();
+            }, 1000);
+        }
+    });
+    
+    // 触摸事件支持
+    viewer.addEventListener('touchstart', function(e) {
+        if (e.target === exitBtn) return;
+        if (!isButtonExpanded) {
+            expandButton();
+        } else {
+            if (hideTimer) {
+                clearTimeout(hideTimer);
+                hideTimer = null;
+            }
+            hideTimer = setTimeout(() => {
+                collapseButton();
+            }, 1000);
+        }
+    }, { passive: true });
     
     document.body.appendChild(viewer);
     document.body.style.overflow = 'hidden';
@@ -2119,7 +2173,6 @@ function openVideoFullscreen(resource) {
 function closeVideoFullscreen() {
     const viewer = document.getElementById('videoFullscreenViewer');
     if (viewer) {
-        // 保存进度
         const video = viewer.querySelector('video');
         if (video && activeResourceId) {
             const duration = video.duration;
@@ -2132,10 +2185,14 @@ function closeVideoFullscreen() {
         viewer.remove();
         document.body.style.overflow = '';
     }
+    if (videoHideTimeout) {
+        clearTimeout(videoHideTimeout);
+        videoHideTimeout = null;
+    }
     videoViewerActive = false;
 }
 // ============================================================
-// 文章全屏阅读器
+// 文章全屏阅读器（优化版）
 // ============================================================
 let articleViewerActive = false;
 
@@ -2158,7 +2215,7 @@ function openArticleFullscreen(resource) {
         font-family: system-ui, -apple-system, sans-serif;
     `;
     
-    // 顶部工具栏
+    // ===== 顶部工具栏 =====
     const toolbar = document.createElement('div');
     toolbar.style.cssText = `
         display: flex;
@@ -2171,23 +2228,7 @@ function openArticleFullscreen(resource) {
         z-index: 10;
     `;
     
-    // 关闭按钮
-    const closeBtn = document.createElement('button');
-    closeBtn.innerHTML = '✕';
-    closeBtn.style.cssText = `
-        width: 36px;
-        height: 36px;
-        border: none;
-        border-radius: 50%;
-        background: #f0f0f0;
-        font-size: 18px;
-        cursor: pointer;
-        transition: background 0.2s;
-    `;
-    closeBtn.addEventListener('mouseenter', function() { this.style.background = '#e0e0e0'; });
-    closeBtn.addEventListener('mouseleave', function() { this.style.background = '#f0f0f0'; });
-    closeBtn.addEventListener('click', closeArticleFullscreen);
-    toolbar.appendChild(closeBtn);
+    // ★★★ 关闭按钮已移除，改用右下退出按钮 ★★★
     
     // 文章标题
     const titleEl = document.createElement('span');
@@ -2204,12 +2245,47 @@ function openArticleFullscreen(resource) {
     `;
     toolbar.appendChild(titleEl);
     
+    // ===== ★★★ 两个进度显示（右上角）★★★ =====
+    const progressContainer = document.createElement('div');
+    progressContainer.style.cssText = `
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        font-size: 13px;
+        color: #666;
+        font-family: system-ui, -apple-system, sans-serif;
+        flex-shrink: 0;
+    `;
+    
+    // 阅读进度（滚动）
+    const readProgressSpan = document.createElement('span');
+    readProgressSpan.id = 'readProgressDisplay';
+    readProgressSpan.textContent = '📖 阅读：0%';
+    readProgressSpan.style.cssText = `
+        color: #4285f4;
+        font-weight: 500;
+        min-width: 70px;
+    `;
+    progressContainer.appendChild(readProgressSpan);
+    
+    // 学习进度（综合）
+    const learnProgressSpan = document.createElement('span');
+    learnProgressSpan.id = 'learnProgressDisplay';
+    learnProgressSpan.textContent = '🎯 学习：0%';
+    learnProgressSpan.style.cssText = `
+        color: #22c55e;
+        font-weight: 500;
+        min-width: 70px;
+    `;
+    progressContainer.appendChild(learnProgressSpan);
+    
     // 字号控制
     const fontSizeControls = document.createElement('div');
     fontSizeControls.style.cssText = `
         display: flex;
         gap: 8px;
         align-items: center;
+        margin-left: 8px;
     `;
     const fontSizes = [14, 16, 18, 20, 22];
     let currentFontSize = 17;
@@ -2235,25 +2311,12 @@ function openArticleFullscreen(resource) {
         updateArticleProgress();
     });
     fontSizeControls.appendChild(fontSizeBtn);
+    progressContainer.appendChild(fontSizeControls);
     
-    // 进度显示
-    const progressDisplay = document.createElement('span');
-    progressDisplay.id = 'articleProgressDisplay';
-    progressDisplay.style.cssText = `
-        font-size: 13px;
-        color: #888;
-        margin-left: 12px;
-        min-width: 60px;
-        text-align: right;
-    `;
-    const prog = progressMap[resource.id];
-    progressDisplay.textContent = prog ? `${prog.progress}%` : '0%';
-    fontSizeControls.appendChild(progressDisplay);
-    
-    toolbar.appendChild(fontSizeControls);
+    toolbar.appendChild(progressContainer);
     viewer.appendChild(toolbar);
     
-    // 文章内容
+    // ===== 文章内容 =====
     const contentWrapper = document.createElement('div');
     contentWrapper.style.cssText = `
         flex: 1;
@@ -2276,6 +2339,40 @@ function openArticleFullscreen(resource) {
     contentWrapper.appendChild(contentEl);
     viewer.appendChild(contentWrapper);
     
+    // ===== ★★★ 退出按钮（右下约1/3处，始终显示）★★★ =====
+    const exitBtn = document.createElement('button');
+    exitBtn.id = 'articleExitBtn';
+    exitBtn.textContent = '退出';
+    exitBtn.style.cssText = `
+        position: absolute;
+        bottom: 30%;
+        right: 20px;
+        padding: 10px 20px;
+        background: rgba(0, 0, 0, 0.15);
+        color: #333;
+        border: 1px solid rgba(0,0,0,0.1);
+        border-radius: 30px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        z-index: 20;
+        backdrop-filter: blur(8px);
+        transition: all 0.3s ease;
+        font-family: system-ui, -apple-system, sans-serif;
+        letter-spacing: 0.5px;
+    `;
+    exitBtn.addEventListener('mouseenter', function() {
+        this.style.background = 'rgba(0, 0, 0, 0.25)';
+    });
+    exitBtn.addEventListener('mouseleave', function() {
+        this.style.background = 'rgba(0, 0, 0, 0.15)';
+    });
+    exitBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        closeArticleFullscreen();
+    });
+    viewer.appendChild(exitBtn);
+    
     document.body.appendChild(viewer);
     document.body.style.overflow = 'hidden';
     articleViewerActive = true;
@@ -2290,6 +2387,7 @@ function openArticleFullscreen(resource) {
     let hasMarkedComplete = false;
     
     // 恢复滚动位置
+    const prog = progressMap[resource.id];
     if (prog && prog.progress > 0) {
         scrollProgress = prog.progress || 0;
         setTimeout(() => {
@@ -2301,18 +2399,28 @@ function openArticleFullscreen(resource) {
     function updateArticleProgress() {
         if (isCompleted || hasMarkedComplete) return;
         
+        // 计算滚动进度
         const totalHeight = contentWrapper.scrollHeight - contentWrapper.clientHeight;
         const currentScroll = contentWrapper.scrollTop;
         const scrollPct = totalHeight > 0 ? (currentScroll / totalHeight) * 100 : 0;
         scrollProgress = Math.min(100, scrollPct);
         
+        // 计算时间进度
         const timePct = Math.min(100, (readTime / estimatedTime) * 100);
+        
+        // ★★★ 综合进度 = 滚动×60% + 时间×40% ★★★
         const combinedProgress = Math.min(100, Math.round(scrollPct * 0.6 + timePct * 0.4));
         const finalProgress = Math.min(100, combinedProgress);
         
-        const display = document.getElementById('articleProgressDisplay');
-        if (display) {
-            display.textContent = `${finalProgress}%`;
+        // ===== ★★★ 更新两个进度显示 ★★★ =====
+        const readDisplay = document.getElementById('readProgressDisplay');
+        if (readDisplay) {
+            readDisplay.textContent = `📖 阅读：${Math.round(scrollPct)}%`;
+        }
+        
+        const learnDisplay = document.getElementById('learnProgressDisplay');
+        if (learnDisplay) {
+            learnDisplay.textContent = `🎯 学习：${finalProgress}%`;
         }
         
         // 完成条件：滚动 >= 80% 且 阅读时间 >= 估算时间的 50%
@@ -2323,6 +2431,9 @@ function openArticleFullscreen(resource) {
                 clearInterval(timeInterval);
                 timeInterval = null;
             }
+            // 更新为完成状态
+            if (readDisplay) readDisplay.textContent = '📖 阅读：100% ✅';
+            if (learnDisplay) learnDisplay.textContent = '🎯 学习：100% ✅';
             updateResourceProgress(resource.id, 100, 0);
             markResourceCompleted(resource.id);
             showArticleToast('✅ 文章阅读完成！');
