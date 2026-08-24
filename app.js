@@ -1689,7 +1689,7 @@ function closeImageFullscreen() {
     imageViewerState.scale = 1;
 }
 
-// ===== 图片专用计时器（带进度条实时更新） =====
+// ===== 图片专用计时器（修复版 - 使用 last_position 恢复进度） =====
 function startImageTimer(resourceId, duration) {
     // 检查是否已有计时器
     if (timerIntervals[resourceId]) {
@@ -1708,21 +1708,36 @@ function startImageTimer(resourceId, duration) {
         duration = 60;
     }
 
+    // ★★★ 使用 last_position 恢复进度（更可靠）★★★
     let elapsed = 0;
-    if (prog && prog.progress > 0 && prog.progress < 100) {
+    if (prog && prog.last_position !== undefined && prog.last_position > 0) {
+        // 如果 last_position 存在且大于0，使用它
+        elapsed = Math.floor(prog.last_position);
+        // 确保不超过 duration
+        if (elapsed >= duration) {
+            elapsed = duration - 1;
+        }
+    } else if (prog && prog.progress > 0 && prog.progress < 100) {
+        // 兼容旧数据：从 progress 计算
         elapsed = Math.floor((prog.progress / 100) * duration);
     }
     timerElapsed[resourceId] = elapsed;
 
-    console.log(`▶️ 启动图片计时器: ${resourceId}，总时长 ${duration} 秒，当前进度 ${prog ? prog.progress : 0}%`);
+    console.log(`▶️ 启动图片计时器: ${resourceId}，总时长 ${duration} 秒，已计时 ${elapsed} 秒，当前进度 ${prog ? prog.progress : 0}%`);
 
     const interval = setInterval(async () => {
         timerElapsed[resourceId] += 1;
         const elapsedNow = timerElapsed[resourceId];
-        const progress = Math.min(100, Math.round((elapsedNow / duration) * 100));
+        let progress = Math.min(100, Math.round((elapsedNow / duration) * 100));
+        
+        // ★★★ 确保进度只增不减 ★★★
+        const currentSavedProgress = progressMap[resourceId] ? progressMap[resourceId].progress : 0;
+        if (progress < currentSavedProgress) {
+            progress = currentSavedProgress;
+        }
         
         // ★★★ 更新进度到 Supabase ★★★
-        await updateResourceProgress(resourceId, progress, 0);
+        await updateResourceProgress(resourceId, progress, elapsedNow);
         
         // ★★★ 实时更新图片查看器中的进度条 ★★★
         const progressBar = document.getElementById('imageProgressBar');
@@ -1948,9 +1963,15 @@ function openVideoFullscreen(resource) {
         }
     }
     
-    // 初始：假设视频自动播放，1秒后收缩
-    // 但先展开，等视频状态确定后再决定
+    // ★★★ 初始：先展开按钮，让用户看到 ★★★
     expandButton();
+    
+    // ★★★ 延迟1.5秒后，如果视频正在播放则收缩 ★★★
+    setTimeout(function() {
+        if (!isVideoPaused) {
+            startHideTimer();
+        }
+    }, 1500);
     
     // ★★★ 监听视频播放/暂停状态 ★★★
     video.addEventListener('pause', function() {
@@ -1984,8 +2005,7 @@ function openVideoFullscreen(resource) {
         if (!isVideoPaused) {
             startHideTimer();
         }
-    }, { passive: true });
-    
+    }, { passive: true });    
     document.body.appendChild(viewer);
     document.body.style.overflow = 'hidden';
     videoViewerActive = true;
