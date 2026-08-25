@@ -666,14 +666,14 @@ function renderResources(stage, resources) {
         info.appendChild(titleSpan);
         const statusSpan = document.createElement('div');
         statusSpan.className = 'status';
-        if (prog && prog.completed) {
-            statusSpan.textContent = '✅ 已完成';
-            statusSpan.classList.add('completed');
-        } else {
-            const pct = prog ? Math.round(prog.progress) : 0;
-statusSpan.textContent = `⏳ 进度 ${pct}%`;
-            statusSpan.classList.add('incomplete');
-        }
+        if (prog && (prog.completed || prog.progress >= 100)) {
+    statusSpan.textContent = '✅ 已完成';
+    statusSpan.classList.add('completed');
+} else {
+    const pct = prog ? Math.round(prog.progress) : 0;
+    statusSpan.textContent = `⏳ 进度 ${pct}%`;
+    statusSpan.classList.add('incomplete');
+}
         info.appendChild(statusSpan);
         div.appendChild(info);
 
@@ -2871,13 +2871,17 @@ function openArticleFullscreen(resource) {
     }
 
     // ★★★ 更新学习进度显示 ★★★
-    function updateLearnDisplay() {
-        const display = document.getElementById('learnProgressDisplay');
-        if (display) {
+function updateLearnDisplay() {
+    const display = document.getElementById('learnProgressDisplay');
+    if (display) {
+        if (learnProgress >= 100) {
+            display.textContent = '✅ 已完成';
+        } else {
             const val = Math.round(learnProgress);
-            display.textContent = learnProgress >= 100 ? '🎯 学习进度：100% ✅' : `🎯 学习进度：${val}%`;
+            display.textContent = `🎯 学习进度：${val}%`;
         }
     }
+}
 
     // ★★★ 保存进度到数据库 ★★★
     async function saveLearnProgress() {
