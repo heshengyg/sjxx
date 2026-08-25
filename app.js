@@ -2619,7 +2619,7 @@ function closeVideoFullscreen() {
     videoViewerActive = false;
 }
 // ============================================================
-// 文章全屏阅读器（锁定滚动版 - 倒计时解锁，进度只增不减）
+// 文章全屏阅读器（优化版 - 不强制拉回，倒计时解锁）
 // ============================================================
 let articleViewerActive = false;
 
@@ -2938,26 +2938,21 @@ function openArticleFullscreen(resource) {
         }, 1500);
     }
 
-    // ★★★ 核心更新函数（锁定滚动）★★★
+    // ★★★ 核心更新函数（不强制拉回，只控制进度） ★★★
     function updateArticleProgress() {
         if (isCompleted || hasMarkedComplete) return;
-        if (isLocked) return;
 
         totalHeight = contentWrapper.scrollHeight - contentWrapper.clientHeight;
         const currentScroll = contentWrapper.scrollTop;
         const scrollPct = totalHeight > 0 ? (currentScroll / totalHeight) * 100 : 0;
         const currentScrollPct = Math.min(100, scrollPct);
 
-        // ★★★ 如果当前滚动位置 > 已解锁位置 + 0.5% → 触发锁定 ★★★
-        if (currentScrollPct > unlockedScrollPct + 0.5) {
+        // ★★★ 如果当前滚动位置 > 已解锁位置 + 0.5% → 触发锁定（但允许滚动，不强制拉回） ★★★
+        if (currentScrollPct > unlockedScrollPct + 0.5 && !isLocked) {
             // 记录目标位置
             targetScrollPct = Math.min(100, currentScrollPct);
             const scrollDiff = targetScrollPct - unlockedScrollPct;
             lockCountdown = calculateTimeNeeded(scrollDiff);
-
-            // 强制拉回到解锁位置
-            const targetScroll = (unlockedScrollPct / 100) * totalHeight;
-            contentWrapper.scrollTop = targetScroll;
 
             // 进入锁定状态
             isLocked = true;
@@ -2968,17 +2963,16 @@ function openArticleFullscreen(resource) {
             lockTimer = setInterval(function() {
                 lockCountdown -= 1;
 
-                // ★★★ 倒计时期间检查用户是否回滚 ★★★
+                // ★★★ 倒计时期间检查用户是否回滚到解锁区域内 ★★★
                 const currentScrollNow = contentWrapper.scrollTop;
                 const currentPctNow = totalHeight > 0 ? (currentScrollNow / totalHeight) * 100 : 0;
-
-                // 如果用户回滚到解锁区域内（≤ unlockedScrollPct），取消倒计时
                 if (currentPctNow <= unlockedScrollPct + 0.5) {
+                    // 回滚，取消倒计时
                     clearInterval(lockTimer);
                     lockTimer = null;
                     isLocked = false;
                     hideLockToast();
-                    // 重新检查
+                    // 重新检查（可能会重新触发锁定）
                     updateArticleProgress();
                     return;
                 }
@@ -3001,10 +2995,6 @@ function openArticleFullscreen(resource) {
                         saveLearnProgress();
                     }
 
-                    // 自动滚动到目标位置（让用户看到解锁后的内容）
-                    const targetScrollPos = (unlockedScrollPct / 100) * totalHeight;
-                    contentWrapper.scrollTop = targetScrollPos;
-
                     // 显示解锁成功提示
                     showSuccessToast('✅ 已解锁，可以继续阅读！');
                     setTimeout(hideLockToast, 1500);
@@ -3015,11 +3005,13 @@ function openArticleFullscreen(resource) {
                     }
                 }
             }, 1000);
-
             return;
         }
 
-        // ★★★ 在已解锁区域内滚动 → 如果滚动超过当前进度，则更新进度（但不会触发锁定） ★★★
+        // ★★★ 如果已经在锁定状态，不做任何事（倒计时由定时器处理） ★★★
+        if (isLocked) return;
+
+        // ★★★ 在已解锁区域内滚动 → 如果滚动超过当前进度，则更新进度 ★★★
         if (currentScrollPct > learnProgress) {
             learnProgress = Math.min(100, currentScrollPct);
             unlockedScrollPct = learnProgress;
@@ -3061,12 +3053,11 @@ function openArticleFullscreen(resource) {
         if (isCompleted || hasMarkedComplete) return;
         if (isRestoring) return;
 
-        // ★★★ 如果正在锁定中，强制保持位置 ★★★
+        // ★★★ 如果正在锁定中，不处理滚动（但滚动位置由用户控制） ★★★
+        // 但是我们仍然需要更新提示，如果用户回滚则取消倒计时，但由定时器处理
+        // 这里只需要触发更新逻辑（但锁定状态下不更新进度）
         if (isLocked) {
-            const targetScroll = (unlockedScrollPct / 100) * totalHeight;
-            if (Math.abs(contentWrapper.scrollTop - targetScroll) > 2) {
-                contentWrapper.scrollTop = targetScroll;
-            }
+            // 不处理，由定时器检测回滚
             return;
         }
 
