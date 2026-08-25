@@ -2251,39 +2251,44 @@ function openVideoFullscreen(resource) {
     progressInfo.textContent = prog ? `学习进度：${prog.progress}%` : '学习进度：0%';
     viewer.appendChild(progressInfo);
     
-    // ===== 退出按钮 =====
-    const exitBtn = document.createElement('button');
-    exitBtn.id = 'videoExitBtn';
-    exitBtn.textContent = '退出';
-    exitBtn.style.cssText = `
-        position: absolute;
-        bottom: 30%;
-        right: 20px;
-        padding: 10px 20px;
-        background: rgba(255, 255, 255, 0.2);
-        color: #fff;
-        border: 1px solid rgba(255,255,255,0.3);
-        border-radius: 30px;
-        font-size: 16px;
-        font-weight: 500;
-        cursor: pointer;
-        z-index: 20;
-        backdrop-filter: blur(8px);
-        transition: all 0.3s ease;
-        font-family: system-ui, -apple-system, sans-serif;
-        letter-spacing: 0.5px;
-    `;
-    exitBtn.addEventListener('mouseenter', function() {
-        this.style.background = 'rgba(255, 255, 255, 0.35)';
-    });
-    exitBtn.addEventListener('mouseleave', function() {
-        this.style.background = 'rgba(255, 255, 255, 0.2)';
-    });
-    exitBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        closeVideoFullscreen();
-    });
-    viewer.appendChild(exitBtn);
+    // ===== 退出按钮（优化版 - 任何背景都可见） =====
+const exitBtn = document.createElement('button');
+exitBtn.id = 'videoExitBtn';
+exitBtn.textContent = '退出';
+exitBtn.style.cssText = `
+    position: absolute;
+    bottom: 30%;
+    right: 20px;
+    padding: 10px 20px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #ffffff;
+    border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 30px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    z-index: 20;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: all 0.3s ease;
+    font-family: system-ui, -apple-system, sans-serif;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.4);
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+`;
+exitBtn.addEventListener('mouseenter', function() {
+    this.style.background = 'rgba(0, 0, 0, 0.7)';
+    this.style.boxShadow = '0 4px 24px rgba(0, 0, 0, 0.6)';
+});
+exitBtn.addEventListener('mouseleave', function() {
+    this.style.background = 'rgba(0, 0, 0, 0.55)';
+    this.style.boxShadow = '0 2px 16px rgba(0, 0, 0, 0.4)';
+});
+exitBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    closeVideoFullscreen();
+});
+viewer.appendChild(exitBtn);
     
     // ===== 按钮状态管理 =====
     let isButtonExpanded = true;
@@ -2291,17 +2296,19 @@ function openVideoFullscreen(resource) {
     let hideTimer = null;
     
     function collapseButton() {
-        if (!videoButtonVisible) return;
-        if (isVideoPaused) return;
-        isButtonExpanded = false;
-        exitBtn.style.transform = 'translateX(calc(100% - 20px))';
-        exitBtn.style.opacity = '0.4';
-        exitBtn.style.padding = '8px 12px';
-        exitBtn.textContent = '◀';
-        exitBtn.style.fontSize = '14px';
-        exitBtn.style.borderRadius = '30px';
-        exitBtn.style.background = 'rgba(255,255,255,0.15)';
-    }
+    if (!videoButtonVisible) return;
+    if (isVideoPaused) return;
+    isButtonExpanded = false;
+    exitBtn.style.transform = 'translateX(calc(100% - 20px))';
+    exitBtn.style.opacity = '0.7';
+    exitBtn.style.padding = '8px 12px';
+    exitBtn.textContent = '◀';
+    exitBtn.style.fontSize = '14px';
+    exitBtn.style.borderRadius = '30px';
+    exitBtn.style.background = 'rgba(0, 0, 0, 0.5)';
+    exitBtn.style.boxShadow = '0 2px 12px rgba(0, 0, 0, 0.4)';
+    exitBtn.style.border = '1px solid rgba(255,255,255,0.25)';
+}
     
     function expandButton() {
         if (!videoButtonVisible) return;
