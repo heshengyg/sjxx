@@ -382,16 +382,16 @@ async function loadUserProgress() {
             .eq('user_id', currentUser.id);
         if (!error && data) {
             data.forEach(p => {
+                const completed = p.completed || (p.progress_percent >= 100);
                 progressMap[p.resource_id] = {
                     progress: p.progress_percent || 0,
-                    completed: p.completed || false,
+                    completed: completed,
                     last_position: p.last_position || 0
                 };
             });
         }
     } catch (e) { console.warn('加载进度失败:', e); }
 }
-
 async function updateResourceProgress(resourceId, progress, position = 0) {
     if (!currentUser) return;
     if (!progressMap[resourceId]) {
