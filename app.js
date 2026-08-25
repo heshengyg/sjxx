@@ -2730,7 +2730,6 @@ function openArticleFullscreen(resource) {
         fontSizeIndex = (fontSizeIndex + 1) % fontSizes.length;
         currentFontSize = fontSizes[fontSizeIndex];
         contentEl.style.fontSize = currentFontSize + 'px';
-        // 更新进度显示（不改变进度）
     });
     fontSizeControls.appendChild(fontSizeBtn);
     progressContainer.appendChild(fontSizeControls);
@@ -2847,32 +2846,28 @@ function openArticleFullscreen(resource) {
     let totalHeight = 0;
 
     // ★★★ 显示/隐藏锁定提示 ★★★
-    function showLockToast(message, isWarning = true) {
+    function showLockToast(message) {
         lockToast.textContent = message;
         lockToast.style.display = 'block';
-        lockToast.style.background = isWarning ? 'rgba(255, 100, 50, 0.92)' : 'rgba(34, 197, 94, 0.92)';
+        lockToast.style.background = 'rgba(255, 100, 50, 0.92)';
+    }
+
+    function showSuccessToast(message) {
+        lockToast.textContent = message;
+        lockToast.style.display = 'block';
+        lockToast.style.background = 'rgba(34, 197, 94, 0.92)';
     }
 
     function hideLockToast() {
         lockToast.style.display = 'none';
     }
 
-    function updateLockToast(countdown) {
-        if (countdown > 0) {
-            showLockToast(`📖 还需阅读 ${countdown} 秒才能继续向下滚动`, true);
-        } else {
-            // 倒计时结束，显示解锁成功提示，然后隐藏
-            showLockToast('✅ 已解锁，可以继续阅读！', false);
-            setTimeout(hideLockToast, 1500);
-        }
-    }
-
     // ★★★ 计算需要阅读的时间（基于滚动距离和总字数）★★★
     function calculateTimeNeeded(scrollDiff) {
-        // scrollDiff: 0-100
         const secondsPerPercent = totalReadTime / 100;
         const needed = Math.ceil(scrollDiff * secondsPerPercent * 0.4);
-        return Math.max(3, Math.min(10, needed));
+        // 限制范围：5-12秒，确保倒计时不会太快结束
+        return Math.max(5, Math.min(12, needed));
     }
 
     // ★★★ 更新学习进度显示 ★★★
@@ -2937,7 +2932,7 @@ function openArticleFullscreen(resource) {
         markResourceCompleted(resource.id);
         renderCurrentStageResources();
 
-        showLockToast('✅ 文章学习完成！', false);
+        showSuccessToast('✅ 文章学习完成！');
         setTimeout(() => {
             closeArticleFullscreen();
         }, 1500);
@@ -2953,7 +2948,7 @@ function openArticleFullscreen(resource) {
         const scrollPct = totalHeight > 0 ? (currentScroll / totalHeight) * 100 : 0;
         const currentScrollPct = Math.min(100, scrollPct);
 
-        // ★★★ 如果当前滚动位置 > 已解锁位置 + 1% → 触发锁定 ★★★
+        // ★★★ 如果当前滚动位置 > 已解锁位置 + 0.5% → 触发锁定 ★★★
         if (currentScrollPct > unlockedScrollPct + 0.5) {
             // 记录目标位置
             targetScrollPct = Math.min(100, currentScrollPct);
@@ -2966,7 +2961,7 @@ function openArticleFullscreen(resource) {
 
             // 进入锁定状态
             isLocked = true;
-            showLockToast(`📖 还需阅读 ${lockCountdown} 秒才能继续向下滚动`, true);
+            showLockToast(`📖 还需阅读 ${lockCountdown} 秒才能继续向下滚动`);
 
             // 开始倒计时
             if (lockTimer) clearInterval(lockTimer);
@@ -2990,7 +2985,7 @@ function openArticleFullscreen(resource) {
 
                 // 更新倒计时显示
                 if (lockCountdown > 0) {
-                    updateLockToast(lockCountdown);
+                    showLockToast(`📖 还需阅读 ${lockCountdown} 秒才能继续向下滚动`);
                 } else {
                     // 倒计时结束
                     clearInterval(lockTimer);
@@ -3011,7 +3006,8 @@ function openArticleFullscreen(resource) {
                     contentWrapper.scrollTop = targetScrollPos;
 
                     // 显示解锁成功提示
-                    updateLockToast(0); // 显示"已解锁"并隐藏
+                    showSuccessToast('✅ 已解锁，可以继续阅读！');
+                    setTimeout(hideLockToast, 1500);
 
                     // 检查是否完成
                     if (learnProgress >= 100) {
