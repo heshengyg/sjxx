@@ -2222,7 +2222,7 @@ function closeVideoFullscreen() {
     videoViewerActive = false;
 }
 // ============================================================
-// 文章全屏阅读器（优化版 - 统一进度 + 智能滚动解锁）
+// 文章全屏阅读器（优化版 - 不锁定滚动，智能进度计算）
 // ============================================================
 let articleViewerActive = false;
 
@@ -2236,6 +2236,8 @@ function openArticleFullscreen(resource) {
     const totalWords = Math.ceil(totalChars / 2);
     
     const WORDS_PER_SECOND = 5; // 300字/分钟 = 5字/秒
+    const IDEAL_READ_SPEED = 5; // 理想阅读速度（字/秒）
+    const MAX_READ_SPEED = 8;   // 最大允许速度（超过则触发提示）
     const totalReadTime = Math.ceil(totalWords / WORDS_PER_SECOND);
     
     console.log(`📊 文章统计：总字数 ${totalWords}，总阅读时间 ${totalReadTime}秒`);
@@ -2286,7 +2288,7 @@ function openArticleFullscreen(resource) {
     `;
     toolbar.appendChild(titleEl);
     
-    // ===== ★★★ 统一进度显示（只显示一个学习进度）★★★ =====
+    // ===== 进度显示 =====
     const progressContainer = document.createElement('div');
     progressContainer.style.cssText = `
         display: flex;
@@ -2308,6 +2310,18 @@ function openArticleFullscreen(resource) {
         font-size: 14px;
     `;
     progressContainer.appendChild(learnProgressSpan);
+    
+    // 速度指示器（新增）
+    const speedIndicator = document.createElement('span');
+    speedIndicator.id = 'speedIndicator';
+    speedIndicator.style.cssText = `
+        font-size: 12px;
+        color: #999;
+        min-width: 50px;
+        text-align: right;
+        display: none;
+    `;
+    progressContainer.appendChild(speedIndicator);
     
     // 字号控制
     const fontSizeControls = document.createElement('div');
@@ -2367,33 +2381,34 @@ function openArticleFullscreen(resource) {
     contentWrapper.appendChild(contentEl);
     viewer.appendChild(contentWrapper);
     
-    // ===== 底部锁定提示 =====
-    const lockToast = document.createElement('div');
-    lockToast.id = 'articleLockToast';
-    lockToast.style.cssText = `
+    // ===== ★★★ 温和提示（不打断阅读）★★★ =====
+    const gentleToast = document.createElement('div');
+    gentleToast.id = 'gentleToast';
+    gentleToast.style.cssText = `
         position: absolute;
         bottom: 100px;
         left: 50%;
         transform: translateX(-50%);
-        background: rgba(255, 100, 50, 0.92);
+        background: rgba(255, 180, 50, 0.92);
         color: #fff;
-        padding: 10px 24px;
+        padding: 8px 20px;
         border-radius: 20px;
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 500;
         z-index: 15;
         backdrop-filter: blur(8px);
         border: 1px solid rgba(255,255,255,0.2);
-        transition: all 0.3s ease;
+        transition: all 0.5s ease;
         font-family: system-ui, -apple-system, sans-serif;
-        box-shadow: 0 4px 20px rgba(255, 100, 50, 0.3);
-        display: none;
+        box-shadow: 0 4px 20px rgba(255, 180, 50, 0.3);
+        opacity: 0;
         pointer-events: none;
         text-align: center;
         max-width: 80%;
+        transform: translateX(-50%) translateY(10px);
     `;
-    lockToast.textContent = '📖 请继续阅读...';
-    viewer.appendChild(lockToast);
+    gentleToast.textContent = '📖 请放慢速度，用心阅读';
+    viewer.appendChild(gentleToast);
     
     // ===== 退出按钮 =====
     const exitBtn = document.createElement('button');
@@ -2436,73 +2451,61 @@ function openArticleFullscreen(resource) {
     // ===== 核心状态 =====
     const savedProg = progressMap[resource.id] || { progress: 0, last_position: 0 };
     
-    // ★★★ 学习进度（最大进度，只增不减） ★★★
-    let learnProgress = savedProg.progress || 0;
-    // ★★★ 已解锁的滚动位置（百分比） ★★★
-    let unlockedScrollPct = learnProgress;
-    // ★★★ 当前滚动百分比 ★★★
-    let currentScrollPct = learnProgress;
-    // ★★★ 阅读时间（秒） ★★★
-    let readTime = 0;
-    // ★★★ 锁定状态 ★★★
-    let isLocked = false;
-    let lockCountdown = 0;
-    let lockTimer = null;
+    let learnProgress = savedProg.progress || 0;        // 学习进度（只增不减）
+    let readTime = 0;                                   // 本次阅读时间（秒）
+    let totalScrolledWords = 0;                         // 累计滚动字数
+    let currentScrollPct = 0;                           // 当前滚动百分比
     let isCompleted = savedProg.completed || false;
     let hasMarkedComplete = false;
     let timeInterval = null;
     let updateTimer = null;
-    let isFirstLoad = true;
     let isRestoring = false;
+    let lastScrollTop = 0;
+    let isSpeedWarningActive = false;
+    let toastTimeout = null;
+    let toastFadeTimer = null;
     
-    // ★★★ 显示锁定提示 ★★★
-    function showLockToast(message, isWarning = true) {
-        lockToast.textContent = message;
-        lockToast.style.display = 'block';
-        lockToast.style.background = isWarning ? 'rgba(255, 100, 50, 0.92)' : 'rgba(34, 197, 94, 0.92)';
+    // ★★★ 显示温和提示 ★★★
+    function showGentleToast(message, duration = 2000) {
+        gentleToast.textContent = message || '📖 请放慢速度，用心阅读';
+        gentleToast.style.opacity = '1';
+        gentleToast.style.transform = 'translateX(-50%) translateY(0)';
+        
+        if (toastTimeout) {
+            clearTimeout(toastTimeout);
+            toastTimeout = null;
+        }
+        if (toastFadeTimer) {
+            clearTimeout(toastFadeTimer);
+            toastFadeTimer = null;
+        }
+        
+        toastTimeout = setTimeout(() => {
+            gentleToast.style.opacity = '0';
+            gentleToast.style.transform = 'translateX(-50%) translateY(10px)';
+            toastTimeout = null;
+        }, duration);
     }
     
-    function hideLockToast() {
-        lockToast.style.display = 'none';
-    }
-    
-    function updateLockToast(countdown) {
-        if (countdown > 0) {
-            showLockToast(`📖 还需阅读 ${countdown} 秒才能继续向下滚动`, true);
-        } else {
-            hideLockToast();
+    function hideGentleToast() {
+        gentleToast.style.opacity = '0';
+        gentleToast.style.transform = 'translateX(-50%) translateY(10px)';
+        if (toastTimeout) {
+            clearTimeout(toastTimeout);
+            toastTimeout = null;
         }
     }
     
-    // ★★★ 计算需要阅读的时间 ★★★
-    function calculateTimeNeeded(scrollDiff) {
-    // scrollDiff: 0-100 表示滚动的百分比
-    // 获取当前视口高度和内容总高度
-    const viewportHeight = contentWrapper.clientHeight;
-    const totalContentHeight = contentWrapper.scrollHeight;
-    
-    // 计算本次滚动的实际像素距离对应的内容比例
-    // 假设滚动diff对应的内容量 = (scrollDiff / 100) * totalContentHeight
-    // 估算该部分内容的字数 = (scrollDiff / 100) * totalWords
-    const wordsInThisSection = (scrollDiff / 100) * totalWords;
-    
-    // 阅读时间 = 字数 / 阅读速度(5字/秒)
-    const needed = Math.ceil(wordsInThisSection / WORDS_PER_SECOND * 0.4);
-    // 限制范围：2-15秒
-    return Math.max(2, Math.min(15, needed));
-}
-    
-    // ★★★ 更新学习进度显示 ★★★
+    // ★★★ 更新进度显示 ★★★
     function updateLearnDisplay() {
         const display = document.getElementById('learnProgressDisplay');
         if (display) {
             const val = Math.round(learnProgress);
-display.textContent = `🎯 学习进度：${val}%`;
-
+            display.textContent = learnProgress >= 100 ? '🎯 学习进度：100% ✅' : `🎯 学习进度：${val}%`;
         }
     }
     
-    // ★★★ 保存进度到数据库 ★★★
+    // ★★★ 保存进度 ★★★
     async function saveLearnProgress() {
         if (!currentUser) return;
         
@@ -2530,7 +2533,6 @@ display.textContent = `🎯 学习进度：${val}%`;
                 console.warn('保存文章进度失败:', e);
             }
             
-            // 刷新缩微图
             renderCurrentStageResources();
             updateDetailProgress(resource.id);
         }
@@ -2541,115 +2543,108 @@ display.textContent = `🎯 学习进度：${val}%`;
         hasMarkedComplete = true;
         isCompleted = true;
         learnProgress = 100;
-        unlockedScrollPct = 100;
         
         if (timeInterval) {
             clearInterval(timeInterval);
             timeInterval = null;
         }
-        if (lockTimer) {
-            clearInterval(lockTimer);
-            lockTimer = null;
-        }
         
         updateLearnDisplay();
-        hideLockToast();
+        hideGentleToast();
         
         progressMap[resource.id].progress = 100;
         progressMap[resource.id].completed = true;
         markResourceCompleted(resource.id);
         renderCurrentStageResources();
         
-        showLockToast('✅ 文章学习完成！', false);
+        showGentleToast('✅ 文章学习完成！', 2000);
         setTimeout(() => {
             closeArticleFullscreen();
-        }, 1500);
+        }, 2000);
     }
     
-    // ★★★ 核心更新函数 ★★★
+    // ★★★ 核心更新函数（不锁定滚动）★★★
     function updateArticleProgress() {
         if (isCompleted || hasMarkedComplete) return;
-        if (isLocked) return; // 锁定时不更新进度
         
-        // 计算当前滚动百分比
+        // 1. 计算当前滚动百分比
         const totalHeight = contentWrapper.scrollHeight - contentWrapper.clientHeight;
         const currentScroll = contentWrapper.scrollTop;
         const scrollPct = totalHeight > 0 ? (currentScroll / totalHeight) * 100 : 0;
         currentScrollPct = Math.min(100, scrollPct);
         
-        // ★★★ 如果当前滚动位置 > 已解锁位置 → 触发锁定 ★★★
-        if (currentScrollPct > unlockedScrollPct + 1) {
-            // 计算需要的时间
-            const scrollDiff = currentScrollPct - unlockedScrollPct;
-            lockCountdown = calculateTimeNeeded(scrollDiff);
-            
-            // 强制拉回到解锁位置
-            const targetScroll = (unlockedScrollPct / 100) * totalHeight;
-            contentWrapper.scrollTop = targetScroll;
-            
-            // 进入锁定状态
-            isLocked = true;
-            showLockToast(`📖 还需阅读 ${lockCountdown} 秒才能继续向下滚动`, true);
-            
-            // 开始倒计时
-            if (lockTimer) clearInterval(lockTimer);
-            lockTimer = setInterval(() => {
-                lockCountdown -= 1;
-                
-                // ★★★ 倒计时期间检查用户是否回滚 ★★★
-                const currentScrollNow = contentWrapper.scrollTop;
-                const currentPctNow = totalHeight > 0 ? (currentScrollNow / totalHeight) * 100 : 0;
-                
-                // 如果用户回滚到解锁区域内，取消倒计时
-                if (currentPctNow <= unlockedScrollPct) {
-                    clearInterval(lockTimer);
-                    lockTimer = null;
-                    isLocked = false;
-                    hideLockToast();
-                    updateArticleProgress(); // 重新检查
-                    return;
-                }
-                
-                updateLockToast(lockCountdown);
-                
-                if (lockCountdown <= 0) {
-                    clearInterval(lockTimer);
-                    lockTimer = null;
-                    isLocked = false;
-                    
-                    // ★★★ 解锁：进度增加 ★★★
-                    const newProgress = Math.min(100, currentScrollPct);
-                    if (newProgress > learnProgress) {
-                        learnProgress = newProgress;
-                        unlockedScrollPct = newProgress;
-                        updateLearnDisplay();
-                        saveLearnProgress();
-                    }
-                    
-                    hideLockToast();
-                    showLockToast('✅ 已解锁，可以继续阅读！', false);
-                    setTimeout(hideLockToast, 1200);
-                    
-                    // 检查是否完成
-                    if (learnProgress >= 100) {
-                        completeArticle();
-                    }
-                }
-            }, 1000);
-            
-            return;
+        // 2. 估算已阅读字数（基于滚动位置）
+        const readWords = Math.min(totalWords, (currentScrollPct / 100) * totalWords);
+        
+        // 3. 计算阅读速度（字/秒）
+        let readSpeed = 0;
+        if (readTime > 0) {
+            readSpeed = readWords / readTime;
         }
         
-        // ★★★ 在已解锁区域内滚动 → 更新进度 ★★★
-        if (currentScrollPct > learnProgress) {
-            learnProgress = Math.min(100, currentScrollPct);
-            unlockedScrollPct = learnProgress;
+        // 4. 判断是否滚太快
+        const isTooFast = readSpeed > MAX_READ_SPEED && readTime > 3;
+        
+        // 5. 更新速度指示器
+        const speedEl = document.getElementById('speedIndicator');
+        if (speedEl && readTime > 2) {
+            if (isTooFast) {
+                speedEl.style.display = 'inline';
+                speedEl.textContent = '⚠️ 过快';
+                speedEl.style.color = '#f59e0b';
+            } else if (readSpeed > 2) {
+                speedEl.style.display = 'inline';
+                speedEl.textContent = '✅ 适中';
+                speedEl.style.color = '#22c55e';
+            } else {
+                speedEl.style.display = 'none';
+            }
+        }
+        
+        // 6. ★★★ 进度计算：如果滚太快，进度暂停增长 ★★★
+        let newProgress;
+        if (isTooFast) {
+            // 滚太快，进度不增长，但也不减少
+            newProgress = learnProgress;
+            // 显示温和提示（不打断阅读）
+            if (!isSpeedWarningActive) {
+                isSpeedWarningActive = true;
+                showGentleToast('📖 请放慢速度，用心阅读', 2500);
+                setTimeout(() => {
+                    isSpeedWarningActive = false;
+                }, 2500);
+            }
+        } else {
+            // 正常阅读，进度按滚动位置增长
+            // 但也不能太快，用阅读速度作为系数
+            const speedFactor = Math.min(1, readSpeed / IDEAL_READ_SPEED);
+            const idealProgress = Math.min(100, (readTime / totalReadTime) * 100);
+            const scrollBasedProgress = Math.min(100, currentScrollPct * 0.8 + 20);
+            // 综合计算：取滚动进度和基于时间的进度的较大值，但不超过滚动进度
+            const timeBasedProgress = Math.min(100, readTime / totalReadTime * 100);
+            newProgress = Math.min(100, Math.max(learnProgress, scrollBasedProgress * 0.7 + timeBasedProgress * 0.3));
+            // 但确保不超过滚动进度太多（防止没滚动进度却很高）
+            newProgress = Math.min(newProgress, currentScrollPct + 10);
+            newProgress = Math.max(learnProgress, newProgress);
+            newProgress = Math.min(100, newProgress);
+            
+            // 如果速度正常，隐藏警告
+            if (isSpeedWarningActive) {
+                isSpeedWarningActive = false;
+                hideGentleToast();
+            }
+        }
+        
+        // 7. 确保进度只增不减
+        if (newProgress > learnProgress) {
+            learnProgress = Math.min(100, newProgress);
             updateLearnDisplay();
             saveLearnProgress();
-            
-            if (learnProgress >= 100) {
-                completeArticle();
-            }
+        }
+        
+        // 8. 检查是否完成
+        if (learnProgress >= 100) {
+            completeArticle();
         }
     }
     
@@ -2658,7 +2653,6 @@ display.textContent = `🎯 学习进度：${val}%`;
         isRestoring = true;
         const saved = savedProg.progress || 0;
         learnProgress = saved;
-        unlockedScrollPct = saved;
         
         // 恢复滚动位置
         if (saved > 0) {
@@ -2667,10 +2661,8 @@ display.textContent = `🎯 学习进度：${val}%`;
         }
         
         updateLearnDisplay();
-        isFirstLoad = false;
         isRestoring = false;
         
-        // 如果已保存进度达到100%，标记完成
         if (saved >= 100) {
             isCompleted = true;
             hasMarkedComplete = true;
@@ -2680,34 +2672,39 @@ display.textContent = `🎯 学习进度：${val}%`;
     
     // ===== 事件绑定 =====
     
-    // 滚动事件
+    // 滚动事件（平滑更新，不打断）
     contentWrapper.addEventListener('scroll', function() {
         if (isCompleted || hasMarkedComplete) return;
         if (isRestoring) return;
         
-        // ★★★ 如果正在锁定中，强制保持位置 ★★★
-        if (isLocked) {
-            const totalHeight = contentWrapper.scrollHeight - contentWrapper.clientHeight;
-            const targetScroll = (unlockedScrollPct / 100) * totalHeight;
-            if (Math.abs(contentWrapper.scrollTop - targetScroll) > 3) {
-                contentWrapper.scrollTop = targetScroll;
-            }
-            return;
-        }
+        // 检测是否在快速滚动
+        const currentScroll = this.scrollTop;
+        const scrollDelta = Math.abs(currentScroll - lastScrollTop);
+        lastScrollTop = currentScroll;
         
         if (updateTimer) {
             clearTimeout(updateTimer);
         }
+        // 滚动停止后200ms更新
         updateTimer = setTimeout(() => {
             updateArticleProgress();
             updateTimer = null;
-        }, 100);
+        }, 200);
+        
+        // 如果滚动量大，立即更新一次
+        if (scrollDelta > 100) {
+            updateArticleProgress();
+        }
     });
     
-    // 阅读计时（每秒，用于倒计时和进度积累）
+    // 阅读计时
     timeInterval = setInterval(() => {
         if (isCompleted || hasMarkedComplete) return;
         readTime += 1;
+        // 每2秒更新一次进度
+        if (readTime % 2 === 0) {
+            updateArticleProgress();
+        }
     }, 1000);
     
     // 窗口调整
@@ -2728,6 +2725,9 @@ display.textContent = `🎯 学习进度：${val}%`;
                 timeInterval = setInterval(() => {
                     if (isCompleted || hasMarkedComplete) return;
                     readTime += 1;
+                    if (readTime % 2 === 0) {
+                        updateArticleProgress();
+                    }
                 }, 1000);
             }
         }
