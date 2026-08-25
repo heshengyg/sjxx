@@ -2917,30 +2917,36 @@ function updateLearnDisplay() {
     }
 
     // ★★★ 完成文章 ★★★
-    function completeArticle() {
-        hasMarkedComplete = true;
-        isCompleted = true;
-        learnProgress = 100;
-        unlockedScrollPct = 100;
+function completeArticle() {
+    hasMarkedComplete = true;
+    isCompleted = true;
+    learnProgress = 100;
+    unlockedScrollPct = 100;
 
-        if (lockTimer) {
-            clearInterval(lockTimer);
-            lockTimer = null;
-        }
-        isLocked = false;
-        hideLockToast();
-
-        updateLearnDisplay();
-        progressMap[resource.id].progress = 100;
-        progressMap[resource.id].completed = true;
-        markResourceCompleted(resource.id);
-        renderCurrentStageResources();
-
-        showSuccessToast('✅ 文章学习完成！');
-        setTimeout(() => {
-            closeArticleFullscreen();
-        }, 1500);
+    if (lockTimer) {
+        clearInterval(lockTimer);
+        lockTimer = null;
     }
+    isLocked = false;
+    hideLockToast();
+
+    updateLearnDisplay();
+    
+    // 确保 progressMap 中进度为 100，但 completed 保持 false，让 markResourceCompleted 去设置并保存
+    if (!progressMap[resource.id]) {
+        progressMap[resource.id] = { progress: 0, completed: false, last_position: 0 };
+    }
+    progressMap[resource.id].progress = 100;
+    progressMap[resource.id].last_position = 100;
+    // 不要手动设置 completed = true
+    markResourceCompleted(resource.id);
+    renderCurrentStageResources();
+
+    showSuccessToast('✅ 文章学习完成！');
+    setTimeout(() => {
+        closeArticleFullscreen();
+    }, 1500);
+}
 
     // ★★★ 核心更新函数（不强制拉回，只控制进度） ★★★
     function updateArticleProgress() {
