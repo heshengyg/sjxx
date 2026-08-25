@@ -2251,45 +2251,47 @@ function openVideoFullscreen(resource) {
     progressInfo.textContent = prog ? `学习进度：${prog.progress}%` : '学习进度：0%';
     viewer.appendChild(progressInfo);
     
-    // ===== 退出按钮（优化版 - 任何背景都可见） =====
+// ===== 退出按钮（优化版 - 高可见性） =====
 const exitBtn = document.createElement('button');
-exitBtn.id = 'videoExitBtn';
+exitBtn.id = 'articleExitBtn';
 exitBtn.textContent = '退出';
 exitBtn.style.cssText = `
     position: absolute;
     bottom: 30%;
     right: 20px;
     padding: 10px 20px;
-    background: rgba(0, 0, 0, 0.55);
+    background: rgba(0, 0, 0, 0.65);
     color: #ffffff;
-    border: 1px solid rgba(255,255,255,0.4);
+    border: 2px solid rgba(255, 255, 255, 0.7);
     border-radius: 30px;
     font-size: 16px;
     font-weight: 500;
     cursor: pointer;
     z-index: 20;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     transition: all 0.3s ease;
     font-family: system-ui, -apple-system, sans-serif;
     letter-spacing: 0.5px;
-    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.4);
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
 `;
 exitBtn.addEventListener('mouseenter', function() {
-    this.style.background = 'rgba(0, 0, 0, 0.7)';
-    this.style.boxShadow = '0 4px 24px rgba(0, 0, 0, 0.6)';
+    this.style.background = 'rgba(0, 0, 0, 0.8)';
+    this.style.borderColor = '#ffffff';
+    this.style.boxShadow = '0 4px 24px rgba(0, 0, 0, 0.7)';
 });
 exitBtn.addEventListener('mouseleave', function() {
-    this.style.background = 'rgba(0, 0, 0, 0.55)';
-    this.style.boxShadow = '0 2px 16px rgba(0, 0, 0, 0.4)';
+    this.style.background = 'rgba(0, 0, 0, 0.65)';
+    this.style.borderColor = 'rgba(255, 255, 255, 0.7)';
+    this.style.boxShadow = '0 2px 16px rgba(0, 0, 0, 0.5)';
 });
 exitBtn.addEventListener('click', function(e) {
     e.stopPropagation();
-    closeVideoFullscreen();
+    closeArticleFullscreen();
 });
 viewer.appendChild(exitBtn);
-    
+
     // ===== 按钮状态管理 =====
     let isButtonExpanded = true;
     let isVideoPaused = false;
@@ -2300,14 +2302,16 @@ viewer.appendChild(exitBtn);
     if (isVideoPaused) return;
     isButtonExpanded = false;
     exitBtn.style.transform = 'translateX(calc(100% - 20px))';
-    exitBtn.style.opacity = '0.7';
+    exitBtn.style.opacity = '0.8';
     exitBtn.style.padding = '8px 12px';
     exitBtn.textContent = '◀';
     exitBtn.style.fontSize = '14px';
     exitBtn.style.borderRadius = '30px';
-    exitBtn.style.background = 'rgba(0, 0, 0, 0.5)';
-    exitBtn.style.boxShadow = '0 2px 12px rgba(0, 0, 0, 0.4)';
-    exitBtn.style.border = '1px solid rgba(255,255,255,0.25)';
+    exitBtn.style.background = 'rgba(0, 0, 0, 0.6)';
+    exitBtn.style.border = '2px solid rgba(255, 255, 255, 0.5)';
+    exitBtn.style.boxShadow = '0 2px 12px rgba(0, 0, 0, 0.5)';
+    exitBtn.style.color = '#ffffff';
+    exitBtn.style.textShadow = '0 1px 4px rgba(0, 0, 0, 0.8)';
 }
     
     function expandButton() {
