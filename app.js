@@ -670,8 +670,8 @@ function renderResources(stage, resources) {
             statusSpan.textContent = '✅ 已完成';
             statusSpan.classList.add('completed');
         } else {
-            const pct = prog ? prog.progress : 0;
-            statusSpan.textContent = `⏳ 进度 ${pct}%`;
+            const pct = prog ? Math.round(prog.progress) : 0;
+statusSpan.textContent = `⏳ 进度 ${pct}%`;
             statusSpan.classList.add('incomplete');
         }
         info.appendChild(statusSpan);
@@ -2497,7 +2497,8 @@ function openArticleFullscreen(resource) {
         const display = document.getElementById('learnProgressDisplay');
         if (display) {
             const val = Math.round(learnProgress);
-            display.textContent = learnProgress >= 100 ? '🎯 学习进度：100% ✅' : `🎯 学习进度：${val}%`;
+display.textContent = `🎯 学习进度：${val}%`;
+
         }
     }
     
