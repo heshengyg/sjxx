@@ -2476,11 +2476,21 @@ function openArticleFullscreen(resource) {
     
     // ★★★ 计算需要阅读的时间 ★★★
     function calculateTimeNeeded(scrollDiff) {
-        // scrollDiff: 0-100 表示滚动的百分比
-        // 总阅读时间 * 滚动比例 * 0.3（系数，让时间合理）
-        const needed = Math.ceil((scrollDiff / 100) * totalReadTime * 0.3);
-        return Math.max(3, Math.min(30, needed));
-    }
+    // scrollDiff: 0-100 表示滚动的百分比
+    // 获取当前视口高度和内容总高度
+    const viewportHeight = contentWrapper.clientHeight;
+    const totalContentHeight = contentWrapper.scrollHeight;
+    
+    // 计算本次滚动的实际像素距离对应的内容比例
+    // 假设滚动diff对应的内容量 = (scrollDiff / 100) * totalContentHeight
+    // 估算该部分内容的字数 = (scrollDiff / 100) * totalWords
+    const wordsInThisSection = (scrollDiff / 100) * totalWords;
+    
+    // 阅读时间 = 字数 / 阅读速度(5字/秒)
+    const needed = Math.ceil(wordsInThisSection / WORDS_PER_SECOND * 0.4);
+    // 限制范围：2-15秒
+    return Math.max(2, Math.min(15, needed));
+}
     
     // ★★★ 更新学习进度显示 ★★★
     function updateLearnDisplay() {
