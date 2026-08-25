@@ -1867,46 +1867,48 @@ function openVideoFullscreen(resource) {
     viewer.appendChild(videoWrapper);
     
     // ===== ★★★ 中央播放按钮（暂停时一直显示）★★★ =====
-    const centerPlayBtn = document.createElement('div');
-    centerPlayBtn.id = 'videoCenterPlayBtn';
-    centerPlayBtn.style.cssText = `
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.15);
-        backdrop-filter: blur(8px);
-        border: 2px solid rgba(255,255,255,0.25);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 36px;
-        color: #fff;
-        cursor: pointer;
-        z-index: 12;
-        box-shadow: 0 4px 30px rgba(0,0,0,0.5);
-        transition: all 0.3s ease;
-        user-select: none;
-        -webkit-user-select: none;
-        opacity: 0;
-        pointer-events: none;
-    `;
-    centerPlayBtn.textContent = '▶';
-    // 添加一个小的"播放"文字标签
-    const label = document.createElement('span');
-    label.textContent = '播放';
-    label.style.cssText = `
-        position: absolute;
-        bottom: -28px;
-        font-size: 13px;
-        color: rgba(255,255,255,0.7);
-        font-weight: 400;
-        letter-spacing: 1px;
-    `;
-    centerPlayBtn.appendChild(label);
+const centerPlayBtn = document.createElement('div');
+centerPlayBtn.id = 'videoCenterPlayBtn';
+centerPlayBtn.style.cssText = `
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 38px;
+    color: #ffffff;
+    cursor: pointer;
+    z-index: 13;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
+    transition: all 0.3s ease;
+    user-select: none;
+    -webkit-user-select: none;
+    opacity: 0;
+    pointer-events: none;
+`;
+centerPlayBtn.textContent = '▶';
+const label = document.createElement('span');
+label.textContent = '播放';
+label.style.cssText = `
+    position: absolute;
+    bottom: -30px;
+    font-size: 14px;
+    color: rgba(255,255,255,0.9);
+    font-weight: 400;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.6);
+`;
+centerPlayBtn.appendChild(label);
     
     // 鼠标悬停效果
     centerPlayBtn.addEventListener('mouseenter', function() {
@@ -2253,21 +2255,21 @@ function openVideoFullscreen(resource) {
     
 // ===== 退出按钮（优化版 - 高可见性） =====
 const exitBtn = document.createElement('button');
-exitBtn.id = 'articleExitBtn';
+exitBtn.id = 'videoExitBtn';  // ★★★ 修正 ID ★★★
 exitBtn.textContent = '退出';
 exitBtn.style.cssText = `
     position: absolute;
     bottom: 30%;
     right: 20px;
     padding: 10px 20px;
-    background: rgba(0, 0, 0, 0.65);
+    background: rgba(0, 0, 0, 0.7);
     color: #ffffff;
-    border: 2px solid rgba(255, 255, 255, 0.7);
+    border: 2px solid rgba(255, 255, 255, 0.8);
     border-radius: 30px;
     font-size: 16px;
     font-weight: 500;
     cursor: pointer;
-    z-index: 20;
+    z-index: 25;
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
     transition: all 0.3s ease;
@@ -2277,21 +2279,20 @@ exitBtn.style.cssText = `
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
 `;
 exitBtn.addEventListener('mouseenter', function() {
-    this.style.background = 'rgba(0, 0, 0, 0.8)';
+    this.style.background = 'rgba(0, 0, 0, 0.85)';
     this.style.borderColor = '#ffffff';
     this.style.boxShadow = '0 4px 24px rgba(0, 0, 0, 0.7)';
 });
 exitBtn.addEventListener('mouseleave', function() {
-    this.style.background = 'rgba(0, 0, 0, 0.65)';
-    this.style.borderColor = 'rgba(255, 255, 255, 0.7)';
+    this.style.background = 'rgba(0, 0, 0, 0.7)';
+    this.style.borderColor = 'rgba(255, 255, 255, 0.8)';
     this.style.boxShadow = '0 2px 16px rgba(0, 0, 0, 0.5)';
 });
 exitBtn.addEventListener('click', function(e) {
     e.stopPropagation();
-    closeArticleFullscreen();
+    closeVideoFullscreen();
 });
 viewer.appendChild(exitBtn);
-
     // ===== 按钮状态管理 =====
     let isButtonExpanded = true;
     let isVideoPaused = false;
@@ -2315,16 +2316,20 @@ viewer.appendChild(exitBtn);
 }
     
     function expandButton() {
-        if (!videoButtonVisible) return;
-        isButtonExpanded = true;
-        exitBtn.style.transform = 'translateX(0)';
-        exitBtn.style.opacity = '1';
-        exitBtn.style.padding = '10px 20px';
-        exitBtn.textContent = '退出';
-        exitBtn.style.fontSize = '16px';
-        exitBtn.style.borderRadius = '30px';
-        exitBtn.style.background = 'rgba(255, 255, 255, 0.25)';
-    }
+    if (!videoButtonVisible) return;
+    isButtonExpanded = true;
+    exitBtn.style.transform = 'translateX(0)';
+    exitBtn.style.opacity = '1';
+    exitBtn.style.padding = '10px 20px';
+    exitBtn.textContent = '退出';
+    exitBtn.style.fontSize = '16px';
+    exitBtn.style.borderRadius = '30px';
+    exitBtn.style.background = 'rgba(0, 0, 0, 0.7)';
+    exitBtn.style.border = '2px solid rgba(255, 255, 255, 0.8)';
+    exitBtn.style.color = '#ffffff';
+    exitBtn.style.textShadow = '0 1px 4px rgba(0, 0, 0, 0.8)';
+    exitBtn.style.boxShadow = '0 2px 16px rgba(0, 0, 0, 0.5)';
+}
     
     function clearHideTimer() {
         if (hideTimer) {
