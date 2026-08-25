@@ -1799,7 +1799,7 @@ function startImageTimer(resourceId, duration) {
     timerIntervals[resourceId] = interval;
 }
 // ============================================================
-// 视频全屏播放器（自定义控制栏版 - 无倍速按钮 + 点击播放/暂停）
+// 视频全屏播放器（自定义控制栏版 - 无倍速按钮 + 暂停显示播放图标）
 // ============================================================
 let videoViewerActive = false;
 let videoHideTimeout = null;
@@ -1866,49 +1866,79 @@ function openVideoFullscreen(resource) {
     videoWrapper.appendChild(video);
     viewer.appendChild(videoWrapper);
     
-    // ===== ★★★ 中央播放/暂停图标 ★★★ =====
-    const centerIcon = document.createElement('div');
-    centerIcon.id = 'videoCenterIcon';
-    centerIcon.style.cssText = `
+    // ===== ★★★ 中央播放按钮（暂停时一直显示）★★★ =====
+    const centerPlayBtn = document.createElement('div');
+    centerPlayBtn.id = 'videoCenterPlayBtn';
+    centerPlayBtn.style.cssText = `
         position: absolute;
         top: 50%;
         left: 50%;
-        transform: translate(-50%, -50%) scale(0.8);
-        width: 72px;
-        height: 72px;
+        transform: translate(-50%, -50%);
+        width: 80px;
+        height: 80px;
         border-radius: 50%;
-        background: rgba(0, 0, 0, 0.6);
+        background: rgba(255, 255, 255, 0.15);
         backdrop-filter: blur(8px);
-        border: 2px solid rgba(255,255,255,0.2);
+        border: 2px solid rgba(255,255,255,0.25);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 32px;
+        font-size: 36px;
         color: #fff;
+        cursor: pointer;
+        z-index: 12;
+        box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+        transition: all 0.3s ease;
+        user-select: none;
+        -webkit-user-select: none;
         opacity: 0;
         pointer-events: none;
-        transition: all 0.25s ease;
-        z-index: 12;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.4);
     `;
-    centerIcon.textContent = '▶';
-    viewer.appendChild(centerIcon);
+    centerPlayBtn.textContent = '▶';
+    // 添加一个小的"播放"文字标签
+    const label = document.createElement('span');
+    label.textContent = '播放';
+    label.style.cssText = `
+        position: absolute;
+        bottom: -28px;
+        font-size: 13px;
+        color: rgba(255,255,255,0.7);
+        font-weight: 400;
+        letter-spacing: 1px;
+    `;
+    centerPlayBtn.appendChild(label);
     
-    let iconHideTimer = null;
+    // 鼠标悬停效果
+    centerPlayBtn.addEventListener('mouseenter', function() {
+        this.style.background = 'rgba(255, 255, 255, 0.25)';
+        this.style.transform = 'translate(-50%, -50%) scale(1.05)';
+    });
+    centerPlayBtn.addEventListener('mouseleave', function() {
+        this.style.background = 'rgba(255, 255, 255, 0.15)';
+        this.style.transform = 'translate(-50%, -50%) scale(1)';
+    });
     
-    function showCenterIcon(iconText) {
-        centerIcon.textContent = iconText;
-        centerIcon.style.opacity = '1';
-        centerIcon.style.transform = 'translate(-50%, -50%) scale(1)';
-        if (iconHideTimer) {
-            clearTimeout(iconHideTimer);
-            iconHideTimer = null;
-        }
-        iconHideTimer = setTimeout(function() {
-            centerIcon.style.opacity = '0';
-            centerIcon.style.transform = 'translate(-50%, -50%) scale(0.8)';
-            iconHideTimer = null;
-        }, 600);
+    // 点击播放按钮播放视频
+    centerPlayBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        video.play().catch(function(err) {
+            console.warn('播放失败:', err);
+        });
+    });
+    
+    viewer.appendChild(centerPlayBtn);
+    
+    // ===== ★★★ 控制播放按钮显示/隐藏 ★★★ =====
+    function showPlayButton() {
+        centerPlayBtn.style.opacity = '1';
+        centerPlayBtn.style.pointerEvents = 'auto';
+        centerPlayBtn.style.transform = 'translate(-50%, -50%) scale(1)';
+    }
+    
+    function hidePlayButton() {
+        centerPlayBtn.style.opacity = '0';
+        centerPlayBtn.style.pointerEvents = 'none';
+        centerPlayBtn.style.transform = 'translate(-50%, -50%) scale(0.9)';
     }
     
     // ===== ★★★ 自定义控制栏（无倍速）★★★ =====
@@ -2073,15 +2103,14 @@ function openVideoFullscreen(resource) {
         // 如果点击的是控制栏本身，不处理
         if (e.target.closest('#customVideoControls')) return;
         if (e.target.closest('#videoExitBtn')) return;
+        if (e.target.closest('#videoCenterPlayBtn')) return;
         
         if (video.paused) {
             video.play().catch(function(err) {
                 console.warn('播放失败:', err);
             });
-            showCenterIcon('▶');
         } else {
             video.pause();
-            showCenterIcon('⏸');
         }
     });
     
@@ -2160,15 +2189,17 @@ function openVideoFullscreen(resource) {
         isTouchingProgress = false;
     });
     
-    // ===== 视频事件 =====
+    // ===== ★★★ 视频事件 ★★★ =====
     video.addEventListener('play', function() {
         playBtn.textContent = '⏸';
+        hidePlayButton();  // ★★★ 播放时隐藏中央播放按钮 ★★★
         showControls();
         resetControlsHideTimer();
     });
     
     video.addEventListener('pause', function() {
         playBtn.textContent = '▶';
+        showPlayButton();  // ★★★ 暂停时显示中央播放按钮（一直显示）★★★
         showControls();
         if (controlsHideTimer) {
             clearTimeout(controlsHideTimer);
@@ -2403,7 +2434,7 @@ function openVideoFullscreen(resource) {
         }
         
         if (!saveTimer) {
-            saveTimer = setTimeout(() => {
+            saveTimer = setTimeout(function() {
                 const pct = Math.round((maxWatchedTime / duration) * 100);
                 updateResourceProgress(resource.id, Math.min(100, pct), maxWatchedTime);
                 saveTimer = null;
@@ -2542,7 +2573,6 @@ function openVideoFullscreen(resource) {
     });
     
     // ★★★ 防止移动端原生播放器弹出 ★★★
-    // 阻止默认的播放器行为
     video.addEventListener('webkitbeginfullscreen', function(e) {
         e.preventDefault();
     });
