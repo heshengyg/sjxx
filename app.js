@@ -2730,7 +2730,7 @@ function openArticleFullscreen(resource) {
         fontSizeIndex = (fontSizeIndex + 1) % fontSizes.length;
         currentFontSize = fontSizes[fontSizeIndex];
         contentEl.style.fontSize = currentFontSize + 'px';
-        updateLearnDisplay();
+        // 更新进度显示（不改变进度）
     });
     fontSizeControls.appendChild(fontSizeBtn);
     progressContainer.appendChild(fontSizeControls);
@@ -2838,11 +2838,12 @@ function openArticleFullscreen(resource) {
     let isLocked = false;
     let lockCountdown = 0;
     let lockTimer = null;
+    // ★★★ 记录本次试图到达的目标位置 ★★★
+    let targetScrollPct = 0;
     let isCompleted = savedProg.completed || false;
     let hasMarkedComplete = false;
     let updateTimer = null;
     let isRestoring = false;
-    let lastScrollTop = 0;
     let totalHeight = 0;
 
     // ★★★ 显示/隐藏锁定提示 ★★★
@@ -2860,18 +2861,17 @@ function openArticleFullscreen(resource) {
         if (countdown > 0) {
             showLockToast(`📖 还需阅读 ${countdown} 秒才能继续向下滚动`, true);
         } else {
-            hideLockToast();
+            // 倒计时结束，显示解锁成功提示，然后隐藏
+            showLockToast('✅ 已解锁，可以继续阅读！', false);
+            setTimeout(hideLockToast, 1500);
         }
     }
 
     // ★★★ 计算需要阅读的时间（基于滚动距离和总字数）★★★
     function calculateTimeNeeded(scrollDiff) {
         // scrollDiff: 0-100
-        // 每1%内容需要阅读的秒数
         const secondsPerPercent = totalReadTime / 100;
-        // 需要阅读的时间 = 滚动百分比 × 每1%需要的时间 × 0.5（系数，让等待更合理）
         const needed = Math.ceil(scrollDiff * secondsPerPercent * 0.4);
-        // 限制范围：3-10秒
         return Math.max(3, Math.min(10, needed));
     }
 
@@ -2946,16 +2946,18 @@ function openArticleFullscreen(resource) {
     // ★★★ 核心更新函数（锁定滚动）★★★
     function updateArticleProgress() {
         if (isCompleted || hasMarkedComplete) return;
-        if (isLocked) return; // 锁定时不处理新滚动
+        if (isLocked) return;
 
         totalHeight = contentWrapper.scrollHeight - contentWrapper.clientHeight;
         const currentScroll = contentWrapper.scrollTop;
         const scrollPct = totalHeight > 0 ? (currentScroll / totalHeight) * 100 : 0;
         const currentScrollPct = Math.min(100, scrollPct);
 
-        // ★★★ 如果当前滚动位置 > 已解锁位置 → 触发锁定 ★★★
-        if (currentScrollPct > unlockedScrollPct + 1) {
-            const scrollDiff = currentScrollPct - unlockedScrollPct;
+        // ★★★ 如果当前滚动位置 > 已解锁位置 + 1% → 触发锁定 ★★★
+        if (currentScrollPct > unlockedScrollPct + 0.5) {
+            // 记录目标位置
+            targetScrollPct = Math.min(100, currentScrollPct);
+            const scrollDiff = targetScrollPct - unlockedScrollPct;
             lockCountdown = calculateTimeNeeded(scrollDiff);
 
             // 强制拉回到解锁位置
@@ -2975,8 +2977,8 @@ function openArticleFullscreen(resource) {
                 const currentScrollNow = contentWrapper.scrollTop;
                 const currentPctNow = totalHeight > 0 ? (currentScrollNow / totalHeight) * 100 : 0;
 
-                // 如果用户回滚到解锁区域内，取消倒计时
-                if (currentPctNow <= unlockedScrollPct) {
+                // 如果用户回滚到解锁区域内（≤ unlockedScrollPct），取消倒计时
+                if (currentPctNow <= unlockedScrollPct + 0.5) {
                     clearInterval(lockTimer);
                     lockTimer = null;
                     isLocked = false;
@@ -2986,15 +2988,17 @@ function openArticleFullscreen(resource) {
                     return;
                 }
 
-                updateLockToast(lockCountdown);
-
-                if (lockCountdown <= 0) {
+                // 更新倒计时显示
+                if (lockCountdown > 0) {
+                    updateLockToast(lockCountdown);
+                } else {
+                    // 倒计时结束
                     clearInterval(lockTimer);
                     lockTimer = null;
                     isLocked = false;
 
-                    // ★★★ 解锁：进度增加 ★★★
-                    const newProgress = Math.min(100, currentScrollPct);
+                    // ★★★ 解锁：进度增加到目标位置 ★★★
+                    const newProgress = Math.min(100, targetScrollPct);
                     if (newProgress > learnProgress) {
                         learnProgress = newProgress;
                         unlockedScrollPct = newProgress;
@@ -3002,9 +3006,12 @@ function openArticleFullscreen(resource) {
                         saveLearnProgress();
                     }
 
-                    hideLockToast();
-                    showLockToast('✅ 已解锁，可以继续阅读！', false);
-                    setTimeout(hideLockToast, 1200);
+                    // 自动滚动到目标位置（让用户看到解锁后的内容）
+                    const targetScrollPos = (unlockedScrollPct / 100) * totalHeight;
+                    contentWrapper.scrollTop = targetScrollPos;
+
+                    // 显示解锁成功提示
+                    updateLockToast(0); // 显示"已解锁"并隐藏
 
                     // 检查是否完成
                     if (learnProgress >= 100) {
@@ -3016,7 +3023,7 @@ function openArticleFullscreen(resource) {
             return;
         }
 
-        // ★★★ 在已解锁区域内滚动 → 更新进度（如果滚动超过当前进度） ★★★
+        // ★★★ 在已解锁区域内滚动 → 如果滚动超过当前进度，则更新进度（但不会触发锁定） ★★★
         if (currentScrollPct > learnProgress) {
             learnProgress = Math.min(100, currentScrollPct);
             unlockedScrollPct = learnProgress;
@@ -3061,7 +3068,7 @@ function openArticleFullscreen(resource) {
         // ★★★ 如果正在锁定中，强制保持位置 ★★★
         if (isLocked) {
             const targetScroll = (unlockedScrollPct / 100) * totalHeight;
-            if (Math.abs(contentWrapper.scrollTop - targetScroll) > 3) {
+            if (Math.abs(contentWrapper.scrollTop - targetScroll) > 2) {
                 contentWrapper.scrollTop = targetScroll;
             }
             return;
@@ -3073,14 +3080,13 @@ function openArticleFullscreen(resource) {
         updateTimer = setTimeout(function() {
             updateArticleProgress();
             updateTimer = null;
-        }, 100);
+        }, 80);
     });
 
     // 窗口调整
     window.addEventListener('resize', function() {
         if (isCompleted || hasMarkedComplete) return;
         totalHeight = contentWrapper.scrollHeight - contentWrapper.clientHeight;
-        // 不主动更新，等待滚动触发
     });
 
     // 键盘退出
