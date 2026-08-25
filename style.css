@@ -1365,3 +1365,11 @@ body.modal-open {
         padding: 10px;
     }
 }
+/* 隐藏视频倍速控制按钮 */
+video::-webkit-media-controls-playback-rate {
+    display: none !important;
+}
+
+video::-moz-media-controls-playback-rate {
+    display: none !important;
+}
