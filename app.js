@@ -1799,7 +1799,7 @@ function startImageTimer(resourceId, duration) {
     timerIntervals[resourceId] = interval;
 }
 // ============================================================
-// 视频全屏播放器（修复版 - 播放/暂停控制按钮显示）
+// 视频全屏播放器（自定义控制栏版 - 无倍速按钮）
 // ============================================================
 let videoViewerActive = false;
 let videoHideTimeout = null;
@@ -1840,9 +1840,11 @@ function openVideoFullscreen(resource) {
         position: relative;
     `;
     
+    // ===== ★★★ 创建视频（不使用 controls 属性）★★★ =====
     const video = document.createElement('video');
     video.src = resource.file;
-    video.controls = true;
+    // ★★★ 关键：移除 controls 属性 ★★★
+    // video.controls = true;  // 删除这行
     video.playsInline = true;
     video.style.cssText = `
         width: 100%;
@@ -1856,12 +1858,300 @@ function openVideoFullscreen(resource) {
     videoWrapper.appendChild(video);
     viewer.appendChild(videoWrapper);
     
-    // 进度信息
+    // ===== ★★★ 自定义控制栏（无倍速）★★★ =====
+    const customControls = document.createElement('div');
+    customControls.id = 'customVideoControls';
+    customControls.style.cssText = `
+        position: absolute;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        background: rgba(0, 0, 0, 0.65);
+        padding: 8px 18px;
+        border-radius: 30px;
+        backdrop-filter: blur(10px);
+        z-index: 15;
+        border: 1px solid rgba(255,255,255,0.1);
+        min-width: 200px;
+        max-width: 80%;
+        transition: opacity 0.3s ease;
+    `;
+    
+    // 播放/暂停按钮
+    const playBtn = document.createElement('button');
+    playBtn.id = 'customPlayBtn';
+    playBtn.textContent = '▶';
+    playBtn.style.cssText = `
+        background: transparent;
+        border: none;
+        color: #fff;
+        font-size: 18px;
+        cursor: pointer;
+        padding: 4px 6px;
+        font-weight: bold;
+        width: 30px;
+        text-align: center;
+        flex-shrink: 0;
+        transition: opacity 0.2s;
+    `;
+    playBtn.addEventListener('mouseenter', function() { this.style.opacity = '0.7'; });
+    playBtn.addEventListener('mouseleave', function() { this.style.opacity = '1'; });
+    
+    // 进度条
+    const progressWrap = document.createElement('div');
+    progressWrap.id = 'customProgressWrap';
+    progressWrap.style.cssText = `
+        flex: 1;
+        min-width: 80px;
+        height: 4px;
+        background: rgba(255,255,255,0.25);
+        border-radius: 2px;
+        cursor: pointer;
+        position: relative;
+        transition: height 0.2s;
+    `;
+    progressWrap.addEventListener('mouseenter', function() { this.style.height = '6px'; });
+    progressWrap.addEventListener('mouseleave', function() { this.style.height = '4px'; });
+    
+    const progressFill = document.createElement('div');
+    progressFill.id = 'customProgressFill';
+    progressFill.style.cssText = `
+        height: 100%;
+        width: 0%;
+        background: #22c55e;
+        border-radius: 2px;
+        transition: width 0.1s;
+    `;
+    progressWrap.appendChild(progressFill);
+    
+    // 缓冲进度
+    const bufferFill = document.createElement('div');
+    bufferFill.id = 'customBufferFill';
+    bufferFill.style.cssText = `
+        height: 100%;
+        width: 0%;
+        background: rgba(255,255,255,0.15);
+        border-radius: 2px;
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+    `;
+    progressWrap.insertBefore(bufferFill, progressFill);
+    
+    // 时间显示
+    const timeDisplay = document.createElement('span');
+    timeDisplay.id = 'customTimeDisplay';
+    timeDisplay.textContent = '0:00 / 0:00';
+    timeDisplay.style.cssText = `
+        color: rgba(255,255,255,0.8);
+        font-size: 13px;
+        font-family: system-ui, -apple-system, sans-serif;
+        min-width: 80px;
+        text-align: center;
+        flex-shrink: 0;
+        letter-spacing: 0.3px;
+    `;
+    
+    // 全屏按钮
+    const fullscreenBtn = document.createElement('button');
+    fullscreenBtn.id = 'customFullscreenBtn';
+    fullscreenBtn.textContent = '⛶';
+    fullscreenBtn.style.cssText = `
+        background: transparent;
+        border: none;
+        color: #fff;
+        font-size: 18px;
+        cursor: pointer;
+        padding: 4px 6px;
+        flex-shrink: 0;
+        transition: opacity 0.2s;
+    `;
+    fullscreenBtn.addEventListener('mouseenter', function() { this.style.opacity = '0.7'; });
+    fullscreenBtn.addEventListener('mouseleave', function() { this.style.opacity = '1'; });
+    fullscreenBtn.addEventListener('click', function() {
+        if (!document.fullscreenElement) {
+            viewer.requestFullscreen?.().catch(() => {});
+        } else {
+            document.exitFullscreen?.().catch(() => {});
+        }
+    });
+    
+    customControls.appendChild(playBtn);
+    customControls.appendChild(progressWrap);
+    customControls.appendChild(timeDisplay);
+    customControls.appendChild(fullscreenBtn);
+    viewer.appendChild(customControls);
+    
+    // ===== 控制栏自动隐藏（3秒无操作后隐藏） =====
+    let controlsHideTimer = null;
+    let controlsVisible = true;
+    
+    function showControls() {
+        customControls.style.opacity = '1';
+        controlsVisible = true;
+        resetControlsHideTimer();
+    }
+    
+    function hideControls() {
+        // 暂停时不自动隐藏
+        if (video.paused) return;
+        customControls.style.opacity = '0';
+        controlsVisible = false;
+    }
+    
+    function resetControlsHideTimer() {
+        if (controlsHideTimer) {
+            clearTimeout(controlsHideTimer);
+            controlsHideTimer = null;
+        }
+        if (!video.paused) {
+            controlsHideTimer = setTimeout(function() {
+                hideControls();
+            }, 3000);
+        }
+    }
+    
+    // 点击视频切换控制栏显示
+    videoWrapper.addEventListener('click', function(e) {
+        // 如果点击的是控制栏本身，不处理
+        if (e.target.closest('#customVideoControls')) return;
+        if (controlsVisible) {
+            hideControls();
+        } else {
+            showControls();
+        }
+    });
+    
+    // 鼠标移动显示控制栏
+    videoWrapper.addEventListener('mousemove', function() {
+        if (!controlsVisible) {
+            showControls();
+        } else {
+            resetControlsHideTimer();
+        }
+    });
+    
+    // ===== 播放控制 =====
+    playBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (video.paused) {
+            video.play().catch(function(err) {
+                console.warn('播放失败:', err);
+            });
+        } else {
+            video.pause();
+        }
+    });
+    
+    // 点击进度条跳转
+    progressWrap.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const rect = this.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        if (video.duration) {
+            video.currentTime = pct * video.duration;
+        }
+    });
+    
+    // 拖拽进度条
+    let isDraggingProgress = false;
+    progressWrap.addEventListener('mousedown', function(e) {
+        e.stopPropagation();
+        isDraggingProgress = true;
+        const rect = this.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        if (video.duration) {
+            video.currentTime = pct * video.duration;
+        }
+    });
+    
+    document.addEventListener('mousemove', function(e) {
+        if (!isDraggingProgress) return;
+        const rect = progressWrap.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        if (video.duration) {
+            video.currentTime = pct * video.duration;
+        }
+    });
+    
+    document.addEventListener('mouseup', function() {
+        isDraggingProgress = false;
+    });
+    
+    // 触摸拖拽进度条
+    let isTouchingProgress = false;
+    progressWrap.addEventListener('touchstart', function(e) {
+        e.stopPropagation();
+        isTouchingProgress = true;
+        const touch = e.touches[0];
+        const rect = this.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
+        if (video.duration) {
+            video.currentTime = pct * video.duration;
+        }
+    }, { passive: true });
+    
+    progressWrap.addEventListener('touchmove', function(e) {
+        if (!isTouchingProgress) return;
+        e.preventDefault();
+        const touch = e.touches[0];
+        const rect = this.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
+        if (video.duration) {
+            video.currentTime = pct * video.duration;
+        }
+    }, { passive: false });
+    
+    progressWrap.addEventListener('touchend', function() {
+        isTouchingProgress = false;
+    });
+    
+    // ===== 视频事件 =====
+    video.addEventListener('play', function() {
+        playBtn.textContent = '⏸';
+        showControls();
+        resetControlsHideTimer();
+    });
+    
+    video.addEventListener('pause', function() {
+        playBtn.textContent = '▶';
+        showControls();
+        if (controlsHideTimer) {
+            clearTimeout(controlsHideTimer);
+            controlsHideTimer = null;
+        }
+    });
+    
+    video.addEventListener('timeupdate', function() {
+        if (this.duration) {
+            const pct = (this.currentTime / this.duration) * 100;
+            progressFill.style.width = pct + '%';
+            timeDisplay.textContent = formatTime(this.currentTime) + ' / ' + formatTime(this.duration);
+        }
+    });
+    
+    video.addEventListener('progress', function() {
+        if (this.duration && this.buffered.length > 0) {
+            const bufferedEnd = this.buffered.end(this.buffered.length - 1);
+            const pct = (bufferedEnd / this.duration) * 100;
+            bufferFill.style.width = pct + '%';
+        }
+    });
+    
+    video.addEventListener('loadedmetadata', function() {
+        timeDisplay.textContent = '0:00 / ' + formatTime(this.duration);
+    });
+    
+    // ===== 进度信息 =====
     const progressInfo = document.createElement('div');
     progressInfo.id = 'videoProgressInfo';
     progressInfo.style.cssText = `
         position: absolute;
-        bottom: 60px;
+        bottom: 90px;
         left: 50%;
         transform: translateX(-50%);
         background: rgba(0, 0, 0, 0.7);
@@ -1914,14 +2204,13 @@ function openVideoFullscreen(resource) {
     });
     viewer.appendChild(exitBtn);
     
-    // ===== ★★★ 按钮状态管理 ★★★ =====
+    // ===== 按钮状态管理 =====
     let isButtonExpanded = true;
-    let isVideoPaused = false;  // 记录视频是否暂停
+    let isVideoPaused = false;
     let hideTimer = null;
     
     function collapseButton() {
         if (!videoButtonVisible) return;
-        // ★★★ 暂停状态下不收缩 ★★★
         if (isVideoPaused) return;
         isButtonExpanded = false;
         exitBtn.style.transform = 'translateX(calc(100% - 20px))';
@@ -1954,7 +2243,6 @@ function openVideoFullscreen(resource) {
     
     function startHideTimer() {
         clearHideTimer();
-        // ★★★ 只有播放状态下才自动收缩 ★★★
         if (!isVideoPaused) {
             hideTimer = setTimeout(function() {
                 collapseButton();
@@ -1963,54 +2251,53 @@ function openVideoFullscreen(resource) {
         }
     }
     
-    // ★★★ 初始：先展开按钮，让用户看到 ★★★
+    // 初始展开
     expandButton();
-    
-    // ★★★ 延迟1.5秒后，如果视频正在播放则收缩 ★★★
     setTimeout(function() {
         if (!isVideoPaused) {
             startHideTimer();
         }
     }, 1500);
     
-    // ★★★ 监听视频播放/暂停状态 ★★★
+    // 监听播放/暂停
     video.addEventListener('pause', function() {
         isVideoPaused = true;
         clearHideTimer();
-        expandButton();  // 暂停时立即展开
+        expandButton();
         console.log('🎬 视频暂停，按钮展开');
     });
     
     video.addEventListener('play', function() {
         isVideoPaused = false;
         expandButton();
-        startHideTimer();  // 播放时1秒后收缩
+        startHideTimer();
         console.log('🎬 视频播放，1秒后收缩');
     });
     
-    // ★★★ 点击屏幕展开按钮（播放时重置计时器，暂停时保持展开）★★★
+    // 点击屏幕展开按钮
     viewer.addEventListener('click', function(e) {
         if (e.target === exitBtn) return;
+        if (e.target.closest('#customVideoControls')) return;
         expandButton();
         if (!isVideoPaused) {
             startHideTimer();
         }
-        // 暂停状态：保持展开，不启动计时器
     });
     
-    // 触摸事件
     viewer.addEventListener('touchstart', function(e) {
         if (e.target === exitBtn) return;
+        if (e.target.closest('#customVideoControls')) return;
         expandButton();
         if (!isVideoPaused) {
             startHideTimer();
         }
-    }, { passive: true });    
+    }, { passive: true });
+    
     document.body.appendChild(viewer);
     document.body.style.overflow = 'hidden';
     videoViewerActive = true;
     
-    // ===== 视频状态 =====
+    // ===== 视频进度追踪（原有逻辑） =====
     let savedPosition = 0;
     const savedProg = progressMap[resource.id];
     let maxWatchedTime = 0;
@@ -2026,7 +2313,6 @@ function openVideoFullscreen(resource) {
     let isVideoEnded = false;
     let toastTimer = null;
     
-    // ===== 限制拖拽到已观看区域 =====
     function handleSeeking() {
         if (isInitialSeek) return;
         if (isVideoEnded) return;
@@ -2106,6 +2392,8 @@ function openVideoFullscreen(resource) {
         if (infoEl) {
             infoEl.textContent = `学习进度：${Math.min(100, pct)}%`;
         }
+        // 更新自定义控制栏的时间显示
+        timeDisplay.textContent = '0:00 / ' + formatTime(duration);
     }
     
     function checkIfCompleted() {
@@ -2119,7 +2407,6 @@ function openVideoFullscreen(resource) {
         return false;
     }
     
-    // ===== Toast提示 =====
     function showVideoToast(msg) {
         if (toastTimer) {
             clearTimeout(toastTimer);
@@ -2155,7 +2442,14 @@ function openVideoFullscreen(resource) {
         }, 2000);
     }
     
-    // ===== 绑定事件 =====
+    function formatTime(sec) {
+        if (!sec || isNaN(sec) || !isFinite(sec)) return '0:00';
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+    
+    // 绑定视频事件
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('seeking', handleSeeking);
@@ -2183,7 +2477,7 @@ function openVideoFullscreen(resource) {
     
     const isCompleted = checkIfCompleted();
     if (!isCompleted) {
-        video.play().catch(e => {
+        video.play().catch(function(e) {
             if (e.name !== 'AbortError') console.warn('视频自动播放被阻止:', e);
         });
     } else {
@@ -2193,9 +2487,9 @@ function openVideoFullscreen(resource) {
     // 双击全屏切换
     videoWrapper.addEventListener('dblclick', function() {
         if (!document.fullscreenElement) {
-            viewer.requestFullscreen?.().catch(() => {});
+            viewer.requestFullscreen?.().catch(function() {});
         } else {
-            document.exitFullscreen?.().catch(() => {});
+            document.exitFullscreen?.().catch(function() {});
         }
     });
 }
