@@ -440,7 +440,6 @@ async function markResourceCompleted(resourceId) {
         const data = stageData[currentViewStage];
         if (data && data.resources) {
             const allCompleted = data.resources.every(r => progressMap[r.id] && progressMap[r.id].completed);
-            console.log(`📊 资源完成情况: ${allCompleted ? '全部完成 ✅' : '未全部完成'}`);
             if (allCompleted) {
                 await handleAllResourcesCompleted(data);
             }
@@ -448,19 +447,19 @@ async function markResourceCompleted(resourceId) {
         return;
     }
     
+    // ★★★ 强制设置 progress=100, completed=true ★★★
     const curLastPos = progressMap[resourceId] ? progressMap[resourceId].last_position : 0;
     progressMap[resourceId] = { progress: 100, completed: true, last_position: curLastPos };
-    console.log(`✅ 标记资源 ${resourceId} 为已完成`);
+    console.log(`✅ 标记资源 ${resourceId} 为已完成 (100%)`);
     
     try {
-        // ★★★ 强制指定 progress_percent = 100 ★★★
         const { error } = await supabaseClient
             .from('user_learning_progress')
             .upsert({
                 user_id: currentUser.id,
                 resource_id: resourceId,
-                progress_percent: 100,  // ★★★ 强制 100 ★★★
-                completed: true,
+                progress_percent: 100,      // ★★★ 强制 100 ★★★
+                completed: true,            // ★★★ 强制 true ★★★
                 last_position: curLastPos,
                 last_updated: new Date().toISOString()
             }, { onConflict: 'user_id, resource_id' });
@@ -473,7 +472,27 @@ async function markResourceCompleted(resourceId) {
     } catch (e) {
         console.warn('标记资源完成失败:', e);
     }
-   
+    
+    // ★★★ 额外：再次尝试更新（确保成功）★★★
+    try {
+        const { error: updateError } = await supabaseClient
+            .from('user_learning_progress')
+            .update({ 
+                progress_percent: 100, 
+                completed: true,
+                last_updated: new Date().toISOString()
+            })
+            .eq('user_id', currentUser.id)
+            .eq('resource_id', resourceId);
+        if (updateError) {
+            console.warn('额外更新失败:', updateError);
+        } else {
+            console.log('✅ 额外更新成功，已确保 100%');
+        }
+    } catch (e) {
+        console.warn('额外更新异常:', e);
+    }
+    
     const data = stageData[currentViewStage];
     if (data && data.resources) {
         const allCompleted = data.resources.every(r => progressMap[r.id] && progressMap[r.id].completed);
@@ -2438,47 +2457,56 @@ viewer.appendChild(exitBtn);
     }
     
     function handleTimeUpdate() {
-        if (isInitialSeek) return;
-        if (isVideoEnded) return;
-        if (savedProg && savedProg.completed) {
-            return;
-        }
-        
-        const currentTime = video.currentTime;
-        const duration = video.duration;
-        
-        if (currentTime > maxWatchedTime) {
-            maxWatchedTime = currentTime;
-            lastValidTime = currentTime;
-        }
-        
-        const pct = Math.round((maxWatchedTime / duration) * 100);
-        const infoEl = document.getElementById('videoProgressInfo');
-        if (infoEl) {
-            infoEl.textContent = `学习进度：${Math.min(100, pct)}%`;
-        }
-        
-        if (!saveTimer) {
-            saveTimer = setTimeout(function() {
-                const pct = Math.round((maxWatchedTime / duration) * 100);
-                updateResourceProgress(resource.id, Math.min(100, pct), maxWatchedTime);
-                saveTimer = null;
-            }, 3000);
-        }
-        
-        if (maxWatchedTime >= duration * 0.95 && duration > 0) {
-            isVideoEnded = true;
-            if (saveTimer) {
-                clearTimeout(saveTimer);
-                saveTimer = null;
-            }
-            markResourceCompleted(resource.id);
-            showVideoToast('✅ 视频学习完成！');
-            setTimeout(function() {
-                closeVideoFullscreen();
-            }, 1500);
-        }
+    if (isInitialSeek) return;
+    if (isVideoEnded) return;
+    if (savedProg && savedProg.completed) {
+        return;
     }
+    
+    const currentTime = video.currentTime;
+    const duration = video.duration;
+    
+    if (duration <= 0) return;
+    
+    // ★★★ 实时计算精确进度 ★★★
+    if (currentTime > maxWatchedTime) {
+        maxWatchedTime = currentTime;
+        lastValidTime = currentTime;
+    }
+    
+    // ★★★ 使用精确时间比例计算进度 ★★★
+    const pct = Math.min(100, Math.round((maxWatchedTime / duration) * 100));
+    const infoEl = document.getElementById('videoProgressInfo');
+    if (infoEl) {
+        infoEl.textContent = `学习进度：${pct}%`;
+    }
+    
+    // ★★★ 每3秒保存一次进度 ★★★
+    if (!saveTimer) {
+        saveTimer = setTimeout(function() {
+            const pct = Math.min(100, Math.round((maxWatchedTime / duration) * 100));
+            updateResourceProgress(resource.id, pct, maxWatchedTime);
+            saveTimer = null;
+        }, 3000);
+    }
+    
+    // ★★★ 当播放到 100%（精确到 duration）时标记完成 ★★★
+    // 由于浮点数精度问题，当 currentTime >= duration - 0.1 秒时视为完成
+    if (currentTime >= duration - 0.1 && duration > 0) {
+        isVideoEnded = true;
+        if (saveTimer) {
+            clearTimeout(saveTimer);
+            saveTimer = null;
+        }
+        // ★★★ 强制设为 100% ★★★
+        updateResourceProgress(resource.id, 100, duration);
+        markResourceCompleted(resource.id);
+        showVideoToast('✅ 视频学习完成！');
+        setTimeout(function() {
+            closeVideoFullscreen();
+        }, 1500);
+    }
+}
     
     function handleLoadedMetadata() {
         const duration = video.duration;
@@ -2565,18 +2593,31 @@ viewer.appendChild(exitBtn);
     });
     
     video.addEventListener('ended', function() {
-        if (savedProg && savedProg.completed) return;
-        isVideoEnded = true;
-        if (saveTimer) {
-            clearTimeout(saveTimer);
-            saveTimer = null;
-        }
-        markResourceCompleted(resource.id);
-        showVideoToast('✅ 视频学习完成！');
-        setTimeout(function() {
-            closeVideoFullscreen();
-        }, 1500);
-    });
+    if (savedProg && savedProg.completed) return;
+    isVideoEnded = true;
+    if (saveTimer) {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+    }
+    
+    // ★★★ 视频播放结束，强制设为 100% ★★★
+    const duration = this.duration;
+    if (duration > 0) {
+        // 更新进度为 100%
+        progressMap[resource.id] = { 
+            progress: 100, 
+            completed: true, 
+            last_position: duration 
+        };
+        updateResourceProgress(resource.id, 100, duration);
+    }
+    
+    markResourceCompleted(resource.id);
+    showVideoToast('✅ 视频学习完成！');
+    setTimeout(function() {
+        closeVideoFullscreen();
+    }, 1500);
+});
     
     var isCompleted = checkIfCompleted();
     if (!isCompleted) {
@@ -2909,7 +2950,8 @@ async function saveLearnProgress() {
     progressMap[resource.id].completed = newCompleted;
 
     try {
-        await supabaseClient
+        // ★★★ 修复：确保 onConflict 格式正确 ★★★
+        const { error } = await supabaseClient
             .from('user_learning_progress')
             .upsert({
                 user_id: currentUser.id,
@@ -2918,8 +2960,13 @@ async function saveLearnProgress() {
                 last_position: newProgress,
                 completed: newCompleted,
                 last_updated: new Date().toISOString()
-            }, { onConflict: 'user_id, resource_id' });
-        console.log(`✅ 文章进度已保存: ${newProgress}%`);
+            }, { onConflict: 'user_id, resource_id' });  // ← 注意逗号后的空格
+
+        if (error) {
+            console.error('❌ 文章进度保存失败:', error);
+        } else {
+            console.log(`✅ 文章进度已保存: ${newProgress}%`);
+        }
     } catch (e) {
         console.warn('保存文章进度失败:', e);
     }
@@ -2928,7 +2975,6 @@ async function saveLearnProgress() {
     renderCurrentStageResources();
     updateDetailProgress(resource.id);
 }
-
    // ★★★ 完成文章 ★★★
 async function completeArticle() {
     hasMarkedComplete = true;
