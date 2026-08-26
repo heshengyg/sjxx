@@ -1827,7 +1827,7 @@ function startImageTimer(resourceId, duration) {
     timerIntervals[resourceId] = interval;
 }
 // ============================================================
-// 视频全屏播放器（自定义控制栏版 - 无倍速按钮 + 暂停显示播放图标）
+// 视频全屏播放器（修复版 - 双进度显示：当前播放进度/学习进度）
 // ============================================================
 let videoViewerActive = false;
 let videoHideTimeout = null;
@@ -1872,8 +1872,6 @@ function openVideoFullscreen(resource) {
     // ===== ★★★ 创建视频（禁用原生控制）★★★ =====
     const video = document.createElement('video');
     video.src = resource.file;
-    // ★★★ 移除 controls 属性 ★★★
-    // ★★★ 添加禁用原生播放器的属性 ★★★
     video.setAttribute('x-webkit-airplay', 'deny');
     video.setAttribute('x5-video-player-type', 'h5');
     video.setAttribute('x5-video-player-fullscreen', 'true');
@@ -1895,50 +1893,49 @@ function openVideoFullscreen(resource) {
     viewer.appendChild(videoWrapper);
     
     // ===== ★★★ 中央播放按钮（暂停时一直显示）★★★ =====
-const centerPlayBtn = document.createElement('div');
-centerPlayBtn.id = 'videoCenterPlayBtn';
-centerPlayBtn.style.cssText = `
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 2px solid rgba(255, 255, 255, 0.9);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 38px;
-    color: #ffffff;
-    cursor: pointer;
-    z-index: 13;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
-    transition: all 0.3s ease;
-    user-select: none;
-    -webkit-user-select: none;
-    opacity: 0;
-    pointer-events: none;
-`;
-centerPlayBtn.textContent = '▶';
-const label = document.createElement('span');
-label.textContent = '播放';
-label.style.cssText = `
-    position: absolute;
-    bottom: -30px;
-    font-size: 14px;
-    color: rgba(255,255,255,0.9);
-    font-weight: 400;
-    letter-spacing: 1px;
-    white-space: nowrap;
-    text-shadow: 0 1px 6px rgba(0,0,0,0.6);
-`;
-centerPlayBtn.appendChild(label);
+    const centerPlayBtn = document.createElement('div');
+    centerPlayBtn.id = 'videoCenterPlayBtn';
+    centerPlayBtn.style.cssText = `
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 255, 255, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 38px;
+        color: #ffffff;
+        cursor: pointer;
+        z-index: 13;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
+        transition: all 0.3s ease;
+        user-select: none;
+        -webkit-user-select: none;
+        opacity: 0;
+        pointer-events: none;
+    `;
+    centerPlayBtn.textContent = '▶';
+    const label = document.createElement('span');
+    label.textContent = '播放';
+    label.style.cssText = `
+        position: absolute;
+        bottom: -30px;
+        font-size: 14px;
+        color: rgba(255,255,255,0.9);
+        font-weight: 400;
+        letter-spacing: 1px;
+        white-space: nowrap;
+        text-shadow: 0 1px 6px rgba(0,0,0,0.6);
+    `;
+    centerPlayBtn.appendChild(label);
     
-    // 鼠标悬停效果
     centerPlayBtn.addEventListener('mouseenter', function() {
         this.style.background = 'rgba(255, 255, 255, 0.25)';
         this.style.transform = 'translate(-50%, -50%) scale(1.05)';
@@ -1948,7 +1945,6 @@ centerPlayBtn.appendChild(label);
         this.style.transform = 'translate(-50%, -50%) scale(1)';
     });
     
-    // 点击播放按钮播放视频
     centerPlayBtn.addEventListener('click', function(e) {
         e.stopPropagation();
         video.play().catch(function(err) {
@@ -1993,7 +1989,6 @@ centerPlayBtn.appendChild(label);
         transition: opacity 0.3s ease;
     `;
     
-    // 播放/暂停按钮
     const playBtn = document.createElement('button');
     playBtn.id = 'customPlayBtn';
     playBtn.textContent = '▶';
@@ -2013,7 +2008,6 @@ centerPlayBtn.appendChild(label);
     playBtn.addEventListener('mouseenter', function() { this.style.opacity = '0.7'; });
     playBtn.addEventListener('mouseleave', function() { this.style.opacity = '1'; });
     
-    // 进度条
     const progressWrap = document.createElement('div');
     progressWrap.id = 'customProgressWrap';
     progressWrap.style.cssText = `
@@ -2040,7 +2034,6 @@ centerPlayBtn.appendChild(label);
     `;
     progressWrap.appendChild(progressFill);
     
-    // 缓冲进度
     const bufferFill = document.createElement('div');
     bufferFill.id = 'customBufferFill';
     bufferFill.style.cssText = `
@@ -2055,7 +2048,6 @@ centerPlayBtn.appendChild(label);
     `;
     progressWrap.insertBefore(bufferFill, progressFill);
     
-    // 时间显示
     const timeDisplay = document.createElement('span');
     timeDisplay.id = 'customTimeDisplay';
     timeDisplay.textContent = '0:00 / 0:00';
@@ -2069,7 +2061,6 @@ centerPlayBtn.appendChild(label);
         letter-spacing: 0.3px;
     `;
     
-    // 全屏按钮
     const fullscreenBtn = document.createElement('button');
     fullscreenBtn.id = 'customFullscreenBtn';
     fullscreenBtn.textContent = '⛶';
@@ -2130,7 +2121,6 @@ centerPlayBtn.appendChild(label);
     
     // ===== ★★★ 点击视频切换播放/暂停 ★★★ =====
     videoWrapper.addEventListener('click', function(e) {
-        // 如果点击的是控制栏本身，不处理
         if (e.target.closest('#customVideoControls')) return;
         if (e.target.closest('#videoExitBtn')) return;
         if (e.target.closest('#videoCenterPlayBtn')) return;
@@ -2156,7 +2146,6 @@ centerPlayBtn.appendChild(label);
         }
     });
     
-    // 点击进度条跳转
     progressWrap.addEventListener('click', function(e) {
         e.stopPropagation();
         const rect = this.getBoundingClientRect();
@@ -2166,7 +2155,6 @@ centerPlayBtn.appendChild(label);
         }
     });
     
-    // 拖拽进度条
     let isDraggingProgress = false;
     progressWrap.addEventListener('mousedown', function(e) {
         e.stopPropagation();
@@ -2191,7 +2179,6 @@ centerPlayBtn.appendChild(label);
         isDraggingProgress = false;
     });
     
-    // 触摸拖拽进度条
     let isTouchingProgress = false;
     progressWrap.addEventListener('touchstart', function(e) {
         e.stopPropagation();
@@ -2222,14 +2209,14 @@ centerPlayBtn.appendChild(label);
     // ===== ★★★ 视频事件 ★★★ =====
     video.addEventListener('play', function() {
         playBtn.textContent = '⏸';
-        hidePlayButton();  // ★★★ 播放时隐藏中央播放按钮 ★★★
+        hidePlayButton();
         showControls();
         resetControlsHideTimer();
     });
     
     video.addEventListener('pause', function() {
         playBtn.textContent = '▶';
-        showPlayButton();  // ★★★ 暂停时显示中央播放按钮（一直显示）★★★
+        showPlayButton();
         showControls();
         if (controlsHideTimer) {
             clearTimeout(controlsHideTimer);
@@ -2257,7 +2244,7 @@ centerPlayBtn.appendChild(label);
         timeDisplay.textContent = '0:00 / ' + formatTime(this.duration);
     });
     
-    // ===== 进度信息 =====
+    // ===== ★★★ 进度信息（双进度显示）★★★ =====
     const progressInfo = document.createElement('div');
     progressInfo.id = 'videoProgressInfo';
     progressInfo.style.cssText = `
@@ -2277,87 +2264,102 @@ centerPlayBtn.appendChild(label);
         border: 1px solid rgba(255,255,255,0.1);
         transition: opacity 0.3s ease;
     `;
-    const prog = progressMap[resource.id];
-    progressInfo.textContent = prog ? `学习进度：${prog.progress}%` : '学习进度：0%';
+    
+    // ★★★ 从 progressMap 读取已保存的学习进度 ★★★
+    const savedProgForDisplay = progressMap[resource.id];
+    let initialLearnPct = 0;
+    let isAlreadyCompleted = false;
+    if (savedProgForDisplay) {
+        initialLearnPct = savedProgForDisplay.progress || 0;
+        isAlreadyCompleted = savedProgForDisplay.completed || false;
+    }
+    
+    // ★★★ 初始化显示：当前播放进度（0%） / 学习进度（已保存的%） ★★★
+    if (isAlreadyCompleted) {
+        progressInfo.textContent = '✅ 学习完成！';
+    } else {
+        progressInfo.textContent = `学习进度：0% / ${initialLearnPct}%`;
+    }
     viewer.appendChild(progressInfo);
     
-// ===== 退出按钮（优化版 - 高可见性） =====
-const exitBtn = document.createElement('button');
-exitBtn.id = 'videoExitBtn';  // ★★★ 修正 ID ★★★
-exitBtn.textContent = '退出';
-exitBtn.style.cssText = `
-    position: absolute;
-    bottom: 30%;
-    right: 20px;
-    padding: 10px 20px;
-    background: rgba(0, 0, 0, 0.7);
-    color: #ffffff;
-    border: 2px solid rgba(255, 255, 255, 0.8);
-    border-radius: 30px;
-    font-size: 16px;
-    font-weight: 500;
-    cursor: pointer;
-    z-index: 25;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    transition: all 0.3s ease;
-    font-family: system-ui, -apple-system, sans-serif;
-    letter-spacing: 0.5px;
-    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
-`;
-exitBtn.addEventListener('mouseenter', function() {
-    this.style.background = 'rgba(0, 0, 0, 0.85)';
-    this.style.borderColor = '#ffffff';
-    this.style.boxShadow = '0 4px 24px rgba(0, 0, 0, 0.7)';
-});
-exitBtn.addEventListener('mouseleave', function() {
-    this.style.background = 'rgba(0, 0, 0, 0.7)';
-    this.style.borderColor = 'rgba(255, 255, 255, 0.8)';
-    this.style.boxShadow = '0 2px 16px rgba(0, 0, 0, 0.5)';
-});
-exitBtn.addEventListener('click', function(e) {
-    e.stopPropagation();
-    closeVideoFullscreen();
-});
-viewer.appendChild(exitBtn);
+    // ===== 退出按钮（优化版 - 高可见性） =====
+    const exitBtn = document.createElement('button');
+    exitBtn.id = 'videoExitBtn';
+    exitBtn.textContent = '退出';
+    exitBtn.style.cssText = `
+        position: absolute;
+        bottom: 30%;
+        right: 20px;
+        padding: 10px 20px;
+        background: rgba(0, 0, 0, 0.7);
+        color: #ffffff;
+        border: 2px solid rgba(255, 255, 255, 0.8);
+        border-radius: 30px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        z-index: 25;
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        transition: all 0.3s ease;
+        font-family: system-ui, -apple-system, sans-serif;
+        letter-spacing: 0.5px;
+        box-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+    `;
+    exitBtn.addEventListener('mouseenter', function() {
+        this.style.background = 'rgba(0, 0, 0, 0.85)';
+        this.style.borderColor = '#ffffff';
+        this.style.boxShadow = '0 4px 24px rgba(0, 0, 0, 0.7)';
+    });
+    exitBtn.addEventListener('mouseleave', function() {
+        this.style.background = 'rgba(0, 0, 0, 0.7)';
+        this.style.borderColor = 'rgba(255, 255, 255, 0.8)';
+        this.style.boxShadow = '0 2px 16px rgba(0, 0, 0, 0.5)';
+    });
+    exitBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        closeVideoFullscreen();
+    });
+    viewer.appendChild(exitBtn);
+    
     // ===== 按钮状态管理 =====
     let isButtonExpanded = true;
     let isVideoPaused = false;
     let hideTimer = null;
     
     function collapseButton() {
-    if (!videoButtonVisible) return;
-    if (isVideoPaused) return;
-    isButtonExpanded = false;
-    exitBtn.style.transform = 'translateX(calc(100% - 20px))';
-    exitBtn.style.opacity = '0.8';
-    exitBtn.style.padding = '8px 12px';
-    exitBtn.textContent = '◀';
-    exitBtn.style.fontSize = '14px';
-    exitBtn.style.borderRadius = '30px';
-    exitBtn.style.background = 'rgba(0, 0, 0, 0.6)';
-    exitBtn.style.border = '2px solid rgba(255, 255, 255, 0.5)';
-    exitBtn.style.boxShadow = '0 2px 12px rgba(0, 0, 0, 0.5)';
-    exitBtn.style.color = '#ffffff';
-    exitBtn.style.textShadow = '0 1px 4px rgba(0, 0, 0, 0.8)';
-}
+        if (!videoButtonVisible) return;
+        if (isVideoPaused) return;
+        isButtonExpanded = false;
+        exitBtn.style.transform = 'translateX(calc(100% - 20px))';
+        exitBtn.style.opacity = '0.8';
+        exitBtn.style.padding = '8px 12px';
+        exitBtn.textContent = '◀';
+        exitBtn.style.fontSize = '14px';
+        exitBtn.style.borderRadius = '30px';
+        exitBtn.style.background = 'rgba(0, 0, 0, 0.6)';
+        exitBtn.style.border = '2px solid rgba(255, 255, 255, 0.5)';
+        exitBtn.style.boxShadow = '0 2px 12px rgba(0, 0, 0, 0.5)';
+        exitBtn.style.color = '#ffffff';
+        exitBtn.style.textShadow = '0 1px 4px rgba(0, 0, 0, 0.8)';
+    }
     
     function expandButton() {
-    if (!videoButtonVisible) return;
-    isButtonExpanded = true;
-    exitBtn.style.transform = 'translateX(0)';
-    exitBtn.style.opacity = '1';
-    exitBtn.style.padding = '10px 20px';
-    exitBtn.textContent = '退出';
-    exitBtn.style.fontSize = '16px';
-    exitBtn.style.borderRadius = '30px';
-    exitBtn.style.background = 'rgba(0, 0, 0, 0.7)';
-    exitBtn.style.border = '2px solid rgba(255, 255, 255, 0.8)';
-    exitBtn.style.color = '#ffffff';
-    exitBtn.style.textShadow = '0 1px 4px rgba(0, 0, 0, 0.8)';
-    exitBtn.style.boxShadow = '0 2px 16px rgba(0, 0, 0, 0.5)';
-}
+        if (!videoButtonVisible) return;
+        isButtonExpanded = true;
+        exitBtn.style.transform = 'translateX(0)';
+        exitBtn.style.opacity = '1';
+        exitBtn.style.padding = '10px 20px';
+        exitBtn.textContent = '退出';
+        exitBtn.style.fontSize = '16px';
+        exitBtn.style.borderRadius = '30px';
+        exitBtn.style.background = 'rgba(0, 0, 0, 0.7)';
+        exitBtn.style.border = '2px solid rgba(255, 255, 255, 0.8)';
+        exitBtn.style.color = '#ffffff';
+        exitBtn.style.textShadow = '0 1px 4px rgba(0, 0, 0, 0.8)';
+        exitBtn.style.boxShadow = '0 2px 16px rgba(0, 0, 0, 0.5)';
+    }
     
     function clearHideTimer() {
         if (hideTimer) {
@@ -2376,7 +2378,6 @@ viewer.appendChild(exitBtn);
         }
     }
     
-    // 初始展开
     expandButton();
     setTimeout(function() {
         if (!isVideoPaused) {
@@ -2384,7 +2385,6 @@ viewer.appendChild(exitBtn);
         }
     }, 1500);
     
-    // 监听播放/暂停
     video.addEventListener('pause', function() {
         isVideoPaused = true;
         clearHideTimer();
@@ -2397,7 +2397,6 @@ viewer.appendChild(exitBtn);
         startHideTimer();
     });
     
-    // 点击屏幕展开按钮
     viewer.addEventListener('click', function(e) {
         if (e.target === exitBtn) return;
         if (e.target.closest('#customVideoControls')) return;
@@ -2420,7 +2419,7 @@ viewer.appendChild(exitBtn);
     document.body.style.overflow = 'hidden';
     videoViewerActive = true;
     
-    // ===== 视频进度追踪 =====
+    // ===== ★★★ 视频进度追踪 ★★★ =====
     let savedPosition = 0;
     const savedProg = progressMap[resource.id];
     let maxWatchedTime = 0;
@@ -2444,6 +2443,7 @@ viewer.appendChild(exitBtn);
         const currentTime = video.currentTime;
         const maxAllowed = maxWatchedTime;
         
+        // ★★★ 如果拖拽到未学习区域，阻止 ★★★
         if (currentTime > maxAllowed + 0.5) {
             video.currentTime = maxAllowed;
             video.pause();
@@ -2456,57 +2456,79 @@ viewer.appendChild(exitBtn);
         }
     }
     
+    // ★★★ 核心：handleTimeUpdate - 双进度显示 ★★★
     function handleTimeUpdate() {
-    if (isInitialSeek) return;
-    if (isVideoEnded) return;
-    if (savedProg && savedProg.completed) {
-        return;
-    }
-    
-    const currentTime = video.currentTime;
-    const duration = video.duration;
-    
-    if (duration <= 0) return;
-    
-    // ★★★ 实时计算精确进度 ★★★
-    if (currentTime > maxWatchedTime) {
-        maxWatchedTime = currentTime;
-        lastValidTime = currentTime;
-    }
-    
-    // ★★★ 使用精确时间比例计算进度 ★★★
-    const pct = Math.min(100, Math.round((maxWatchedTime / duration) * 100));
-    const infoEl = document.getElementById('videoProgressInfo');
-    if (infoEl) {
-        infoEl.textContent = `学习进度：${pct}%`;
-    }
-    
-    // ★★★ 每3秒保存一次进度 ★★★
-    if (!saveTimer) {
-        saveTimer = setTimeout(function() {
-            const pct = Math.min(100, Math.round((maxWatchedTime / duration) * 100));
-            updateResourceProgress(resource.id, pct, maxWatchedTime);
-            saveTimer = null;
-        }, 3000);
-    }
-    
-    // ★★★ 当播放到 100%（精确到 duration）时标记完成 ★★★
-    // 由于浮点数精度问题，当 currentTime >= duration - 0.1 秒时视为完成
-    if (currentTime >= duration - 0.1 && duration > 0) {
-        isVideoEnded = true;
-        if (saveTimer) {
-            clearTimeout(saveTimer);
-            saveTimer = null;
+        if (isInitialSeek) return;
+        if (isVideoEnded) return;
+        if (savedProg && savedProg.completed) {
+            const infoEl = document.getElementById('videoProgressInfo');
+            if (infoEl) infoEl.textContent = '✅ 学习完成！';
+            return;
         }
-        // ★★★ 强制设为 100% ★★★
-        updateResourceProgress(resource.id, 100, duration);
-        markResourceCompleted(resource.id);
-        showVideoToast('✅ 视频学习完成！');
-        setTimeout(function() {
-            closeVideoFullscreen();
-        }, 1500);
+        
+        const currentTime = video.currentTime;
+        const duration = video.duration;
+        if (duration <= 0) return;
+        
+        // ★★★ 计算当前播放进度（基于 currentTime）★★★
+        const currentPct = Math.min(100, Math.round((currentTime / duration) * 100));
+        
+        // ★★★ 更新最大观看时间 ★★★
+        if (currentTime > maxWatchedTime) {
+            maxWatchedTime = currentTime;
+            lastValidTime = currentTime;
+        }
+        
+        // ★★★ 计算学习进度（基于 maxWatchedTime）★★★
+        let learnPct = Math.min(100, Math.round((maxWatchedTime / duration) * 100));
+        
+        // ★★★ 如果当前播放位置超过了学习进度，更新学习进度 ★★★
+        if (currentPct > learnPct) {
+            learnPct = currentPct;
+            maxWatchedTime = currentTime;
+        }
+        
+        // ★★★ 显示：当前播放进度 / 学习进度 ★★★
+        const infoEl = document.getElementById('videoProgressInfo');
+        if (infoEl) {
+            if (learnPct >= 100) {
+                infoEl.textContent = '✅ 学习完成！';
+            } else {
+                infoEl.textContent = `学习进度：${currentPct}% / ${learnPct}%`;
+            }
+        }
+        
+        // ★★★ 每3秒保存一次进度（保存的是学习进度）★★★
+        if (!saveTimer) {
+            saveTimer = setTimeout(function() {
+                const pct = Math.min(100, Math.round((maxWatchedTime / duration) * 100));
+                updateResourceProgress(resource.id, pct, maxWatchedTime);
+                saveTimer = null;
+            }, 3000);
+        }
+        
+        // ★★★ 当播放到 100%（精确到 duration）时标记完成 ★★★
+        if (currentTime >= duration - 0.1 && duration > 0 && !isVideoEnded) {
+            isVideoEnded = true;
+            if (saveTimer) {
+                clearTimeout(saveTimer);
+                saveTimer = null;
+            }
+            // ★★★ 强制设为 100% ★★★
+            updateResourceProgress(resource.id, 100, duration);
+            markResourceCompleted(resource.id);
+            
+            const infoEnd = document.getElementById('videoProgressInfo');
+            if (infoEnd) {
+                infoEnd.textContent = '✅ 学习完成！';
+            }
+            
+            showVideoToast('✅ 视频学习完成！');
+            setTimeout(function() {
+                closeVideoFullscreen();
+            }, 1500);
+        }
     }
-}
     
     function handleLoadedMetadata() {
         const duration = video.duration;
@@ -2519,10 +2541,18 @@ viewer.appendChild(exitBtn);
                 isInitialSeek = false;
             }, 500);
         }
-        const pct = Math.round((maxWatchedTime / duration) * 100);
+        
+        // ★★★ 加载完成后更新显示 ★★★
+        const currentTime = video.currentTime;
+        const currentPct = Math.min(100, Math.round((currentTime / duration) * 100));
+        const learnPct = Math.min(100, Math.round((maxWatchedTime / duration) * 100));
         const infoEl = document.getElementById('videoProgressInfo');
         if (infoEl) {
-            infoEl.textContent = `学习进度：${Math.min(100, pct)}%`;
+            if (learnPct >= 100 || (savedProg && savedProg.completed)) {
+                infoEl.textContent = '✅ 学习完成！';
+            } else {
+                infoEl.textContent = `学习进度：${currentPct}% / ${learnPct}%`;
+            }
         }
         timeDisplay.textContent = '0:00 / ' + formatTime(duration);
     }
@@ -2531,7 +2561,7 @@ viewer.appendChild(exitBtn);
         if (savedProg && savedProg.completed) {
             const infoEl = document.getElementById('videoProgressInfo');
             if (infoEl) {
-                infoEl.textContent = '✅ 已完成';
+                infoEl.textContent = '✅ 学习完成！';
             }
             return true;
         }
@@ -2592,32 +2622,37 @@ viewer.appendChild(exitBtn);
         }
     });
     
+    // ★★★ ended 事件 - 强制 100% ★★★
     video.addEventListener('ended', function() {
-    if (savedProg && savedProg.completed) return;
-    isVideoEnded = true;
-    if (saveTimer) {
-        clearTimeout(saveTimer);
-        saveTimer = null;
-    }
-    
-    // ★★★ 视频播放结束，强制设为 100% ★★★
-    const duration = this.duration;
-    if (duration > 0) {
-        // 更新进度为 100%
-        progressMap[resource.id] = { 
-            progress: 100, 
-            completed: true, 
-            last_position: duration 
-        };
-        updateResourceProgress(resource.id, 100, duration);
-    }
-    
-    markResourceCompleted(resource.id);
-    showVideoToast('✅ 视频学习完成！');
-    setTimeout(function() {
-        closeVideoFullscreen();
-    }, 1500);
-});
+        if (savedProg && savedProg.completed) return;
+        isVideoEnded = true;
+        if (saveTimer) {
+            clearTimeout(saveTimer);
+            saveTimer = null;
+        }
+        
+        const duration = this.duration;
+        if (duration > 0) {
+            progressMap[resource.id] = { 
+                progress: 100, 
+                completed: true, 
+                last_position: duration 
+            };
+            updateResourceProgress(resource.id, 100, duration);
+        }
+        
+        // ★★★ 强制显示 100% ★★★
+        const infoEl = document.getElementById('videoProgressInfo');
+        if (infoEl) {
+            infoEl.textContent = '✅ 学习完成！';
+        }
+        
+        markResourceCompleted(resource.id);
+        showVideoToast('✅ 视频学习完成！');
+        setTimeout(function() {
+            closeVideoFullscreen();
+        }, 1500);
+    });
     
     var isCompleted = checkIfCompleted();
     if (!isCompleted) {
