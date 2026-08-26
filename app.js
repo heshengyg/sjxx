@@ -2282,7 +2282,7 @@ function openVideoFullscreen(resource) {
     }
     viewer.appendChild(progressInfo);
     
-    // ===== 退出按钮（优化版 - 收缩后仍显示"退出"） =====
+    // ===== 退出按钮（优化版 - 点击切换展开/收缩，点击"退出"才退出） =====
 const exitBtn = document.createElement('button');
 exitBtn.id = 'videoExitBtn';
 exitBtn.textContent = '退出';
@@ -2313,18 +2313,32 @@ exitBtn.style.cssText = `
     justify-content: center;
 `;
 exitBtn.addEventListener('mouseenter', function() {
-    this.style.background = 'rgba(0, 0, 0, 0.85)';
-    this.style.borderColor = '#ffffff';
-    this.style.boxShadow = '0 4px 24px rgba(0, 0, 0, 0.7)';
+    if (isButtonExpanded) {
+        this.style.background = 'rgba(0, 0, 0, 0.85)';
+        this.style.borderColor = '#ffffff';
+        this.style.boxShadow = '0 4px 24px rgba(0, 0, 0, 0.7)';
+    }
 });
 exitBtn.addEventListener('mouseleave', function() {
-    this.style.background = 'rgba(0, 0, 0, 0.7)';
-    this.style.borderColor = 'rgba(255, 255, 255, 0.8)';
-    this.style.boxShadow = '0 2px 16px rgba(0, 0, 0, 0.5)';
+    this.style.background = isButtonExpanded ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)';
+    this.style.borderColor = isButtonExpanded ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.4)';
+    this.style.boxShadow = isButtonExpanded ? '0 2px 16px rgba(0, 0, 0, 0.5)' : '0 2px 12px rgba(0, 0, 0, 0.3)';
 });
+// ★★★ 点击按钮：切换展开/收缩状态 ★★★
 exitBtn.addEventListener('click', function(e) {
     e.stopPropagation();
-    closeVideoFullscreen();
+    if (isButtonExpanded) {
+        // ★★★ 展开状态点击 → 执行退出 ★★★
+        closeVideoFullscreen();
+    } else {
+        // ★★★ 收缩状态点击 → 展开按钮 ★★★
+        expandButton();
+        // 展开后重置自动隐藏计时器
+        if (!isVideoPaused) {
+            clearHideTimer();
+            startHideTimer();
+        }
+    }
 });
 viewer.appendChild(exitBtn);
 
@@ -2338,10 +2352,12 @@ function collapseButton() {
     if (isVideoPaused) return;
     isButtonExpanded = false;
     exitBtn.style.transform = 'translateX(calc(100% - 20px))';
-    exitBtn.style.opacity = '0.7';
-    exitBtn.style.padding = '4px 10px';
-    exitBtn.textContent = '退出';
-    exitBtn.style.fontSize = '13px';
+    exitBtn.style.opacity = '0.8';
+    exitBtn.style.padding = '4px 8px';
+    // ★★★ 收缩时显示 "<<" ★★★
+    exitBtn.textContent = '<<';
+    exitBtn.style.fontSize = '14px';
+    exitBtn.style.fontWeight = '700';
     exitBtn.style.borderRadius = '30px';
     exitBtn.style.background = 'rgba(0, 0, 0, 0.5)';
     exitBtn.style.border = '1.5px solid rgba(255, 255, 255, 0.4)';
@@ -2349,8 +2365,9 @@ function collapseButton() {
     exitBtn.style.color = '#ffffff';
     exitBtn.style.textShadow = '0 1px 4px rgba(0, 0, 0, 0.8)';
     exitBtn.style.width = 'auto';
-    exitBtn.style.minWidth = '40px';
+    exitBtn.style.minWidth = '32px';
     exitBtn.style.justifyContent = 'center';
+    exitBtn.style.letterSpacing = '0';
 }
 
 function expandButton() {
@@ -2359,8 +2376,10 @@ function expandButton() {
     exitBtn.style.transform = 'translateX(0)';
     exitBtn.style.opacity = '1';
     exitBtn.style.padding = '10px 20px';
+    // ★★★ 展开时显示 "退出" ★★★
     exitBtn.textContent = '退出';
     exitBtn.style.fontSize = '16px';
+    exitBtn.style.fontWeight = '500';
     exitBtn.style.borderRadius = '30px';
     exitBtn.style.background = 'rgba(0, 0, 0, 0.7)';
     exitBtn.style.border = '2px solid rgba(255, 255, 255, 0.8)';
@@ -2370,6 +2389,7 @@ function expandButton() {
     exitBtn.style.width = 'auto';
     exitBtn.style.minWidth = '60px';
     exitBtn.style.justifyContent = 'center';
+    exitBtn.style.letterSpacing = '0.5px';
 }
 
 function clearHideTimer() {
@@ -2402,6 +2422,33 @@ video.addEventListener('pause', function() {
     clearHideTimer();
     expandButton();
 });
+
+video.addEventListener('play', function() {
+    isVideoPaused = false;
+    expandButton();
+    startHideTimer();
+});
+
+// 点击视频区域展开按钮
+viewer.addEventListener('click', function(e) {
+    if (e.target === exitBtn) return;
+    if (e.target.closest('#customVideoControls')) return;
+    expandButton();
+    if (!isVideoPaused) {
+        clearHideTimer();
+        startHideTimer();
+    }
+});
+
+viewer.addEventListener('touchstart', function(e) {
+    if (e.target === exitBtn) return;
+    if (e.target.closest('#customVideoControls')) return;
+    expandButton();
+    if (!isVideoPaused) {
+        clearHideTimer();
+        startHideTimer();
+    }
+}, { passive: true });
 
 video.addEventListener('play', function() {
     isVideoPaused = false;
