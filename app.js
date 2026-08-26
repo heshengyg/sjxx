@@ -2947,7 +2947,7 @@ function completeArticle() {
 }
 
     // ★★★ 核心更新函数（不强制拉回，只控制进度） ★★★
-    function updateArticleProgress() {
+    async function updateArticleProgress() {
         if (isCompleted || hasMarkedComplete) return;
 
         totalHeight = contentWrapper.scrollHeight - contentWrapper.clientHeight;
