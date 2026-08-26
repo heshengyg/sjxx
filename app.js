@@ -404,10 +404,14 @@ async function updateResourceProgress(resourceId, progress, position = 0) {
     if (intPos > progressMap[resourceId].last_position) {
         progressMap[resourceId].last_position = intPos;
     }
-    if (progressMap[resourceId].progress >= 100) {
+    
+    // ★★★ 只要 progress >= 100 就标记完成 ★★★
+    const isCompleted = progressMap[resourceId].progress >= 100;
+    if (isCompleted) {
         progressMap[resourceId].completed = true;
         progressMap[resourceId].progress = 100;
     }
+    
     try {
         await supabaseClient
             .from('user_learning_progress')
@@ -415,7 +419,7 @@ async function updateResourceProgress(resourceId, progress, position = 0) {
                 user_id: currentUser.id,
                 resource_id: resourceId,
                 progress_percent: progressMap[resourceId].progress,
-                completed: progressMap[resourceId].completed,
+                completed: isCompleted || progressMap[resourceId].completed,
                 last_position: progressMap[resourceId].last_position,
                 last_updated: new Date().toISOString()
             }, { onConflict: 'user_id, resource_id' });
@@ -423,7 +427,6 @@ async function updateResourceProgress(resourceId, progress, position = 0) {
     renderCurrentStageResources();
     updateDetailProgress(resourceId);
 }
-
 // ========== markResourceCompleted ==========
 async function markResourceCompleted(resourceId) {
     if (!currentUser) {
@@ -450,21 +453,27 @@ async function markResourceCompleted(resourceId) {
     console.log(`✅ 标记资源 ${resourceId} 为已完成`);
     
     try {
-        await supabaseClient
+        // ★★★ 强制指定 progress_percent = 100 ★★★
+        const { error } = await supabaseClient
             .from('user_learning_progress')
             .upsert({
                 user_id: currentUser.id,
                 resource_id: resourceId,
-                progress_percent: 100,
+                progress_percent: 100,  // ★★★ 强制 100 ★★★
                 completed: true,
                 last_position: curLastPos,
                 last_updated: new Date().toISOString()
             }, { onConflict: 'user_id, resource_id' });
-        console.log(`✅ 资源 ${resourceId} 已保存到 Supabase`);
+        
+        if (error) {
+            console.error('❌ upsert 失败:', error);
+        } else {
+            console.log(`✅ 资源 ${resourceId} 已保存到 Supabase (100%)`);
+        }
     } catch (e) {
         console.warn('标记资源完成失败:', e);
     }
-    
+   
     const data = stageData[currentViewStage];
     if (data && data.resources) {
         const allCompleted = data.resources.every(r => progressMap[r.id] && progressMap[r.id].completed);
@@ -2993,7 +3002,7 @@ async function completeArticle() {
                     clearInterval(lockTimer);
                     lockTimer = null;
                     isLocked = false;
-
+                    hideLockToast();
                     // ★★★ 解锁：进度增加到目标位置 ★★★
                     const newProgress = Math.min(100, targetScrollPct);
 if (newProgress > learnProgress) {
