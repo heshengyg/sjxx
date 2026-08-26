@@ -2883,38 +2883,42 @@ function updateLearnDisplay() {
     }
 }
 
-    // ★★★ 保存进度到数据库 ★★★
-    async function saveLearnProgress() {
-        if (!currentUser) return;
+    // ★★★ 保存进度到数据库（强制保存最新进度） ★★★
+async function saveLearnProgress() {
+    if (!currentUser) return;
 
-        if (!progressMap[resource.id]) {
-            progressMap[resource.id] = { progress: 0, completed: false, last_position: 0 };
-        }
-
-        const currentSaved = progressMap[resource.id].progress || 0;
-        if (learnProgress > currentSaved) {
-            progressMap[resource.id].progress = Math.min(100, learnProgress);
-            progressMap[resource.id].last_position = Math.min(100, learnProgress);
-
-            try {
-                await supabaseClient
-                    .from('user_learning_progress')
-                    .upsert({
-                        user_id: currentUser.id,
-                        resource_id: resource.id,
-                        progress_percent: Math.min(100, learnProgress),
-                        last_position: Math.min(100, learnProgress),
-                        completed: progressMap[resource.id].completed,
-                        last_updated: new Date().toISOString()
-                    }, { onConflict: 'user_id, resource_id' });
-            } catch (e) {
-                console.warn('保存文章进度失败:', e);
-            }
-
-            renderCurrentStageResources();
-            updateDetailProgress(resource.id);
-        }
+    if (!progressMap[resource.id]) {
+        progressMap[resource.id] = { progress: 0, completed: false, last_position: 0 };
     }
+
+    const newProgress = Math.min(100, learnProgress);
+    const newCompleted = (newProgress >= 100);
+
+    // 更新内存
+    progressMap[resource.id].progress = newProgress;
+    progressMap[resource.id].last_position = newProgress;
+    progressMap[resource.id].completed = newCompleted;
+
+    try {
+        await supabaseClient
+            .from('user_learning_progress')
+            .upsert({
+                user_id: currentUser.id,
+                resource_id: resource.id,
+                progress_percent: newProgress,
+                last_position: newProgress,
+                completed: newCompleted,
+                last_updated: new Date().toISOString()
+            }, { onConflict: 'user_id, resource_id' });
+        console.log(`✅ 文章进度已保存: ${newProgress}%`);
+    } catch (e) {
+        console.warn('保存文章进度失败:', e);
+    }
+
+    // 刷新界面
+    renderCurrentStageResources();
+    updateDetailProgress(resource.id);
+}
 
    // ★★★ 完成文章 ★★★
 function completeArticle() {
@@ -2992,21 +2996,16 @@ function completeArticle() {
 
                     // ★★★ 解锁：进度增加到目标位置 ★★★
                     const newProgress = Math.min(100, targetScrollPct);
-                    if (newProgress > learnProgress) {
-                        learnProgress = newProgress;
-                        unlockedScrollPct = newProgress;
-                        updateLearnDisplay();
-                        saveLearnProgress();
-                    }
-
-                    // 显示解锁成功提示
-                    showSuccessToast('✅ 已解锁，可以继续阅读！');
-                    setTimeout(hideLockToast, 1500);
-
-                    // 检查是否完成
-                    if (learnProgress >= 100) {
-                        completeArticle();
-                    }
+if (newProgress > learnProgress) {
+    learnProgress = newProgress;
+    unlockedScrollPct = newProgress;
+    updateLearnDisplay();
+    await saveLearnProgress();   // 直接保存
+}
+// 检查是否完成
+if (learnProgress >= 100) {
+    await completeArticle();
+}
                 }
             }, 1000);
             return;
@@ -3017,14 +3016,14 @@ function completeArticle() {
 
         // ★★★ 在已解锁区域内滚动 → 如果滚动超过当前进度，则更新进度 ★★★
         if (currentScrollPct > learnProgress) {
-            learnProgress = Math.min(100, currentScrollPct);
-            unlockedScrollPct = learnProgress;
-            updateLearnDisplay();
-            saveLearnProgress();
-            if (learnProgress >= 100) {
-                completeArticle();
-            }
-        }
+    learnProgress = Math.min(100, currentScrollPct);
+    unlockedScrollPct = learnProgress;
+    updateLearnDisplay();
+    await saveLearnProgress();   // 直接保存
+    if (learnProgress >= 100) {
+        await completeArticle();
+    }
+}
     }
 
     // ===== 恢复进度 =====
