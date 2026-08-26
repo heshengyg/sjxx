@@ -2669,7 +2669,7 @@ function closeVideoFullscreen() {
     videoViewerActive = false;
 }
 // ============================================================
-// 文章全屏阅读器（优化版 - 不强制拉回，倒计时解锁）
+// 文章全屏阅读器（修复版 - 进度可保存到 Supabase）
 // ============================================================
 let articleViewerActive = false;
 
@@ -2681,7 +2681,7 @@ function openArticleFullscreen(resource) {
     const plainText = contentText.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ');
     const totalChars = plainText.replace(/\s/g, '').length;
     const totalWords = Math.ceil(totalChars / 2);
-    const WORDS_PER_SECOND = 5; // 300字/分钟
+    const WORDS_PER_SECOND = 5;
     const totalReadTime = Math.ceil(totalWords / WORDS_PER_SECOND);
 
     console.log(`📊 文章统计：总字数 ${totalWords}，总阅读时间 ${totalReadTime}秒`);
@@ -2730,7 +2730,7 @@ function openArticleFullscreen(resource) {
     `;
     toolbar.appendChild(titleEl);
 
-    // ===== 进度显示（只显示学习进度） =====
+    // ===== 进度显示 =====
     const progressContainer = document.createElement('div');
     progressContainer.style.cssText = `
         display: flex;
@@ -2753,7 +2753,6 @@ function openArticleFullscreen(resource) {
     `;
     progressContainer.appendChild(learnProgressSpan);
 
-    // 字号控制
     const fontSizeControls = document.createElement('div');
     fontSizeControls.style.cssText = `
         display: flex;
@@ -2783,7 +2782,6 @@ function openArticleFullscreen(resource) {
     });
     fontSizeControls.appendChild(fontSizeBtn);
     progressContainer.appendChild(fontSizeControls);
-
     toolbar.appendChild(progressContainer);
     viewer.appendChild(toolbar);
 
@@ -2810,7 +2808,7 @@ function openArticleFullscreen(resource) {
     contentWrapper.appendChild(contentEl);
     viewer.appendChild(contentWrapper);
 
-    // ===== 锁定提示（倒计时） =====
+    // ===== 锁定提示 =====
     const lockToast = document.createElement('div');
     lockToast.id = 'articleLockToast';
     lockToast.style.cssText = `
@@ -2866,34 +2864,27 @@ function openArticleFullscreen(resource) {
     exitBtn.addEventListener('mouseleave', function() {
         this.style.background = 'rgba(0, 0, 0, 0.15)';
     });
-    exitBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        closeArticleFullscreen();
-    });
     viewer.appendChild(exitBtn);
 
     document.body.appendChild(viewer);
     document.body.style.overflow = 'hidden';
     articleViewerActive = true;
 
-    // ===== 核心状态 =====
+    // ===== ★★★ 核心状态（从 Supabase 恢复）★★★ =====
     const savedProg = progressMap[resource.id] || { progress: 0, last_position: 0 };
 
-    // ★★★ 学习进度（即已解锁的滚动百分比，只增不减） ★★★
     let learnProgress = savedProg.progress || 0;
-    // ★★★ 已解锁的滚动位置 ★★★
     let unlockedScrollPct = learnProgress;
-    // ★★★ 锁定状态 ★★★
     let isLocked = false;
     let lockCountdown = 0;
     let lockTimer = null;
-    // ★★★ 记录本次试图到达的目标位置 ★★★
     let targetScrollPct = 0;
     let isCompleted = savedProg.completed || false;
     let hasMarkedComplete = false;
     let updateTimer = null;
     let isRestoring = false;
     let totalHeight = 0;
+    let autoSaveTimer = null;
 
     // ★★★ 显示/隐藏锁定提示 ★★★
     function showLockToast(message) {
@@ -2912,96 +2903,106 @@ function openArticleFullscreen(resource) {
         lockToast.style.display = 'none';
     }
 
-    // ★★★ 计算需要阅读的时间（基于滚动距离和总字数）★★★
     function calculateTimeNeeded(scrollDiff) {
         const secondsPerPercent = totalReadTime / 100;
         const needed = Math.ceil(scrollDiff * secondsPerPercent * 0.4);
-        // 限制范围：5-12秒，确保倒计时不会太快结束
         return Math.max(5, Math.min(12, needed));
     }
 
-    // ★★★ 更新学习进度显示 ★★★
-function updateLearnDisplay() {
-    const display = document.getElementById('learnProgressDisplay');
-    if (display) {
-        if (learnProgress >= 100) {
-            display.textContent = '✅ 已完成';
-        } else {
-            const val = Math.round(learnProgress);
-            display.textContent = `🎯 学习进度：${val}%`;
+    function updateLearnDisplay() {
+        const display = document.getElementById('learnProgressDisplay');
+        if (display) {
+            if (learnProgress >= 100) {
+                display.textContent = '✅ 已完成';
+            } else {
+                const val = Math.round(learnProgress);
+                display.textContent = `🎯 学习进度：${val}%`;
+            }
         }
     }
-}
 
-    // ★★★ 保存进度到数据库（强制保存最新进度） ★★★
-async function saveLearnProgress() {
-    if (!currentUser) return;
-
-    if (!progressMap[resource.id]) {
-        progressMap[resource.id] = { progress: 0, completed: false, last_position: 0 };
-    }
-
-    const newProgress = Math.min(100, learnProgress);
-    const newCompleted = (newProgress >= 100);
-
-    // 更新内存
-    progressMap[resource.id].progress = newProgress;
-    progressMap[resource.id].last_position = newProgress;
-    progressMap[resource.id].completed = newCompleted;
-
-    try {
-        // ★★★ 修复：确保 onConflict 格式正确 ★★★
-        const { error } = await supabaseClient
-            .from('user_learning_progress')
-            .upsert({
-                user_id: currentUser.id,
-                resource_id: resource.id,
-                progress_percent: newProgress,
-                last_position: newProgress,
-                completed: newCompleted,
-                last_updated: new Date().toISOString()
-            }, { onConflict: 'user_id, resource_id' });  // ← 注意逗号后的空格
-
-        if (error) {
-            console.error('❌ 文章进度保存失败:', error);
-        } else {
-            console.log(`✅ 文章进度已保存: ${newProgress}%`);
+    // ★★★ 核心修复：保存进度到 Supabase（直接调用 updateResourceProgress）★★★
+    async function saveLearnProgress() {
+        if (!currentUser) {
+            console.warn('❌ saveLearnProgress: currentUser 为空');
+            return;
         }
-    } catch (e) {
-        console.warn('保存文章进度失败:', e);
+        if (hasMarkedComplete || isCompleted) {
+            console.log('⏭️ 文章已完成，跳过保存');
+            return;
+        }
+
+        const newProgress = Math.min(100, Math.round(learnProgress));
+        if (newProgress <= 0) return;
+
+        console.log(`📝 保存文章进度: ${newProgress}% (资源: ${resource.id})`);
+        
+        // ★★★ 直接调用 updateResourceProgress，与视频/图片保持一致 ★★★
+        await updateResourceProgress(resource.id, newProgress, newProgress);
     }
 
-    // 刷新界面
-    renderCurrentStageResources();
-    updateDetailProgress(resource.id);
-}
-   // ★★★ 完成文章 ★★★
-async function completeArticle() {
-    hasMarkedComplete = true;
-    isCompleted = true;
-    learnProgress = 100;
-    unlockedScrollPct = 100;
-
-    if (lockTimer) {
-        clearInterval(lockTimer);
-        lockTimer = null;
+    // ★★★ 启动自动保存（每5秒保存一次）★★★
+    function startAutoSave() {
+        if (autoSaveTimer) clearInterval(autoSaveTimer);
+        autoSaveTimer = setInterval(function() {
+            if (!hasMarkedComplete && !isCompleted && learnProgress > 0) {
+                saveLearnProgress();
+            }
+        }, 5000);
+        console.log('⏱️ 文章自动保存已启动（每5秒）');
     }
-    isLocked = false;
-    hideLockToast();
 
-    updateLearnDisplay();
+    function stopAutoSave() {
+        if (autoSaveTimer) {
+            clearInterval(autoSaveTimer);
+            autoSaveTimer = null;
+            console.log('⏱️ 文章自动保存已停止');
+        }
+    }
 
-    // 直接调用 markResourceCompleted，它会负责更新 progressMap 和数据库
-    markResourceCompleted(resource.id);
-    renderCurrentStageResources();
-
-    showSuccessToast('✅ 文章学习完成！');
-    setTimeout(() => {
+    // ★★★ 退出处理（保存最新进度）★★★
+    function handleExit() {
+        if (!hasMarkedComplete && !isCompleted && learnProgress > 0) {
+            console.log(`📝 退出前保存最终进度: ${learnProgress}%`);
+            saveLearnProgress();
+        }
+        stopAutoSave();
         closeArticleFullscreen();
-    }, 1500);
-}
+    }
 
-    // ★★★ 核心更新函数（不强制拉回，只控制进度） ★★★
+    // ★★★ 完成文章 ★★★
+    async function completeArticle() {
+        if (hasMarkedComplete || isCompleted) return;
+        
+        console.log(`🎉 文章完成！强制保存 100%`);
+        hasMarkedComplete = true;
+        isCompleted = true;
+        learnProgress = 100;
+        unlockedScrollPct = 100;
+
+        if (lockTimer) {
+            clearInterval(lockTimer);
+            lockTimer = null;
+        }
+        isLocked = false;
+        hideLockToast();
+        stopAutoSave();
+
+        updateLearnDisplay();
+
+        // ★★★ 强制保存 100% ★★★
+        await updateResourceProgress(resource.id, 100, 100);
+        await markResourceCompleted(resource.id);
+        
+        renderCurrentStageResources();
+
+        showSuccessToast('✅ 文章学习完成！');
+        setTimeout(function() {
+            closeArticleFullscreen();
+        }, 1500);
+    }
+
+    // ★★★ 核心更新函数 ★★★
     async function updateArticleProgress() {
         if (isCompleted || hasMarkedComplete) return;
 
@@ -3010,75 +3011,63 @@ async function completeArticle() {
         const scrollPct = totalHeight > 0 ? (currentScroll / totalHeight) * 100 : 0;
         const currentScrollPct = Math.min(100, scrollPct);
 
-        // ★★★ 如果当前滚动位置 > 已解锁位置 + 0.5% → 触发锁定（但允许滚动，不强制拉回） ★★★
         if (currentScrollPct > unlockedScrollPct + 0.5 && !isLocked) {
-            // 记录目标位置
             targetScrollPct = Math.min(100, currentScrollPct);
             const scrollDiff = targetScrollPct - unlockedScrollPct;
             lockCountdown = calculateTimeNeeded(scrollDiff);
 
-            // 进入锁定状态
             isLocked = true;
             showLockToast(`📖 还需阅读 ${lockCountdown} 秒才能继续向下滚动`);
 
-            // 开始倒计时
             if (lockTimer) clearInterval(lockTimer);
             lockTimer = setInterval(async function() {
                 lockCountdown -= 1;
 
-                // ★★★ 倒计时期间检查用户是否回滚到解锁区域内 ★★★
                 const currentScrollNow = contentWrapper.scrollTop;
                 const currentPctNow = totalHeight > 0 ? (currentScrollNow / totalHeight) * 100 : 0;
                 if (currentPctNow <= unlockedScrollPct + 0.5) {
-                    // 回滚，取消倒计时
                     clearInterval(lockTimer);
                     lockTimer = null;
                     isLocked = false;
                     hideLockToast();
-                    // 重新检查（可能会重新触发锁定）
                     updateArticleProgress();
                     return;
                 }
 
-                // 更新倒计时显示
                 if (lockCountdown > 0) {
                     showLockToast(`📖 还需阅读 ${lockCountdown} 秒才能继续向下滚动`);
                 } else {
-                    // 倒计时结束
                     clearInterval(lockTimer);
                     lockTimer = null;
                     isLocked = false;
                     hideLockToast();
-                    // ★★★ 解锁：进度增加到目标位置 ★★★
+                    
                     const newProgress = Math.min(100, targetScrollPct);
-if (newProgress > learnProgress) {
-    learnProgress = newProgress;
-    unlockedScrollPct = newProgress;
-    updateLearnDisplay();
-    await saveLearnProgress();   // 直接保存
-}
-// 检查是否完成
-if (learnProgress >= 100) {
-    await completeArticle();
-}
+                    if (newProgress > learnProgress) {
+                        learnProgress = newProgress;
+                        unlockedScrollPct = newProgress;
+                        updateLearnDisplay();
+                        await saveLearnProgress();
+                    }
+                    if (learnProgress >= 100) {
+                        await completeArticle();
+                    }
                 }
             }, 1000);
             return;
         }
 
-        // ★★★ 如果已经在锁定状态，不做任何事（倒计时由定时器处理） ★★★
         if (isLocked) return;
 
-        // ★★★ 在已解锁区域内滚动 → 如果滚动超过当前进度，则更新进度 ★★★
         if (currentScrollPct > learnProgress) {
-    learnProgress = Math.min(100, currentScrollPct);
-    unlockedScrollPct = learnProgress;
-    updateLearnDisplay();
-    await saveLearnProgress();   // 直接保存
-    if (learnProgress >= 100) {
-        await completeArticle();
-    }
-}
+            learnProgress = Math.min(100, currentScrollPct);
+            unlockedScrollPct = learnProgress;
+            updateLearnDisplay();
+            await saveLearnProgress();
+            if (learnProgress >= 100) {
+                await completeArticle();
+            }
+        }
     }
 
     // ===== 恢复进度 =====
@@ -3088,7 +3077,6 @@ if (learnProgress >= 100) {
         learnProgress = saved;
         unlockedScrollPct = saved;
 
-        // 恢复滚动位置
         if (saved > 0) {
             totalHeight = contentWrapper.scrollHeight - contentWrapper.clientHeight;
             contentWrapper.scrollTop = (saved / 100) * totalHeight;
@@ -3110,14 +3098,7 @@ if (learnProgress >= 100) {
     contentWrapper.addEventListener('scroll', function() {
         if (isCompleted || hasMarkedComplete) return;
         if (isRestoring) return;
-
-        // ★★★ 如果正在锁定中，不处理滚动（但滚动位置由用户控制） ★★★
-        // 但是我们仍然需要更新提示，如果用户回滚则取消倒计时，但由定时器处理
-        // 这里只需要触发更新逻辑（但锁定状态下不更新进度）
-        if (isLocked) {
-            // 不处理，由定时器检测回滚
-            return;
-        }
+        if (isLocked) return;
 
         if (updateTimer) {
             clearTimeout(updateTimer);
@@ -3128,25 +3109,49 @@ if (learnProgress >= 100) {
         }, 80);
     });
 
+    // ★★★ 退出按钮 ★★★
+    exitBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        handleExit();
+    });
+
     // 窗口调整
     window.addEventListener('resize', function() {
         if (isCompleted || hasMarkedComplete) return;
         totalHeight = contentWrapper.scrollHeight - contentWrapper.clientHeight;
     });
 
+    // ★★★ 页面关闭前保存 ★★★
+    window.addEventListener('beforeunload', function() {
+        if (!hasMarkedComplete && !isCompleted && learnProgress > 0) {
+            saveLearnProgress();
+        }
+        stopAutoSave();
+    });
+
     // 键盘退出
     document.addEventListener('keydown', function keyHandler(e) {
         if (e.key === 'Escape') {
-            closeArticleFullscreen();
+            handleExit();
             document.removeEventListener('keydown', keyHandler);
         }
     });
 
-    // 初始化
+    // ===== 初始化 =====
     restoreProgress();
+    startAutoSave();
+
     setTimeout(function() {
         updateArticleProgress();
     }, 300);
+
+    // ★★★ 额外兜底：如果 10 秒后还没保存成功，强制保存一次 ★★★
+    setTimeout(function() {
+        if (!hasMarkedComplete && !isCompleted && learnProgress > 0) {
+            console.log('🔄 兜底保存：强制保存当前进度');
+            saveLearnProgress();
+        }
+    }, 10000);
 }
 
 function closeArticleFullscreen() {
