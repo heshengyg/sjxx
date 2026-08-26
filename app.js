@@ -2968,7 +2968,7 @@ async function completeArticle() {
 
             // 开始倒计时
             if (lockTimer) clearInterval(lockTimer);
-            lockTimer = setInterval(function() {
+            lockTimer = setInterval(async function() {
                 lockCountdown -= 1;
 
                 // ★★★ 倒计时期间检查用户是否回滚到解锁区域内 ★★★
