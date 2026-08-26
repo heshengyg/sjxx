@@ -2921,7 +2921,7 @@ async function saveLearnProgress() {
 }
 
    // ★★★ 完成文章 ★★★
-function completeArticle() {
+async function completeArticle() {
     hasMarkedComplete = true;
     isCompleted = true;
     learnProgress = 100;
