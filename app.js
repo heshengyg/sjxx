@@ -2351,23 +2351,27 @@ function collapseButton() {
     if (!videoButtonVisible) return;
     if (isVideoPaused) return;
     isButtonExpanded = false;
-    exitBtn.style.transform = 'translateX(calc(100% - 20px))';
-    exitBtn.style.opacity = '0.8';
-    exitBtn.style.padding = '4px 8px';
-    // ★★★ 收缩时显示 "<<" ★★★
+    // ★★★ 向右移动，只露出左边部分，右边完全贴合屏幕边缘 ★★★
+    exitBtn.style.transform = 'translateX(calc(100% - 28px))';
+    exitBtn.style.opacity = '1';
+    exitBtn.style.padding = '6px 8px 6px 12px';
     exitBtn.textContent = '<<';
     exitBtn.style.fontSize = '14px';
     exitBtn.style.fontWeight = '700';
-    exitBtn.style.borderRadius = '30px';
-    exitBtn.style.background = 'rgba(0, 0, 0, 0.5)';
-    exitBtn.style.border = '1.5px solid rgba(255, 255, 255, 0.4)';
-    exitBtn.style.boxShadow = '0 2px 12px rgba(0, 0, 0, 0.3)';
+    // ★★★ 只有左边圆角，右边直角 ★★★
+    exitBtn.style.borderRadius = '30px 0 0 30px';
+    exitBtn.style.background = 'rgba(0, 0, 0, 0.6)';
+    exitBtn.style.border = '1.5px solid rgba(255, 255, 255, 0.3)';
+    exitBtn.style.borderRight = 'none';
+    exitBtn.style.boxShadow = '-2px 0 12px rgba(0, 0, 0, 0.3)';
     exitBtn.style.color = '#ffffff';
     exitBtn.style.textShadow = '0 1px 4px rgba(0, 0, 0, 0.8)';
     exitBtn.style.width = 'auto';
-    exitBtn.style.minWidth = '32px';
+    exitBtn.style.minWidth = '28px';
     exitBtn.style.justifyContent = 'center';
     exitBtn.style.letterSpacing = '0';
+    // ★★★ 确保右边完全贴合 ★★★
+    exitBtn.style.right = '0';
 }
 
 function expandButton() {
@@ -2376,13 +2380,14 @@ function expandButton() {
     exitBtn.style.transform = 'translateX(0)';
     exitBtn.style.opacity = '1';
     exitBtn.style.padding = '10px 20px';
-    // ★★★ 展开时显示 "退出" ★★★
     exitBtn.textContent = '退出';
     exitBtn.style.fontSize = '16px';
     exitBtn.style.fontWeight = '500';
+    // ★★★ 展开时恢复完整圆角 ★★★
     exitBtn.style.borderRadius = '30px';
     exitBtn.style.background = 'rgba(0, 0, 0, 0.7)';
     exitBtn.style.border = '2px solid rgba(255, 255, 255, 0.8)';
+    exitBtn.style.borderRight = '2px solid rgba(255, 255, 255, 0.8)';
     exitBtn.style.color = '#ffffff';
     exitBtn.style.textShadow = '0 1px 4px rgba(0, 0, 0, 0.8)';
     exitBtn.style.boxShadow = '0 2px 16px rgba(0, 0, 0, 0.5)';
@@ -2390,6 +2395,8 @@ function expandButton() {
     exitBtn.style.minWidth = '60px';
     exitBtn.style.justifyContent = 'center';
     exitBtn.style.letterSpacing = '0.5px';
+    // ★★★ 恢复 right 位置 ★★★
+    exitBtn.style.right = '20px';
 }
 
 function clearHideTimer() {
